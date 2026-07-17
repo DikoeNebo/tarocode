@@ -1,0 +1,76 @@
+.tarot-field {
+  grid-column: 1 / -1;
+}
+
+.tarot-picker {
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border, rgba(232, 197, 122, 0.22));
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.tarot-picker-group + .tarot-picker-group {
+  margin-top: 12px;
+}
+
+.tarot-picker-group-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold, #e8c57a);
+}
+
+.tarot-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.tarot-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.tarot-picker-item:hover {
+  border-color: rgba(232, 197, 122, 0.35);
+}
+
+.tarot-picker-item.selected {
+  border-color: var(--gold, #e8c57a);
+  box-shadow: 0 0 0 1px rgba(232, 197, 122, 0.35);
+  background: rgba(232, 197, 122, 0.08);
+}
+
+.tarot-picker-item img {
+  width: 100%;
+  aspect-ratio: 58 / 100;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+
+.tarot-picker-name {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--violet, #c9a8ff);
+  text-wrap: balance;
+}
+
+.modal .tarot-picker {
+  max-height: 220px;
+}

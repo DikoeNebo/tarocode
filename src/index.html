@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: file: app:"
+    />
+    <title>Lazy Coder — Keycode</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="tarot-picker.css" />
+  </head>
+  <body class="dock-right cards-only">
+    <div id="app">
+      <div class="deck-edge">
+        <header class="titlebar" aria-label="Управление">
+          <nav class="corner-dock" id="corner-dock">
+            <button type="button" class="corner-btn" id="btn-corner-settings" title="Настройки">
+              <span aria-hidden="true">⚙</span>
+            </button>
+            <button type="button" class="corner-btn corner-btn-targets" id="btn-corner-targets" title="Куда отправлять">
+              <span aria-hidden="true">🎯</span>
+              <span class="target-badge hidden" id="target-badge"></span>
+            </button>
+            <button type="button" class="corner-btn corner-btn-danger" id="btn-corner-quit" title="Закрыть">
+              <span aria-hidden="true">✕</span>
+            </button>
+          </nav>
+        </header>
+        <section class="cards-zone">
+          <div id="cards" class="cards"></div>
+        </section>
+      </div>
+
+      <section class="chrome">
+        <div class="targets-panel">
+          <header class="toolbar">
+            <div class="toolbar-left">
+              <button type="button" class="icon-btn" id="btn-hide" title="Скрыть (F9)">👁</button>
+              <label class="field">
+                <select id="deck-select" title="Колода"></select>
+              </label>
+            </div>
+            <div class="dock-switch" title="Край экрана">
+              <button type="button" class="dock-btn" data-dock="top" title="Сверху">▲</button>
+              <button type="button" class="dock-btn" data-dock="left" title="Слева">◀</button>
+              <button type="button" class="dock-btn" data-dock="right" title="Справа">▶</button>
+              <button type="button" class="dock-btn" data-dock="bottom" title="Снизу">▼</button>
+            </div>
+            <div class="toolbar-right">
+              <button type="button" class="ghost-btn" id="btn-edit-mode" title="Правки">✎</button>
+              <button type="button" class="ghost-btn" id="btn-add-card">+ карта</button>
+            </div>
+          </header>
+          <div class="targets-bar">
+            <div class="targets-head">
+              <strong>Куда</strong>
+              <button type="button" class="link-btn" id="btn-open-targets">Открыть окно целей →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="toast" class="toast hidden"></div>
+      <div id="card-preview" class="card-preview hidden" aria-hidden="true"></div>
+    </div>
+
+    <div id="modal-card" class="modal hidden">
+      <div class="modal-card wide">
+        <h2>Карточка</h2>
+        <div class="form-grid">
+          <label class="field block">
+            <span>Заголовок</span>
+            <input type="text" id="card-title" maxlength="40" />
+          </label>
+          <label class="field block">
+            <span>Коротко на карте</span>
+            <input type="text" id="card-desc" maxlength="80" />
+          </label>
+          <label class="field block tarot-field">
+            <span>Карта таро</span>
+            <div id="card-image" class="tarot-picker" role="listbox" aria-label="Tarot card"></div>
+          </label>
+          <label class="field block">
+            <span>Клавиша</span>
+            <select id="card-hotkey">
+              <option value="">—</option>
+              <option>F1</option>
+              <option>F2</option>
+              <option>F3</option>
+              <option>F4</option>
+              <option>F5</option>
+              <option>F6</option>
+              <option>F7</option>
+              <option>F8</option>
+            </select>
+          </label>
+        </div>
+        <label class="field block">
+          <span>Текст для чата</span>
+          <textarea id="card-prompt" rows="8"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="danger-btn" id="card-delete">Удалить</button>
+          <div class="spacer"></div>
+          <button type="button" class="ghost-btn" id="card-cancel">Отмена</button>
+          <button type="button" class="primary-btn" id="card-save">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-quit" class="modal hidden">
+      <div class="modal-card quit-card">
+        <h2>Это конец?</h2>
+        <div class="quit-actions">
+          <button type="button" class="primary-btn" id="quit-return">Да, выйти из программы</button>
+          <button type="button" class="ghost-btn" id="quit-stay">Нет, свернуть в фон</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="tarot.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

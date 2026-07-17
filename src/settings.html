@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: file: app:"
+    />
+    <title>Lazy Coder — Настройки</title>
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="tarot-picker.css" />
+  </head>
+  <body>
+    <header class="win-header">
+      <div>
+        <h1>Настройки</h1>
+        <p class="subtitle">Карты сбоку обновляются сразу при движении ползунков</p>
+      </div>
+      <button type="button" class="primary-btn" id="btn-done">Готово</button>
+    </header>
+
+    <main class="settings-grid">
+      <section class="panel panel-general">
+        <h2>Общие</h2>
+
+        <div class="field block">
+          <span>Сторона экрана для карт</span>
+          <div class="dock-pad" id="dock-pad" role="group" aria-label="Край экрана">
+            <button type="button" class="dock-btn" data-dock="top" title="Сверху">▲</button>
+            <button type="button" class="dock-btn" data-dock="left" title="Слева">◀</button>
+            <span class="dock-pad-center" aria-hidden="true"></span>
+            <button type="button" class="dock-btn" data-dock="right" title="Справа">▶</button>
+            <button type="button" class="dock-btn" data-dock="bottom" title="Снизу">▼</button>
+          </div>
+        </div>
+
+        <label class="check block">
+          <input type="checkbox" id="set-edge-hover" checked />
+          <span>Всплывать у края при наведении</span>
+        </label>
+        <label class="field block">
+          <span>Зона края (px)</span>
+          <input type="number" id="set-edge-threshold" min="6" max="40" step="1" value="14" />
+        </label>
+        <label class="field block">
+          <span>Прозрачность карт (%)</span>
+          <input type="range" id="set-ui-opacity" min="30" max="100" step="5" value="80" />
+          <span class="range-val" id="set-ui-opacity-val">80%</span>
+        </label>
+        <label class="field block">
+          <span>Непрозрачность текста (%)</span>
+          <input type="range" id="set-title-opacity" min="50" max="100" step="5" value="100" />
+          <span class="range-val" id="set-title-opacity-val">100%</span>
+        </label>
+        <label class="field block">
+          <span>Шрифт названия таро (px)</span>
+          <input type="range" id="set-tarot-font" min="10" max="24" step="1" value="16" />
+          <span class="range-val" id="set-tarot-font-val">16px</span>
+        </label>
+        <label class="field block">
+          <span>Шрифт действия (px)</span>
+          <input type="range" id="set-action-font" min="8" max="18" step="1" value="13" />
+          <span class="range-val" id="set-action-font-val">13px</span>
+        </label>
+        <label class="check block">
+          <input type="checkbox" id="set-card-preview" checked />
+          <span>Описание при наведении на карту</span>
+        </label>
+        <label class="field block">
+          <span>Пауза между целями (мс)</span>
+          <input type="number" id="set-pause" min="100" max="2000" step="50" />
+        </label>
+        <label class="check block">
+          <input type="checkbox" id="set-auto-enter" />
+          <span>Enter после вставки</span>
+        </label>
+        <label class="field block">
+          <span>Клавиша закрепить / скрыть</span>
+          <select id="set-hotkey">
+            <option value="F9">F9</option>
+            <option value="F10">F10</option>
+            <option value="F12">F12</option>
+            <option value="Pause">Pause</option>
+            <option value="CommandOrControl+`">Ctrl + `</option>
+            <option value="Alt+Q">Alt + Q</option>
+            <option value="Alt+Z">Alt + Z</option>
+          </select>
+        </label>
+
+        <div class="actions-row">
+          <button type="button" class="ghost-btn" id="btn-folder">Папка данных</button>
+        </div>
+      </section>
+
+      <section class="panel panel-decks">
+        <h2>Колоды и карты</h2>
+
+        <div class="deck-toolbar">
+          <label class="field grow">
+            <span>Колода</span>
+            <select id="deck-select"></select>
+          </label>
+          <label class="field grow">
+            <span>Название</span>
+            <input type="text" id="deck-name" maxlength="60" />
+          </label>
+          <button type="button" class="ghost-btn" id="btn-save-deck-name" title="Сохранить название">
+            Сохранить
+          </button>
+        </div>
+
+        <div class="actions-row wrap">
+          <button type="button" class="ghost-btn" id="btn-new-deck">+ колода</button>
+          <button type="button" class="ghost-btn" id="btn-export">Экспорт</button>
+          <button type="button" class="ghost-btn" id="btn-import">Импорт</button>
+          <button type="button" class="danger-btn" id="btn-delete-deck">Удалить колоду</button>
+          <button type="button" class="ghost-btn" id="btn-add-card">+ карта</button>
+        </div>
+
+        <div class="deck-editor">
+          <div class="cards-list-wrap">
+            <div class="cards-list-head">Карты (до 8)</div>
+            <div id="cards-list" class="cards-list"></div>
+          </div>
+
+          <form class="card-form" id="card-form">
+            <h3 id="card-form-title">Редактирование карты</h3>
+            <p class="hint" id="card-form-hint">Выберите карту слева или добавьте новую</p>
+
+            <div class="form-grid">
+              <label class="field block">
+                <span>Название таро</span>
+                <input type="text" id="card-title" maxlength="40" />
+              </label>
+              <label class="field block">
+                <span>Коротко на карте</span>
+                <input type="text" id="card-desc" maxlength="80" />
+              </label>
+              <label class="field block tarot-field">
+                <span>Карта таро</span>
+                <div id="card-image" class="tarot-picker" role="listbox" aria-label="Tarot card"></div>
+              </label>
+              <label class="field block">
+                <span>Клавиша</span>
+                <select id="card-hotkey">
+                  <option value="">—</option>
+                  <option>F1</option>
+                  <option>F2</option>
+                  <option>F3</option>
+                  <option>F4</option>
+                  <option>F5</option>
+                  <option>F6</option>
+                  <option>F7</option>
+                  <option>F8</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field block">
+              <span>Текст для чата (полный промпт)</span>
+              <textarea id="card-prompt" rows="10"></textarea>
+            </label>
+
+            <div class="actions-row">
+              <button type="button" class="danger-btn" id="card-delete" disabled>Удалить карту</button>
+              <div class="spacer"></div>
+              <button type="button" class="primary-btn" id="card-save" disabled>Сохранить карту</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="tarot.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

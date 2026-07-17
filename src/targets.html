@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>Lazy Coder — Куда отправлять</title>
+    <link rel="stylesheet" href="targets.css" />
+  </head>
+  <body>
+    <header class="win-header">
+      <div>
+        <h1>Куда отправлять</h1>
+        <p class="subtitle">Отмеченные чаты получат текст при клике на карту</p>
+      </div>
+      <button type="button" class="primary-btn" id="btn-done">Готово</button>
+    </header>
+
+    <main class="targets-main">
+      <div class="targets-toolbar">
+        <button type="button" class="pick-btn" id="btn-pick" title="Клик по окну чата">
+          <span class="pick-icon" aria-hidden="true">⊕</span>
+          <span class="pick-label">Прицел</span>
+        </button>
+        <div class="bulk-actions">
+          <button type="button" class="link-btn" id="btn-all">Все</button>
+          <span class="sep">·</span>
+          <button type="button" class="link-btn" id="btn-none">Снять</button>
+        </div>
+      </div>
+
+      <div id="targets-list" class="targets-list"></div>
+
+      <footer class="targets-footer">
+        <label class="check">
+          <input type="checkbox" id="auto-enter" />
+          <span>Enter после вставки</span>
+        </label>
+        <span class="count" id="target-count"></span>
+      </footer>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="targets.js"></script>
+  </body>
+</html>

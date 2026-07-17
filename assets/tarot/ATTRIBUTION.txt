@@ -1,0 +1,4 @@
+Rider–Waite–Smith tarot images (public domain, 1909 artwork by Pamela Colman Smith).
+Full 78-card deck sourced from Wikimedia Commons (Rider-Waite-Smith tarot deck, TaionWC).
+Safe for commercial and personal use in the US/UK as the original deck is public domain.
+Run scripts/download-tarot.ps1 to re-fetch missing images.

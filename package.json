@@ -1,0 +1,50 @@
+{
+  "name": "keycode-lazy-coder",
+  "version": "1.0.0",
+  "description": "Lazy Coder — transparent tarot deck of AI prompt cards",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis"
+  },
+  "author": "Keycode",
+  "license": "MIT",
+  "build": {
+    "appId": "ru.keycode.lazycoder",
+    "productName": "Keycode",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "data/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Keycode-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Keycode.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "artifactName": "Keycode-Setup-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "35.0.0",
+    "electron-builder": "^25.1.8"
+  }
+}

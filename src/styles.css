@@ -1,0 +1,1327 @@
+:root {
+  --gold: #e8c57a;
+  --gold-dim: rgba(232, 197, 122, 0.4);
+  --text: #f5ead6;
+  --muted: rgba(245, 234, 214, 0.7);
+  --danger: #e87878;
+  --ok: #7dcea0;
+  --corner-btn-size: 24px;
+  --corner-gap: 2px;
+  /* 3 кнопки = ширина полосы; карты той же ширины (края вровень), пропорция таро 2:3 */
+  --deck-strip-w: calc(3 * var(--corner-btn-size) + 2 * var(--corner-gap));
+  --card-w: var(--deck-strip-w);
+  --card-h: calc(var(--card-w) * 3 / 2);
+  --card-gap: 2px;
+  --radius: 8px;
+  --radius-inner: 6px;
+  --font: "Segoe UI", "Georgia", system-ui, sans-serif;
+  --font-fantasy: Gabriola, "Palatino Linotype", Papyrus, "Book Antiqua", serif;
+  --tarot-violet: #c9a8ff;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --reveal-ms: 320ms;
+  --ui-opacity: 0.8;
+  --title-opacity: 1;
+  --card-tarot-size: 16px;
+  --card-action-size: 13px;
+  --titlebar-h: 24px;
+  --panel-bg: rgba(16, 10, 26, calc(0.55 * var(--ui-opacity) + 0.25));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* App shell: transparent, cards flush to edge */
+#app {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+}
+
+/* ——— Dock orientation: cards on the outer edge ——— */
+body.dock-right #app {
+  flex-direction: row-reverse; /* cards | chrome ← edge is right */
+}
+body.dock-left #app {
+  flex-direction: row; /* edge left → cards | chrome */
+}
+body.dock-top #app {
+  flex-direction: column; /* edge top → cards | chrome */
+}
+body.dock-bottom #app {
+  flex-direction: column-reverse; /* cards at bottom edge */
+}
+
+/* Deck strip slides from edge */
+.deck-edge {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  position: relative;
+  overflow: visible;
+  min-height: 0;
+  height: 100%;
+  transition-property: transform, opacity;
+  transition-duration: var(--reveal-ms);
+  transition-timing-function: var(--ease-out);
+}
+
+body.dock-right .deck-edge {
+  align-items: flex-end;
+  width: var(--deck-strip-w);
+}
+
+body.dock-left .deck-edge {
+  align-items: flex-start;
+  width: var(--deck-strip-w);
+}
+
+body.dock-top .deck-edge,
+body.dock-bottom .deck-edge {
+  width: 100%;
+}
+
+body.dock-right .deck-edge {
+  transform: translateX(calc(100% + 8px));
+  opacity: 0;
+}
+body.dock-left .deck-edge {
+  transform: translateX(calc(-100% - 8px));
+  opacity: 0;
+}
+body.dock-top .deck-edge {
+  transform: translateY(calc(-100% - 8px));
+  opacity: 0;
+}
+body.dock-bottom .deck-edge {
+  transform: translateY(calc(100% + 8px));
+  opacity: 0;
+}
+
+body.revealed .deck-edge {
+  transform: translate(0, 0);
+  opacity: 1;
+}
+
+body.concealing .deck-edge {
+  transition-duration: 240ms;
+}
+
+.cards-zone {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  max-width: 100%;
+  min-height: 0;
+  position: relative;
+}
+
+/* Titlebar — one row, outer corner, grows left into preview lane */
+.titlebar {
+  flex: 0 0 var(--titlebar-h);
+  height: var(--titlebar-h);
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+  pointer-events: none;
+}
+
+body.dock-right .titlebar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+body.dock-left .titlebar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+}
+
+body.dock-top .titlebar,
+body.dock-bottom .titlebar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px;
+}
+
+body:not(.revealed):not(.fullscreen-edit) .titlebar {
+  opacity: 0;
+}
+
+body.revealed .titlebar,
+body.fullscreen-edit .titlebar {
+  opacity: 1;
+  transition-property: opacity;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+}
+
+body.concealing .titlebar {
+  transition-duration: 0.16s;
+}
+
+/* Corner buttons — single row, anchored to outer edge */
+.corner-dock {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--corner-gap);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition-property: opacity, transform;
+  transition-duration: 0.22s;
+  transition-timing-function: var(--ease-out);
+}
+
+body.revealed .corner-dock,
+body.fullscreen-edit .corner-dock {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 40ms;
+}
+
+body.concealing .corner-dock {
+  transition-duration: 0.16s;
+  transition-delay: 0ms;
+  transform: translateY(-3px);
+}
+
+body.dock-right .corner-dock {
+  position: relative;
+  width: var(--deck-strip-w);
+  justify-content: flex-end;
+}
+
+body.dock-left .corner-dock {
+  position: relative;
+  width: var(--deck-strip-w);
+  justify-content: flex-start;
+}
+
+body.dock-top .corner-dock,
+body.dock-bottom .corner-dock {
+  position: relative;
+}
+
+.corner-btn {
+  position: relative;
+  width: var(--corner-btn-size);
+  height: var(--corner-btn-size);
+  border: none;
+  border-radius: 4px;
+  background: rgba(10, 6, 18, 0.92);
+  color: var(--gold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 122, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  transition-property: transform, background-color, box-shadow, opacity;
+  transition-duration: 0.15s;
+  transition-timing-function: var(--ease-out);
+}
+
+.corner-btn > span:not(.target-badge) {
+  display: block;
+  transform: translateY(-0.5px);
+}
+
+body.revealed .corner-btn {
+  opacity: 0;
+  transform: translateY(-3px);
+  transition-property: opacity, transform, background-color, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+}
+
+body.revealed .corner-btn:nth-child(1) { transition-delay: 50ms; }
+body.revealed .corner-btn:nth-child(2) { transition-delay: 90ms; }
+body.revealed .corner-btn:nth-child(3) { transition-delay: 130ms; }
+
+body.revealed .corner-btn,
+body.fullscreen-edit .corner-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.concealing .corner-btn {
+  transition-delay: 0ms !important;
+  transition-duration: 0.14s;
+  opacity: 0;
+  transform: translateY(-2px);
+}
+
+.corner-btn::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+.corner-btn:hover {
+  background: rgba(232, 197, 122, 0.16);
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 122, 0.5),
+    0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+.corner-btn:active {
+  transform: scale(0.96);
+}
+
+.corner-btn.active {
+  background: rgba(232, 197, 122, 0.24);
+  box-shadow:
+    0 0 0 1px var(--gold),
+    0 0 10px rgba(232, 197, 122, 0.25);
+}
+
+.corner-btn-danger {
+  color: #ffc9c9;
+  box-shadow:
+    0 0 0 1px rgba(232, 120, 120, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.corner-btn-targets .target-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #120a1c;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.corner-btn-targets .target-badge.warn {
+  background: #e87878;
+  color: #fff;
+}
+
+.corner-btn-targets .target-badge.hidden {
+  display: none;
+}
+
+.targets-head .link-btn {
+  border: none;
+  background: none;
+  color: var(--violet);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.targets-head .link-btn:hover {
+  color: var(--gold);
+  text-decoration: underline;
+}
+
+body.dock-top .cards-zone,
+body.dock-bottom .cards-zone {
+  flex-direction: column;
+}
+
+/* Single column/row along edge — no partial second column on sides */
+.cards {
+  display: flex;
+  gap: var(--card-gap);
+  align-content: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+/* Side docks: one column flush to screen edge, scroll if needed */
+body.dock-right .cards-zone,
+body.dock-left .cards-zone {
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: flex-start;
+  align-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-padding: 4px 0 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body.dock-right .cards-zone {
+  align-items: flex-end;
+  width: var(--deck-strip-w);
+}
+
+body.dock-left .cards-zone {
+  align-items: flex-start;
+  width: var(--deck-strip-w);
+}
+
+body.dock-right .cards,
+body.dock-left .cards {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: var(--deck-strip-w);
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  align-items: stretch;
+}
+
+/* Horizontal edge: one row of portrait cards */
+body.dock-top .cards-zone,
+body.dock-bottom .cards-zone {
+  width: 100%;
+  min-height: var(--card-h);
+}
+body.dock-top .cards,
+body.dock-bottom .cards {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+  gap: var(--card-gap);
+}
+
+body.dock-right .cards-zone::-webkit-scrollbar,
+body.dock-left .cards-zone::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+body.dock-top .cards-zone {
+  justify-content: center;
+  padding-top: 0;
+}
+
+body.dock-bottom .cards-zone {
+  justify-content: center;
+  padding-bottom: 0;
+}
+
+.chrome {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  margin: 4px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+  border: none;
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 122, calc(0.28 * var(--ui-opacity))),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 8px 24px rgba(0, 0, 0, calc(0.35 * var(--ui-opacity)));
+  overflow: auto;
+  transition-property: transform, opacity, max-width, max-height;
+  transition-duration: var(--reveal-ms);
+  transition-timing-function: var(--ease-out);
+}
+
+body.cards-only .chrome {
+  flex: 0 0 0;
+  width: 0;
+  max-width: 0;
+  max-height: 0;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-width: 0;
+  box-shadow: none;
+}
+
+body.expanded .chrome,
+body.settings-open .chrome {
+  opacity: 1;
+  pointer-events: auto;
+  max-width: none;
+  max-height: none;
+}
+
+body.settings-open .targets-panel {
+  display: none;
+}
+
+.settings-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 2px 8px;
+  user-select: text;
+}
+
+.settings-panel.hidden {
+  display: none;
+}
+
+.settings-panel h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--gold);
+  text-wrap: balance;
+}
+
+body.settings-open.cards-only .chrome {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  padding: 8px;
+  margin: 4px;
+  pointer-events: auto;
+  opacity: 1;
+  overflow: auto;
+  border-width: 1px;
+}
+
+body.dock-right.expanded .chrome {
+  transform: translateX(12px);
+  opacity: 0;
+}
+body.dock-left.expanded .chrome {
+  transform: translateX(-12px);
+  opacity: 0;
+}
+body.dock-top.expanded .chrome {
+  transform: translateY(-12px);
+  opacity: 0;
+}
+body.dock-bottom.expanded .chrome {
+  transform: translateY(12px);
+  opacity: 0;
+}
+
+body.expanded.revealed .chrome {
+  transform: translate(0, 0);
+  opacity: 1;
+  transition-delay: 60ms;
+}
+
+body.dock-top .chrome,
+body.dock-bottom .chrome {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  max-height: 120px;
+}
+
+body.dock-top .chrome .targets-bar,
+body.dock-bottom .chrome .targets-bar {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* ——— Cards (tarot 2:3) — плотная колода, тонкий зазор ——— */
+.card {
+  width: var(--card-w);
+  height: var(--card-h);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius);
+  border: none;
+  background: rgba(18, 12, 28, calc(0.88 * var(--ui-opacity)));
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 122, calc(0.42 * var(--ui-opacity))),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 3px rgba(0, 0, 0, calc(0.28 * var(--ui-opacity)));
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  flex: 0 0 auto;
+  transition-property: transform, opacity, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+  opacity: 0;
+}
+
+body.dock-right .card {
+  transform: translateX(14px) scale(0.96);
+}
+body.dock-left .card {
+  transform: translateX(-14px) scale(0.96);
+}
+body.dock-top .card {
+  transform: translateY(-10px) scale(0.96);
+}
+body.dock-bottom .card {
+  transform: translateY(10px) scale(0.96);
+}
+
+body.revealed .card {
+  transform: translate(0, 0) scale(1);
+  opacity: 1;
+}
+
+body.revealed .card:nth-child(1) { transition-delay: 30ms; }
+body.revealed .card:nth-child(2) { transition-delay: 55ms; }
+body.revealed .card:nth-child(3) { transition-delay: 80ms; }
+body.revealed .card:nth-child(4) { transition-delay: 105ms; }
+body.revealed .card:nth-child(5) { transition-delay: 130ms; }
+body.revealed .card:nth-child(6) { transition-delay: 155ms; }
+body.revealed .card:nth-child(7) { transition-delay: 180ms; }
+body.revealed .card:nth-child(8) { transition-delay: 205ms; }
+
+body.concealing .card {
+  transition-delay: 0ms !important;
+  transition-duration: 140ms;
+}
+
+/* Без сдвига/scale при hover — иначе overflow полосы обрезает карту и срывает превью */
+body.revealed .card:hover {
+  z-index: 3;
+  box-shadow:
+    0 0 0 1px var(--gold),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 0 14px rgba(232, 197, 122, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+body.revealed .card:active {
+  transform: translate(0, 0) scale(0.96);
+}
+
+.card.sending {
+  border-color: var(--ok);
+}
+
+.card-art {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #1a1228;
+  border-radius: inherit;
+  opacity: var(--ui-opacity);
+}
+
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: auto;
+}
+
+.card-overlay-top {
+  padding: 7px 5px 14px;
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 4, 18, 0.92) 0%,
+    rgba(8, 4, 18, 0.4) 72%,
+    transparent 100%
+  );
+}
+
+.card-overlay-bottom {
+  padding: 16px 5px 8px;
+  background: linear-gradient(
+    to top,
+    rgba(8, 4, 18, 0.9) 0%,
+    rgba(8, 4, 18, 0.32) 68%,
+    transparent 100%
+  );
+}
+
+.card-tarot {
+  font-family: var(--font-fantasy);
+  font-size: var(--card-tarot-size, 14px);
+  font-weight: 700;
+  line-height: 1.12;
+  color: var(--tarot-violet);
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.02em;
+  opacity: var(--title-opacity);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 2.4em;
+}
+
+.card-action {
+  font-size: var(--card-action-size, 12px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--gold);
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  opacity: var(--title-opacity);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  outline: 1px solid rgba(255, 255, 255, 0.1);
+  outline-offset: -1px;
+}
+
+.card-art .fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--gold);
+  background: linear-gradient(160deg, #3a2a55, #120c1a);
+}
+
+.card-hotkey {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 2;
+  font-size: 7px;
+  letter-spacing: 0.05em;
+  padding: 1px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.55);
+  opacity: var(--ui-opacity);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hover preview — description + prompt */
+.card-preview {
+  position: fixed;
+  z-index: 60;
+  width: min(280px, calc(100vw - 16px));
+  max-height: min(340px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgb(14, 9, 22);
+  box-shadow:
+    0 0 0 1px rgba(201, 168, 255, 0.28),
+    0 12px 32px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(8px);
+  transition-property: opacity, transform;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+  scroll-padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 197, 122, 0.35) transparent;
+  user-select: text;
+}
+
+.card-preview::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.card-preview::-webkit-scrollbar-thumb {
+  background: rgba(232, 197, 122, 0.35);
+  border-radius: 3px;
+}
+
+.card-preview::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 197, 122, 0.55);
+}
+
+body.dock-left .card-preview {
+  transform: translateX(-8px);
+}
+
+body.dock-top .card-preview {
+  transform: translateY(-6px);
+}
+
+body.dock-bottom .card-preview {
+  transform: translateY(6px);
+}
+
+.card-preview:not(.hidden) {
+  pointer-events: auto;
+}
+
+.card-preview.visible {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+.card-preview.hidden {
+  display: none;
+}
+
+body.settings-open #card-preview {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.preview-tarot {
+  font-family: var(--font-fantasy);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tarot-violet);
+  margin-bottom: 4px;
+  text-wrap: balance;
+  pointer-events: auto;
+}
+
+.preview-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 6px;
+  pointer-events: auto;
+}
+
+.preview-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-wrap: pretty;
+  pointer-events: auto;
+}
+
+.preview-prompt {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted);
+  white-space: pre-wrap;
+  text-wrap: pretty;
+  user-select: text;
+  border-top: 1px solid rgba(232, 197, 122, 0.2);
+  padding-top: 8px;
+  pointer-events: auto;
+}
+
+.card-edit-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--gold-dim);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  z-index: 2;
+  transition-property: transform, background-color;
+  transition-duration: 0.15s;
+  transition-timing-function: var(--ease-out);
+}
+
+.card-edit-btn::before {
+  content: "";
+  position: absolute;
+  inset: -11px;
+}
+
+.card-edit-btn:active {
+  transform: scale(0.96);
+}
+
+body.edit-mode .card-edit-btn {
+  display: flex;
+}
+
+/* ——— Chrome controls ——— */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  opacity: var(--ui-opacity);
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dock-switch {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--gold-dim);
+}
+
+.dock-btn {
+  position: relative;
+  width: 26px;
+  height: 24px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  transition-property: transform, color, background-color;
+  transition-duration: 0.15s;
+  transition-timing-function: var(--ease-out);
+}
+
+.dock-btn::before {
+  content: "";
+  position: absolute;
+  inset: -8px -6px;
+}
+
+.dock-btn:hover {
+  color: var(--gold);
+  background: rgba(232, 197, 122, 0.12);
+}
+
+.dock-btn.active {
+  color: #1a1220;
+  background: var(--gold);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.field.block {
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 8px;
+}
+
+.field.block span {
+  margin-bottom: 3px;
+}
+
+.range-val {
+  font-size: 11px;
+  color: var(--gold);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+select,
+input[type="text"],
+input[type="number"],
+input[type="range"],
+textarea {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--gold-dim);
+  border-radius: 7px;
+  color: var(--text);
+  padding: 4px 6px;
+  font: inherit;
+  outline: none;
+  max-width: 130px;
+}
+
+.field.block select,
+.field.block input,
+.field.block textarea {
+  max-width: none;
+  width: 100%;
+}
+
+input[type="range"] {
+  padding: 0;
+  accent-color: var(--gold);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.4;
+  user-select: text;
+}
+
+.icon-btn,
+.ghost-btn,
+.primary-btn,
+.danger-btn {
+  border-radius: 8px;
+  border: 1px solid var(--gold-dim);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 4px 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  transition-property: transform, background-color, border-color;
+  transition-duration: 0.15s;
+  transition-timing-function: var(--ease-out);
+}
+
+.icon-btn:active,
+.ghost-btn:active,
+.primary-btn:active,
+.danger-btn:active,
+.dock-btn:active {
+  transform: scale(0.96);
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.icon-btn:hover,
+.ghost-btn:hover {
+  background: rgba(232, 197, 122, 0.14);
+  border-color: var(--gold);
+}
+
+.primary-btn {
+  background: linear-gradient(180deg, #6b4a9e, #3d2a63);
+  border-color: rgba(232, 197, 122, 0.5);
+}
+
+.danger-btn,
+.icon-btn.danger {
+  border-color: rgba(232, 120, 120, 0.45);
+  color: #ffc9c9;
+}
+
+.ghost-btn.active {
+  background: rgba(232, 197, 122, 0.2);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.targets-bar {
+  flex: 1;
+  min-height: 0;
+  opacity: var(--ui-opacity);
+}
+
+.targets-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.targets-head .hint,
+.muted {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.targets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.target-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--gold-dim);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.target-chip input {
+  accent-color: var(--gold);
+}
+
+.target-chip .x {
+  opacity: 0.55;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 1px;
+}
+
+.targets-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.check.block {
+  margin: 6px 0;
+}
+
+.card-count {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.toast {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 11px;
+  border-radius: 9px;
+  background: rgba(20, 14, 30, 0.95);
+  border: 1px solid var(--gold-dim);
+  font-size: 11px;
+  z-index: 50;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast.hidden {
+  display: none;
+}
+
+.toast.error {
+  border-color: rgba(232, 120, 120, 0.55);
+}
+
+.toast.ok {
+  border-color: rgba(125, 206, 160, 0.55);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 4, 12, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 12px;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: min(400px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #2a1d3d, #15101f);
+  border: none;
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 122, 0.35),
+    0 16px 40px rgba(0, 0, 0, 0.55);
+  user-select: text;
+}
+
+body.fullscreen-edit .titlebar {
+  position: sticky;
+  top: 0;
+}
+
+.modal-card.wide {
+  width: min(480px, 100%);
+}
+
+.modal-card h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--gold);
+  text-wrap: balance;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.modal-actions.wrap {
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+}
+
+.empty-targets {
+  color: var(--muted);
+  font-size: 10px;
+  padding: 2px 0;
+}
+
+/* Full-screen deck editor */
+body.fullscreen-edit #app {
+  flex-direction: column !important;
+  height: 100%;
+}
+
+body.fullscreen-edit .cards-zone {
+  flex: 1 1 auto;
+  min-height: 0;
+  transform: none !important;
+  opacity: 1 !important;
+  overflow: auto;
+  align-items: stretch !important;
+  padding: 8px;
+}
+
+body.fullscreen-edit .corner-dock {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  align-self: flex-start;
+  background: rgba(8, 4, 14, 0.72);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+body.fullscreen-edit .cards {
+  flex: 1 1 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  padding: 12px 8px 20px;
+  overflow: visible;
+}
+
+body.fullscreen-edit .card {
+  width: var(--card-w);
+  height: var(--card-h);
+  opacity: 1 !important;
+  transform: none !important;
+  transition-delay: 0ms !important;
+}
+
+body.fullscreen-edit .card-art {
+  height: 100%;
+}
+
+body.fullscreen-edit .chrome {
+  flex: 0 0 auto;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: 200px;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  margin: 0 8px 8px;
+}
+
+.quit-card {
+  width: min(360px, 100%);
+  text-align: center;
+}
+
+.quit-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quit-actions .primary-btn,
+.quit-actions .ghost-btn {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+kbd {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--gold-dim);
+  background: rgba(0, 0, 0, 0.3);
+}
