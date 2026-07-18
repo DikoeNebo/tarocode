@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("keycode", {
   pasteCard: (cardId) => ipcRenderer.invoke("paste-card", cardId),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke("set-ignore-mouse", ignore),
   setPreviewHold: (on) => ipcRenderer.invoke("set-preview-hold", on),
+  deckUiReady: () => ipcRenderer.invoke("deck-ui-ready"),
   startTargetPick: () => ipcRenderer.invoke("start-target-pick"),
   toggleDeck: () => ipcRenderer.invoke("toggle-deck"),
   setExpanded: (expanded) => ipcRenderer.invoke("set-expanded", expanded),

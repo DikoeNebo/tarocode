@@ -52,14 +52,17 @@ function fillSettingsForm() {
   $("set-edge-hover").checked = state.settings?.edgeHover !== false;
   $("set-edge-threshold").value = String(state.settings?.edgeThreshold ?? 14);
   $("set-card-preview").checked = state.settings?.showCardPreview !== false;
+  const scalePct = Math.round((state.settings?.panelScale ?? 1) * 100);
   const uiPct = Math.round((state.settings?.uiOpacity ?? 0.8) * 100);
   const titlePct = Math.round((state.settings?.titleOpacity ?? 1) * 100);
   const tarotPx = Number(state.settings?.cardTarotFontPx) || 16;
   const actionPx = Number(state.settings?.cardActionFontPx) || 13;
+  $("set-panel-scale").value = String(scalePct);
   $("set-ui-opacity").value = String(uiPct);
   $("set-title-opacity").value = String(titlePct);
   $("set-tarot-font").value = String(tarotPx);
   $("set-action-font").value = String(actionPx);
+  $("set-panel-scale-val").textContent = `${scalePct}%`;
   $("set-ui-opacity-val").textContent = `${uiPct}%`;
   $("set-title-opacity-val").textContent = `${titlePct}%`;
   $("set-tarot-font-val").textContent = `${tarotPx}px`;
@@ -152,6 +155,7 @@ async function saveGeneralSettings() {
   const edgeHover = $("set-edge-hover").checked;
   const edgeThreshold = Number($("set-edge-threshold").value) || 14;
   const showCardPreview = $("set-card-preview").checked;
+  const panelScale = (Number($("set-panel-scale").value) || 100) / 100;
   const uiOpacity = (Number($("set-ui-opacity").value) || 80) / 100;
   const titleOpacity = (Number($("set-title-opacity").value) || 100) / 100;
   const cardTarotFontPx = Number($("set-tarot-font").value) || 16;
@@ -163,6 +167,7 @@ async function saveGeneralSettings() {
     edgeHover,
     edgeThreshold,
     showCardPreview,
+    panelScale,
     uiOpacity,
     titleOpacity,
     cardTarotFontPx,
@@ -290,6 +295,16 @@ function bindLiveGeneralSettings() {
   });
   $("set-action-font").addEventListener("change", (e) => {
     persist({ cardActionFontPx: Number(e.target.value) });
+  });
+
+  $("set-panel-scale").addEventListener("input", (e) => {
+    const pct = Number(e.target.value) || 100;
+    $("set-panel-scale-val").textContent = `${pct}%`;
+    preview({ panelScale: pct / 100 });
+  });
+  $("set-panel-scale").addEventListener("change", (e) => {
+    const pct = Number(e.target.value) || 100;
+    persist({ panelScale: pct / 100 });
   });
 
   $("set-edge-hover").addEventListener("change", (e) => {

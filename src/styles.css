@@ -18,12 +18,13 @@
   --font-fantasy: Gabriola, "Palatino Linotype", Papyrus, "Book Antiqua", serif;
   --tarot-violet: #c9a8ff;
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
-  --reveal-ms: 320ms;
+  --reveal-ms: 380ms;
   --ui-opacity: 0.8;
   --title-opacity: 1;
   --card-tarot-size: 16px;
   --card-action-size: 13px;
   --titlebar-h: 24px;
+  --corner-font-size: 14px;
   --panel-bg: rgba(16, 10, 26, calc(0.55 * var(--ui-opacity) + 0.25));
 }
 
@@ -52,6 +53,14 @@ body {
   padding: 0;
   gap: 0;
   background: transparent;
+}
+
+/* До первого reveal — ничего не мелькает */
+body.booting .deck-edge,
+body.booting .titlebar,
+body.booting .card {
+  opacity: 0 !important;
+  transition: none !important;
 }
 
 /* ——— Dock orientation: cards on the outer edge ——— */
@@ -93,9 +102,29 @@ body.dock-left .deck-edge {
   width: var(--deck-strip-w);
 }
 
-body.dock-top .deck-edge,
+/* Сверху: карты у края, кнопки под ними */
+body.dock-top .deck-edge {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+body.dock-top .cards-zone {
+  order: 1;
+}
+
+body.dock-top .titlebar {
+  order: 2;
+}
+
+/* Снизу: кнопки над картами, всё прижато к низу */
 body.dock-bottom .deck-edge {
   width: 100%;
+  height: 100%;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 body.dock-right .deck-edge {
@@ -161,8 +190,8 @@ body.dock-top .titlebar,
 body.dock-bottom .titlebar {
   width: 100%;
   display: flex;
-  justify-content: flex-end;
-  padding: 0 2px;
+  justify-content: center;
+  padding: 0;
 }
 
 body:not(.revealed):not(.fullscreen-edit) .titlebar {
@@ -214,15 +243,32 @@ body.dock-right .corner-dock {
   justify-content: flex-end;
 }
 
+/*
+ * Слева — зеркало правого края.
+ * Справа (с внешнего края): ✕ · 🎯 · ⚙
+ * Слева  (с внешнего края): ✕ · 🎯 · ⚙  → в ряду: ✕ · 🎯 · ⚙
+ */
 body.dock-left .corner-dock {
   position: relative;
   width: var(--deck-strip-w);
+  flex-direction: row;
   justify-content: flex-start;
+}
+
+body.dock-left #btn-corner-quit {
+  order: 1;
+}
+body.dock-left #btn-corner-targets {
+  order: 2;
+}
+body.dock-left #btn-corner-settings {
+  order: 3;
 }
 
 body.dock-top .corner-dock,
 body.dock-bottom .corner-dock {
   position: relative;
+  justify-content: center;
 }
 
 .corner-btn {
@@ -237,7 +283,7 @@ body.dock-bottom .corner-dock {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--corner-font-size);
   line-height: 1;
   box-shadow:
     0 0 0 1px rgba(232, 197, 122, 0.22),
@@ -427,13 +473,31 @@ body.dock-left .cards-zone::-webkit-scrollbar {
 }
 
 body.dock-top .cards-zone {
+  flex: 0 0 auto;
+  width: 100%;
   justify-content: center;
-  padding-top: 0;
+  align-items: flex-start;
+  padding: 0;
+  min-height: var(--card-h);
 }
 
 body.dock-bottom .cards-zone {
+  flex: 0 0 auto;
+  width: 100%;
   justify-content: center;
-  padding-bottom: 0;
+  align-items: flex-end;
+  padding: 0;
+  min-height: var(--card-h);
+}
+
+body.dock-top .cards {
+  justify-content: center;
+  padding: 0;
+}
+
+body.dock-bottom .cards {
+  justify-content: center;
+  padding: 0;
 }
 
 .chrome {

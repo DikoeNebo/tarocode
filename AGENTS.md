@@ -107,7 +107,7 @@ Edge hover (всплывать у края) — только в Settings, не �
 
 | Area | Controls |
 |------|----------|
-| General | Dock side (стрелки), edge hover, opacity, fonts, preview toggle, pause, Enter, hotkey, data folder |
+| General | Dock side (стрелки), edge hover, card/button size (same width), opacity, fonts, preview toggle, pause, Enter, hotkey, data folder |
 | Decks | Select/rename deck; new / export / import / delete; card list (≤8) |
 | Card editor | Title, short description, full prompt, tarot image, hotkey F1–F8; save / delete |
 
@@ -157,7 +157,7 @@ New / rename / delete deck; export / import JSON — same as before, now inside 
 | Deck | id, name, cards[] |
 | Card | id, title, description, prompt, image (preset id or path), hotkey |
 | Target | id, name, match (window title substring), enabled |
-| Settings | autoEnter, pauseMs, showHotkey |
+| Settings | autoEnter, pauseMs, showHotkey, panelScale, edgeHover, uiOpacity, … |
 
 **Storage:** `%APPDATA%/keycode/` (settings.json, decks/*.json)
 

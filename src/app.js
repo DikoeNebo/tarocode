@@ -99,6 +99,50 @@ function applyCardFonts(settings) {
   document.documentElement.style.setProperty("--card-action-size", `${action}px`);
 }
 
+/** Карты и кнопки одной ширины: масштаб задаёт размер кнопки → ширина полосы = ширина карты */
+function applyPanelScale(settings) {
+  const s = Math.min(1.5, Math.max(0.75, Number(settings?.panelScale) || 1));
+  const btn = Math.round(24 * s);
+  const gap = Math.max(1, Math.round(2 * s));
+  const cardGap = Math.max(1, Math.round(2 * s));
+  const root = document.documentElement;
+  root.style.setProperty("--corner-btn-size", `${btn}px`);
+  root.style.setProperty("--corner-gap", `${gap}px`);
+  root.style.setProperty("--titlebar-h", `${btn}px`);
+  root.style.setProperty("--card-gap", `${cardGap}px`);
+  root.style.setProperty("--radius", `${Math.round(8 * s)}px`);
+  root.style.setProperty("--corner-font-size", `${Math.max(11, Math.round(14 * s))}px`);
+}
+
+function waitForCardImages(timeoutMs = 1200) {
+  const imgs = [...document.querySelectorAll("#cards img")];
+  if (!imgs.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    let left = imgs.length;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    const one = () => {
+      left -= 1;
+      if (left <= 0) {
+        clearTimeout(timer);
+        finish();
+      }
+    };
+    for (const img of imgs) {
+      if (img.complete) one();
+      else {
+        img.addEventListener("load", one, { once: true });
+        img.addEventListener("error", one, { once: true });
+      }
+    }
+  });
+}
+
 async function refresh() {
   const data = await window.keycode.getState();
   state.settings = data.settings;
@@ -109,6 +153,7 @@ async function refresh() {
   applyFullscreenEdit(!!data.fullscreenEdit);
   applyOpacity(data.settings);
   applyCardFonts(data.settings);
+  applyPanelScale(data.settings);
   renderAll();
 }
 
@@ -289,6 +334,8 @@ function showCardPreview(card, anchorEl) {
   const rect = anchorEl.getBoundingClientRect();
   const zone = document.querySelector(".cards-zone");
   const zoneRect = zone?.getBoundingClientRect() || rect;
+  const bar = document.querySelector(".titlebar");
+  const barRect = bar?.getBoundingClientRect();
   const gap = 8;
   let left = 12;
   let top = rect.top;
@@ -300,13 +347,13 @@ function showCardPreview(card, anchorEl) {
 
   const dock = state.dock || "right";
   if (dock === "right") {
-    // Слева от колоды, без наложения на карты
     left = rect.left - tipRect.width - gap;
     top = rect.top;
   } else if (dock === "left") {
     left = rect.right + gap;
     top = rect.top;
   } else if (dock === "top") {
+    // Подсказки ниже кнопок (кнопки под картами), без наложения
     left = Math.max(
       8,
       Math.min(
@@ -314,8 +361,10 @@ function showCardPreview(card, anchorEl) {
         window.innerWidth - tipRect.width - 8
       )
     );
-    top = zoneRect.bottom + gap;
+    const belowBar = barRect ? barRect.bottom + gap : zoneRect.bottom + gap;
+    top = belowBar;
   } else {
+    // Снизу: кнопки над картами — превью выше кнопок
     left = Math.max(
       8,
       Math.min(
@@ -323,7 +372,10 @@ function showCardPreview(card, anchorEl) {
         window.innerWidth - tipRect.width - 8
       )
     );
-    top = zoneRect.top - tipRect.height - gap;
+    const aboveBar = barRect
+      ? barRect.top - tipRect.height - gap
+      : zoneRect.top - tipRect.height - gap;
+    top = aboveBar;
   }
 
   top = Math.max(8, Math.min(top, window.innerHeight - tipRect.height - 8));
@@ -335,6 +387,13 @@ function showCardPreview(card, anchorEl) {
     left = Math.min(left, window.innerWidth - tipRect.width - 8);
   } else {
     left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+    // Не наезжать на полосу кнопок
+    if (dock === "top" && barRect) {
+      top = Math.max(top, barRect.bottom + gap);
+    }
+    if (dock === "bottom" && barRect) {
+      top = Math.min(top, barRect.top - tipRect.height - gap);
+    }
   }
 
   el.style.left = `${left}px`;
@@ -640,11 +699,14 @@ function bindEvents() {
     }
   });
   window.keycode.onDeckReveal(() => {
-    document.body.classList.remove("concealing");
+    document.body.classList.remove("concealing", "booting");
+    // Два кадра — окно успевает показаться скрытым, потом плавный выезд
     requestAnimationFrame(() => {
-      setRevealed(true);
-      const zone = document.querySelector(".cards-zone");
-      if (zone) zone.scrollTop = 0;
+      requestAnimationFrame(() => {
+        setRevealed(true);
+        const zone = document.querySelector(".cards-zone");
+        if (zone) zone.scrollTop = 0;
+      });
     });
   });
   window.keycode.onDeckConceal(() => {
@@ -688,6 +750,7 @@ function bindEvents() {
     state.settings = { ...state.settings, ...partial };
     applyOpacity(state.settings);
     applyCardFonts(state.settings);
+    if (partial.panelScale != null) applyPanelScale(state.settings);
     if (partial.targets) syncTargetsBadge();
   });
 
@@ -706,7 +769,11 @@ function bindEvents() {
 }
 
 bindEvents();
-refresh().catch((e) => {
-  console.error(e);
-  toast("Ошибка загрузки", "error");
-});
+refresh()
+  .then(() => waitForCardImages(1200))
+  .then(() => window.keycode.deckUiReady?.())
+  .catch((e) => {
+    console.error(e);
+    toast("Ошибка загрузки", "error");
+    window.keycode.deckUiReady?.();
+  });

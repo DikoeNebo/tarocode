@@ -71,6 +71,8 @@ let hideDelayTimer = null;
 let concealAnimTimer = null;
 /** Pause edge-hover while picking target / pasting */
 let edgeHoverPaused = false;
+/** Deck renderer finished first load — edge hover stays off until then */
+let deckUiReady = false;
 /** Keep deck open while card preview popup is visible */
 let previewHoldOpen = false;
 /** Keep deck visible while settings window is open */
@@ -368,33 +370,49 @@ function openTargetsWindow() {
   });
 }
 
-const DECK_STRIP_W = 76; /* 3×24px + 2×2px gap — sync with --deck-strip-w */
-const CARD_W = DECK_STRIP_W; /* карты вровень с кнопками */
-const CARD_H = 114; /* 2:3 — sync with --card-h */
+/** Base: 3×24px buttons + 2×2px gap = 76; card height 2:3 */
+function stripMetrics(scale) {
+  const s = Math.min(1.5, Math.max(0.75, Number(scale) || 1));
+  const btn = Math.round(24 * s);
+  const gap = Math.max(1, Math.round(2 * s));
+  const strip = 3 * btn + 2 * gap;
+  const cardH = Math.round((strip * 3) / 2);
+  const titlebarH = btn;
+  const cardGap = Math.max(1, Math.round(2 * s));
+  return { scale: s, btn, gap, strip, cardH, titlebarH, cardGap };
+}
 
-function dockLayout(dock, expanded = expandedMode) {
+function currentStrip() {
+  return stripMetrics(readSettings().panelScale);
+}
+
+function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
   const wa = workArea();
-  const cardStrip = DECK_STRIP_W;
+  const { strip: cardStrip, cardH, titlebarH } =
+    scaleOverride != null ? stripMetrics(scaleOverride) : currentStrip();
   const previewLane = expanded ? 0 : 300;
   const chrome = expanded ? 240 : 0;
   const pad = 6;
-  const titlebarH = 24;
 
   switch (dock) {
     case "top": {
-      const height = titlebarH + CARD_H + chrome + pad * 2;
+      // Карты + кнопки у верха; ниже — полоса под описание (клики сквозь неё)
+      const tipLane = expanded ? 0 : 260;
+      const height = titlebarH + cardH + 4 + tipLane + chrome + pad * 2;
       return {
         x: wa.x,
         y: wa.y,
         width: wa.width,
-        height: Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.45)),
+        height: Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.5)),
         horizontal: true,
         expanded,
       };
     }
     case "bottom": {
-      const height = titlebarH + CARD_H + chrome + pad * 2;
-      const h = Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.45));
+      // Карты + кнопки у низа; выше — полоса под описание
+      const tipLane = expanded ? 0 : 260;
+      const height = titlebarH + cardH + 4 + tipLane + chrome + pad * 2;
+      const h = Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.5));
       return {
         x: wa.x,
         y: wa.y + wa.height - h,
@@ -492,8 +510,9 @@ function deckKeepOpenBounds() {
   if (expandedMode || fullscreenEditMode) return b;
   // Только полоса карт/кнопок — не вся прозрачная зона превью (иначе блокирует клики «рядом»)
   const dock = readSettings().dock || "right";
-  const strip = DECK_STRIP_W + 8;
-  const barH = 24 + CARD_H + 8;
+  const m = currentStrip();
+  const strip = m.strip + 8;
+  const barH = m.titlebarH + m.cardH + 10;
   switch (dock) {
     case "left":
       return { x: b.x, y: b.y, width: strip, height: b.height };
@@ -518,7 +537,7 @@ function setDeckIgnoreMouse(ignore) {
 }
 
 function tickEdgeHover() {
-  if (edgeHoverPaused || app.isQuitting || fullscreenEditMode) return;
+  if (!deckUiReady || edgeHoverPaused || app.isQuitting || fullscreenEditMode) return;
   const settings = readSettings();
   if (settings.edgeHover === false) return;
   if (pinnedOpen) return;
@@ -559,10 +578,10 @@ function tickEdgeHover() {
   }
 }
 
-function applyDock(dock, expanded = expandedMode) {
+function applyDock(dock, expanded = expandedMode, scaleOverride = null) {
   if (fullscreenEditMode) return;
   const d = dock || readSettings().dock || "right";
-  const layout = dockLayout(d, expanded);
+  const layout = dockLayout(d, expanded, scaleOverride);
 
   if (deckWindow && !deckWindow.isDestroyed()) {
     deckWindow.setBounds({
@@ -618,6 +637,7 @@ function createDeckWindow() {
   });
 
   deckWindow.webContents.on("did-finish-load", () => {
+    deckUiReady = false;
     const d = readSettings().dock || "right";
     const lay = dockLayout(d, expandedMode);
     deckWindow.webContents.send("dock-changed", {
@@ -630,6 +650,12 @@ function createDeckWindow() {
       deckWindow.webContents.send("deck-reveal");
     }
   });
+}
+
+function markDeckUiReady() {
+  if (deckUiReady) return;
+  deckUiReady = true;
+  startEdgeHoverWatch();
 }
 
 function cancelConcealAnim() {
@@ -673,6 +699,16 @@ function shutdownApp() {
   app.quit();
 }
 
+/** @type {ReturnType<typeof setTimeout> | null} */
+let revealDelayTimer = null;
+
+function cancelRevealDelay() {
+  if (revealDelayTimer) {
+    clearTimeout(revealDelayTimer);
+    revealDelayTimer = null;
+  }
+}
+
 function setDeckVisible(visible, opts = {}) {
   if (!deckWindow || deckWindow.isDestroyed()) return;
   if (app.isQuitting && !visible) return;
@@ -681,24 +717,48 @@ function setDeckVisible(visible, opts = {}) {
 
   if (visible) {
     cancelConcealAnim();
+    cancelRevealDelay();
     applyDock(readSettings().dock || "right", expandedMode);
+    // Сначала окно в «свёрнутом» состоянии UI, потом плавный reveal
+    if (!opts.silent) {
+      sendDeck("deck-conceal");
+    }
     if (opts.inactive && typeof deckWindow.showInactive === "function") {
       deckWindow.showInactive();
     } else {
       deckWindow.show();
       if (!opts.inactive) deckWindow.focus();
     }
-    // silent: без анимации разворота (после вставки в чат)
     if (!opts.silent) {
-      const reveal = () => sendDeck("deck-reveal");
-      reveal();
+      const reveal = () => {
+        if (!deckWindow || deckWindow.isDestroyed() || !deckWindow.isVisible()) return;
+        sendDeck("deck-reveal");
+      };
+      // Дать кадру отрисоваться скрытым, затем выезд карт
+      revealDelayTimer = setTimeout(() => {
+        revealDelayTimer = null;
+        reveal();
+      }, 40);
       if (wc.isLoading()) {
-        wc.once("did-finish-load", reveal);
+        wc.once("did-finish-load", () => {
+          cancelRevealDelay();
+          revealDelayTimer = setTimeout(() => {
+            revealDelayTimer = null;
+            reveal();
+          }, 40);
+        });
       }
     }
   } else {
     if (!opts.force && pinnedOpen && opts.reason === "edge-leave") return;
+    // Уже скрыто — не шлём conceal (иначе мигание при старте)
+    if (!deckWindow.isVisible()) {
+      cancelConcealAnim();
+      cancelRevealDelay();
+      return;
+    }
     cancelConcealAnim();
+    cancelRevealDelay();
     if (opts.silent) {
       deckWindow.hide();
       if (opts.reason !== "edge-leave" && opts.unpin !== false && opts.force) {
@@ -1153,8 +1213,16 @@ function setupIpc() {
   });
 
   ipcMain.handle("save-settings", (_e, partial) => {
+    if (partial && partial.panelScale != null) {
+      partial = {
+        ...partial,
+        panelScale: stripMetrics(partial.panelScale).scale,
+      };
+    }
     const s = writeSettings(partial);
-    if (partial.dock) applyDock(partial.dock);
+    if (partial.dock || partial.panelScale != null) {
+      applyDock(s.dock || "right");
+    }
     if (partial.showHotkey) registerShortcuts();
     else if (partial.activeDeckId === undefined) registerShortcuts();
     if (partial.targets) broadcastTargetsUpdated();
@@ -1163,9 +1231,19 @@ function setupIpc() {
   });
 
   ipcMain.handle("preview-settings", (_e, partial) => {
+    if (partial && partial.panelScale != null) {
+      const scale = stripMetrics(partial.panelScale).scale;
+      partial = { ...partial, panelScale: scale };
+      applyDock(readSettings().dock || "right", expandedMode, scale);
+    }
     if (deckWindow && !deckWindow.isDestroyed()) {
       deckWindow.webContents.send("settings-preview", partial);
     }
+    return true;
+  });
+
+  ipcMain.handle("deck-ui-ready", () => {
+    markDeckUiReady();
     return true;
   });
 
@@ -1436,8 +1514,7 @@ app.whenReady().then(() => {
   registerShortcuts();
   pinnedOpen = false;
   applyDock(readSettings().dock || "right", false);
-  setDeckVisible(false);
-  startEdgeHoverWatch();
+  // Edge hover только после deck-ui-ready из рендерера (полная загрузка)
 });
 
 app.on("will-quit", () => {
