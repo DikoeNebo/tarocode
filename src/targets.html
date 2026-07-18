@@ -13,17 +13,22 @@
     <header class="win-header">
       <div>
         <h1>Куда отправлять</h1>
-        <p class="subtitle">Отмеченные чаты получат текст при клике на карту</p>
+        <p class="subtitle">Поле окна или чат Cursor (UIA). Вкл/выкл — на полосе у карт</p>
       </div>
       <button type="button" class="primary-btn" id="btn-done">Готово</button>
     </header>
 
     <main class="targets-main">
       <div class="targets-toolbar">
-        <button type="button" class="pick-btn" id="btn-pick" title="Клик по окну чата">
+        <button type="button" class="pick-btn" id="btn-pick" title="Добавить обычное поле ввода">
           <span class="pick-icon" aria-hidden="true">⊕</span>
-          <span class="pick-label">Прицел</span>
+          <span class="pick-label">Поле</span>
         </button>
+        <button type="button" class="pick-btn" id="btn-pick-agent" title="Список чатов Cursor (CDP, без потери фокуса)">
+          <span class="pick-icon" aria-hidden="true">⇄</span>
+          <span class="pick-label">Чат Cursor</span>
+        </button>
+        <button type="button" class="link-btn" id="btn-uia-diag" title="Сколько элементов видит UIA">Диагностика</button>
         <div class="bulk-actions">
           <button type="button" class="link-btn" id="btn-all">Все</button>
           <span class="sep">·</span>

@@ -47,7 +47,8 @@ async function refresh() {
 
 function fillSettingsForm() {
   $("set-pause").value = String(state.settings?.pauseMs ?? 350);
-  $("set-auto-enter").checked = state.settings?.autoEnter !== false;
+  $("set-preserve-focus").checked = state.settings?.preserveFocus !== false;
+  $("set-auto-enter").checked = state.settings?.autoEnter === true;
   $("set-hotkey").value = state.settings?.showHotkey || "F9";
   $("set-edge-hover").checked = state.settings?.edgeHover !== false;
   $("set-edge-threshold").value = String(state.settings?.edgeThreshold ?? 14);
@@ -150,6 +151,7 @@ function selectCard(cardId) {
 
 async function saveGeneralSettings() {
   const pauseMs = Number($("set-pause").value) || 350;
+  const preserveFocus = $("set-preserve-focus").checked;
   const autoEnter = $("set-auto-enter").checked;
   const showHotkey = $("set-hotkey").value || "F9";
   const edgeHover = $("set-edge-hover").checked;
@@ -162,6 +164,7 @@ async function saveGeneralSettings() {
   const cardActionFontPx = Number($("set-action-font").value) || 13;
   state.settings = await window.keycode.saveSettings({
     pauseMs,
+    preserveFocus,
     autoEnter,
     showHotkey,
     edgeHover,
@@ -319,6 +322,11 @@ function bindLiveGeneralSettings() {
   $("set-pause").addEventListener("change", (e) => {
     persist({ pauseMs: Number(e.target.value) || 350 });
   });
+  $("set-preserve-focus")?.addEventListener("change", (e) => {
+    const preserveFocus = e.target.checked;
+    preview({ preserveFocus });
+    persist({ preserveFocus });
+  });
   $("set-auto-enter").addEventListener("change", (e) => {
     const autoEnter = e.target.checked;
     preview({ autoEnter });
@@ -414,6 +422,76 @@ function bindEvents() {
   });
 
   $("btn-folder").addEventListener("click", () => window.keycode.openDataFolder());
+
+  const setCursorStatus = (text, type = "") => {
+    const el = $("cursor-status");
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle("ok", type === "ok");
+    el.classList.toggle("warn", type === "warn");
+  };
+
+  $("btn-cursor-probe")?.addEventListener("click", async () => {
+    setCursorStatus("Проверяю CDP…");
+    const r = await window.keycode.cursorProbe();
+    if (!r?.ok && !r?.open) {
+      setCursorStatus(r?.hint || r?.error || "CDP закрыт", "warn");
+      const diag = $("cursor-diag");
+      if (diag) {
+        diag.textContent = r?.cursorRunning
+          ? "Cursor запущен без debug-порта — закройте и нажмите «Запустить Cursor для фона»"
+          : "Cursor не запущен";
+      }
+      return;
+    }
+    setCursorStatus(r.hint || "CDP ок", "ok");
+    const diag = $("cursor-diag");
+    if (diag) {
+      diag.textContent = [
+        r.flag,
+        r.cursorExe && `exe: ${r.cursorExe}`,
+        `чатов≈${r.chatsTotal ?? "?"}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
+  });
+
+  $("btn-cursor-launch")?.addEventListener("click", async () => {
+    setCursorStatus("Запуск… (Cursor должен быть закрыт)");
+    const r = await window.keycode.cursorLaunchIntegration({ mode: "both" });
+    if (!r?.ok) {
+      setCursorStatus(r?.error || "Не удалось запустить", "warn");
+      return;
+    }
+    const hint = r.probe?.hint || "Cursor запущен для фона";
+    setCursorStatus(hint, r.probe?.open ? "ok" : "warn");
+    const diag = $("cursor-diag");
+    if (diag) {
+      diag.textContent = r.exe ? `Запущен: ${r.exe} · ${r.flag || ""}` : "";
+    }
+  });
+
+  $("btn-uia-diagnose")?.addEventListener("click", async () => {
+    const diag = $("cursor-diag");
+    if (diag) diag.textContent = "Диагностика CDP…";
+    const r = await window.keycode.uiaDiagnose();
+    if (!r?.ok) {
+      if (diag) diag.textContent = r?.error || "Ошибка диагностики";
+      setCursorStatus("Диагностика не удалась", "warn");
+      return;
+    }
+    setCursorStatus(r.hint || "", r.status === "ok" ? "ok" : "warn");
+    if (diag) {
+      diag.textContent = [
+        r.windowName && `Окно: ${r.windowName}`,
+        `окон CDP ${r.targetCount ?? "?"}`,
+        `чатов≈${r.chatCandidates}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
+  });
 
   window.keycode.onStateChanged(() => refresh());
 }

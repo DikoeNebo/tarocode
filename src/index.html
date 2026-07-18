@@ -13,23 +13,37 @@
   <body class="dock-right cards-only booting">
     <div id="app">
       <div class="deck-edge">
-        <header class="titlebar" aria-label="Управление">
-          <nav class="corner-dock" id="corner-dock">
-            <button type="button" class="corner-btn" id="btn-corner-settings" title="Настройки">
-              <span aria-hidden="true">⚙</span>
-            </button>
-            <button type="button" class="corner-btn corner-btn-targets" id="btn-corner-targets" title="Куда отправлять">
-              <span aria-hidden="true">🎯</span>
-              <span class="target-badge hidden" id="target-badge"></span>
-            </button>
-            <button type="button" class="corner-btn corner-btn-danger" id="btn-corner-quit" title="Закрыть">
-              <span aria-hidden="true">✕</span>
-            </button>
-          </nav>
-        </header>
-        <section class="cards-zone">
-          <div id="cards" class="cards"></div>
-        </section>
+        <div class="deck-col">
+          <header class="titlebar" aria-label="Управление">
+            <nav class="corner-dock" id="corner-dock">
+              <button type="button" class="corner-btn" id="btn-corner-settings" title="Настройки">
+                <span aria-hidden="true">⚙</span>
+              </button>
+              <button type="button" class="corner-btn corner-btn-targets" id="btn-corner-targets" title="Куда отправлять">
+                <span aria-hidden="true">🎯</span>
+                <span class="target-badge hidden" id="target-badge"></span>
+              </button>
+              <button type="button" class="corner-btn corner-btn-danger" id="btn-corner-quit" title="Закрыть">
+                <span aria-hidden="true">✕</span>
+              </button>
+            </nav>
+          </header>
+          <section class="cards-zone">
+            <div id="cards" class="cards"></div>
+          </section>
+        </div>
+        <aside class="target-rail" id="target-rail" aria-label="Окна для отправки">
+          <div class="target-rail-head">
+            <span class="rail-title">Чаты</span>
+            <div class="rail-actions">
+              <button type="button" class="rail-mini" id="btn-rail-all" title="Включить все">Все</button>
+              <button type="button" class="rail-mini" id="btn-rail-none" title="Снять все">∅</button>
+              <button type="button" class="rail-mini rail-pick" id="btn-rail-pick" title="Добавить обычное поле окна (Notepad и др.)">+ поле</button>
+              <button type="button" class="rail-mini rail-pick" id="btn-rail-agent" title="Добавить чат Cursor из списка (фон, без потери фокуса)">+ чат</button>
+            </div>
+          </div>
+          <div class="target-rail-list" id="target-rail-list"></div>
+        </aside>
       </div>
 
       <section class="chrome">

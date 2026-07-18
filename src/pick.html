@@ -33,6 +33,9 @@
         pointer-events: none;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         white-space: nowrap;
+        max-width: 92vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .hint kbd {
         font-family: ui-monospace, Consolas, monospace;
@@ -72,10 +75,15 @@
         height: 1px;
         transform: translateY(-50%);
       }
+      body.phase-focus .reticle {
+        border-color: rgba(201, 168, 255, 0.9);
+      }
     </style>
   </head>
   <body>
-    <div class="hint">Кликните по окну чата · <kbd>Esc</kbd> — отмена</div>
+    <div class="hint" id="hint">
+      Кликните по <strong>полю ввода</strong> чата · <kbd>Esc</kbd> — отмена
+    </div>
     <div class="reticle" id="reticle"></div>
     <script src="pick.js"></script>
   </body>

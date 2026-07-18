@@ -11,7 +11,7 @@ btn.addEventListener("click", async () => {
     : "F9 — закрепить / скрыть · или подведите курсор к краю";
 });
 
-window.keycode.onDeckVisibility((data) => {
+window.keycode.onDeckVisibility?.((data) => {
   const visible = typeof data === "object" ? data.visible : data;
   const pinned = typeof data === "object" ? data.pinned : false;
   btn.classList.toggle("open", !!visible);

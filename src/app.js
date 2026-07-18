@@ -61,10 +61,37 @@ function applyDockClass(dock, horizontal, expanded) {
   });
 }
 
+/** Подсказка только после окончания выезда карт — иначе налезает на полосу */
+let previewAllowed = false;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let previewAllowTimer = null;
+const REVEAL_MS = 400;
+
+function setPreviewAllowed(on) {
+  if (previewAllowTimer) {
+    clearTimeout(previewAllowTimer);
+    previewAllowTimer = null;
+  }
+  previewAllowed = !!on;
+  if (!previewAllowed) hideCardPreview();
+}
+
 function setRevealed(on) {
   state.revealed = !!on;
   document.body.classList.toggle("revealed", state.revealed);
   document.body.classList.toggle("concealing", !state.revealed);
+  if (!state.revealed) {
+    setPreviewAllowed(false);
+    return;
+  }
+  // Ждём конец slide-in, потом можно показывать расшифровку
+  setPreviewAllowed(false);
+  previewAllowTimer = setTimeout(() => {
+    previewAllowTimer = null;
+    previewAllowed = true;
+    // Курсор мог уже стоять над кнопкой без mousemove — обновить клики
+    syncMousePassthroughFromCursor();
+  }, REVEAL_MS);
 }
 
 function applyFullscreenEdit(on) {
@@ -110,7 +137,9 @@ function applyPanelScale(settings) {
   root.style.setProperty("--corner-gap", `${gap}px`);
   root.style.setProperty("--titlebar-h", `${btn}px`);
   root.style.setProperty("--card-gap", `${cardGap}px`);
+  root.style.setProperty("--rail-w", `${Math.round(148 * s)}px`);
   root.style.setProperty("--radius", `${Math.round(8 * s)}px`);
+  root.style.setProperty("--radius-inner", `${Math.round(6 * s)}px`);
   root.style.setProperty("--corner-font-size", `${Math.max(11, Math.round(14 * s))}px`);
 }
 
@@ -160,11 +189,93 @@ async function refresh() {
 function renderAll() {
   renderDeckSelect();
   syncTargetsBadge();
+  renderTargetRail();
   renderCards();
   document.body.classList.toggle("edit-mode", state.editMode);
   $("btn-edit-mode")?.classList.toggle("active", state.editMode);
   const addBtn = $("btn-add-card");
   if (addBtn) addBtn.disabled = (state.deck?.cards?.length || 0) >= 8;
+}
+
+function targetPointsOverlap(t) {
+  if (!t?.focusPoint || !t?.inputPoint) return false;
+  const dx = Number(t.focusPoint.x) - Number(t.inputPoint.x);
+  const dy = Number(t.focusPoint.y) - Number(t.inputPoint.y);
+  return dx * dx + dy * dy <= 12 * 12;
+}
+
+function targetKindLabel(t) {
+  if (t.needsCdpRebind) return "перепривязать через CDP";
+  if (t.needsUiaRebind && t.driver !== "cdp") return "перепривязать чат";
+  if (t.driver === "cdp") return "Cursor фон";
+  if (t.driver === "uia-quiet") return "поле (тихо)";
+  if (t.driver === "uia") return "Cursor UIA";
+  if (targetPointsOverlap(t)) return "ошибка привязки — добавьте заново";
+  if (t.inputPoint && !t.legacy) return "поле окна";
+  if (t.legacy || !t.inputPoint) return "нужно поле ⊕";
+  return "поле окна";
+}
+
+function renderTargetRail() {
+  const list = $("target-rail-list");
+  if (!list) return;
+  const targets = state.settings?.targets || [];
+  if (!targets.length) {
+    list.innerHTML =
+      '<div class="rail-empty">«+ чат» — список чатов Cursor (фон). Сначала запустите Cursor для фона в Настройках.</div>';
+    return;
+  }
+  list.innerHTML = targets
+    .map((t) => {
+      const kind = targetKindLabel(t);
+      const sub =
+        kind +
+        (t.fullTitle && t.fullTitle !== t.name ? ` · ${t.fullTitle}` : "");
+      const broken =
+        t.needsCdpRebind ||
+        t.needsUiaRebind ||
+        t.legacy ||
+        (t.driver !== "cdp" &&
+          t.driver !== "uia" &&
+          t.driver !== "uia-quiet" &&
+          (!t.inputPoint || targetPointsOverlap(t)));
+      return `
+      <button type="button"
+        class="rail-chip ${t.enabled ? "on" : "off"} ${
+          broken ? "needs-field" : ""
+        }"
+        data-rail-toggle="${escapeAttr(t.id)}"
+        title="${escapeAttr(t.fullTitle || t.match || t.name || "")}">
+        <span class="rail-chip-label">${escapeHtml(t.name || "?")}</span>
+        <span class="rail-chip-sub">${escapeHtml(sub)}</span>
+      </button>`;
+    })
+    .join("");
+}
+
+async function setTargetsEnabled(updater) {
+  const targets = updater(state.settings?.targets || []);
+  state.settings = await window.keycode.saveSettings({ targets });
+  syncTargetsBadge();
+  renderTargetRail();
+}
+
+async function pickTargetFromRail(mode = "field") {
+  if (mode === "cursor" || mode === "agent") {
+    toast("Открываю список чатов Cursor…", "");
+    await window.keycode.openChatPick();
+    return;
+  }
+  toast("Кликните по полю ввода…", "");
+  const result = await window.keycode.startTargetPick("field");
+  await refresh();
+  if (result?.ok && result.duplicate) {
+    toast("Это же поле уже в списке", "error");
+  } else if (result?.ok) {
+    toast(`+ ${result.target?.name || "поле"}`, "ok");
+  } else if (result?.canceled) {
+    /* silent */
+  } else if (result?.error) toast(result.error, "error");
 }
 
 function renderDeckSelect() {
@@ -190,15 +301,15 @@ function syncTargetsBadge() {
     badge.textContent = "!";
     badge.classList.remove("hidden");
     badge.classList.add("warn");
-    btn.title = "Куда отправлять — нет целей";
+    btn.title = "Окна: добавить / удалить / Enter";
   } else if (!enabled) {
     badge.textContent = "0";
     badge.classList.remove("hidden", "warn");
-    btn.title = "Куда отправлять — никто не выбран";
+    btn.title = "Окна — никто не выбран (включите чипы на полосе)";
   } else {
     badge.textContent = String(enabled);
     badge.classList.remove("hidden", "warn");
-    btn.title = `Куда отправлять — ${enabled} чат(ов)`;
+    btn.title = `Окна — ${enabled} вкл. (удаление и Enter тут)`;
   }
 }
 
@@ -217,6 +328,9 @@ function hideCardPreview() {
   el.classList.remove("visible");
   el.classList.add("hidden");
   el.setAttribute("aria-hidden", "true");
+  el.style.maxHeight = "";
+  el.style.left = "";
+  el.style.top = "";
   state.previewCardId = null;
   window.keycode.setPreviewHold?.(false);
 }
@@ -279,6 +393,10 @@ function updatePreviewHover(clientX, clientY) {
     if (!$("card-preview").classList.contains("hidden")) hideCardPreview();
     return;
   }
+  if (!state.revealed || !previewAllowed) {
+    if (!$("card-preview").classList.contains("hidden")) hideCardPreview();
+    return;
+  }
 
   const preview = $("card-preview");
   const inPreview = pointInPreview(clientX, clientY);
@@ -307,6 +425,7 @@ function updatePreviewHover(clientX, clientY) {
 function showCardPreview(card, anchorEl) {
   if (state.settingsWindowOpen || state.targetsWindowOpen) return;
   if (state.settings?.showCardPreview === false) return;
+  if (!state.revealed || !previewAllowed) return;
   cancelPreviewHide();
   const preset = window.tarotPreset(card.image);
   const el = $("card-preview");
@@ -342,10 +461,23 @@ function showCardPreview(card, anchorEl) {
 
   el.style.visibility = "hidden";
   el.classList.add("visible");
+  el.style.maxHeight = "";
+
+  const dock = state.dock || "right";
+  // Сверху/снизу: вписать превью в полосу tipLane, иначе текст обрезается окном
+  if (dock === "top") {
+    const belowBar = barRect ? barRect.bottom + gap : zoneRect.bottom + gap;
+    const maxH = Math.max(120, window.innerHeight - belowBar - 8);
+    el.style.maxHeight = `${Math.min(400, maxH)}px`;
+  } else if (dock === "bottom") {
+    const barTop = barRect ? barRect.top : zoneRect.top;
+    const maxH = Math.max(120, barTop - gap - 8);
+    el.style.maxHeight = `${Math.min(400, maxH)}px`;
+  }
+
   const tipRect = el.getBoundingClientRect();
   el.style.visibility = "";
 
-  const dock = state.dock || "right";
   if (dock === "right") {
     left = rect.left - tipRect.width - gap;
     top = rect.top;
@@ -361,8 +493,7 @@ function showCardPreview(card, anchorEl) {
         window.innerWidth - tipRect.width - 8
       )
     );
-    const belowBar = barRect ? barRect.bottom + gap : zoneRect.bottom + gap;
-    top = belowBar;
+    top = barRect ? barRect.bottom + gap : zoneRect.bottom + gap;
   } else {
     // Снизу: кнопки над картами — превью выше кнопок
     left = Math.max(
@@ -372,10 +503,7 @@ function showCardPreview(card, anchorEl) {
         window.innerWidth - tipRect.width - 8
       )
     );
-    const aboveBar = barRect
-      ? barRect.top - tipRect.height - gap
-      : zoneRect.top - tipRect.height - gap;
-    top = aboveBar;
+    top = (barRect ? barRect.top : zoneRect.top) - tipRect.height - gap;
   }
 
   top = Math.max(8, Math.min(top, window.innerHeight - tipRect.height - 8));
@@ -403,17 +531,40 @@ function showCardPreview(card, anchorEl) {
 
 let lastIgnoreMouse = null;
 
+function pointInRect(x, y, r, pad = 0) {
+  return (
+    x >= r.left - pad &&
+    x <= r.right + pad &&
+    y >= r.top - pad &&
+    y <= r.bottom + pad
+  );
+}
+
 function hitCapturesMouse(x, y) {
-  const el = document.elementFromPoint(x, y);
-  if (!el) return false;
-  if (
-    el.closest(
-      ".card, .corner-btn, .corner-dock, .titlebar, .chrome, .modal:not(.hidden), .toast:not(.hidden), .card-preview:not(.hidden)"
-    )
-  ) {
-    return true;
+  // Геометрия надёжнее elementFromPoint при click-through (ignore + forward)
+  for (const card of document.querySelectorAll(".card")) {
+    if (pointInRect(x, y, card.getBoundingClientRect(), 2)) return true;
   }
-  // Мост к превью: зона между картой и описанием тоже кликабельна, пока превью открыто
+  const rail = document.getElementById("target-rail");
+  if (rail && pointInRect(x, y, rail.getBoundingClientRect(), 4)) return true;
+  const dock = document.querySelector(".corner-dock");
+  if (dock && pointInRect(x, y, dock.getBoundingClientRect(), 12)) return true;
+  for (const btn of document.querySelectorAll(".corner-btn")) {
+    if (pointInRect(x, y, btn.getBoundingClientRect(), 10)) return true;
+  }
+  if (
+    document.querySelector(".chrome") &&
+    !document.body.classList.contains("cards-only")
+  ) {
+    const chrome = document.querySelector(".chrome");
+    if (chrome && pointInRect(x, y, chrome.getBoundingClientRect(), 0)) {
+      return true;
+    }
+  }
+  const modal = document.querySelector(".modal:not(.hidden)");
+  if (modal && pointInRect(x, y, modal.getBoundingClientRect(), 0)) return true;
+  const toast = document.querySelector(".toast:not(.hidden)");
+  if (toast && pointInRect(x, y, toast.getBoundingClientRect(), 0)) return true;
   if (pointInPreview(x, y)) return true;
   return false;
 }
@@ -431,6 +582,18 @@ function updateMousePassthrough(clientX, clientY) {
   if (ignore === lastIgnoreMouse) return;
   lastIgnoreMouse = ignore;
   window.keycode.setIgnoreMouse?.(ignore);
+}
+
+async function syncMousePassthroughFromCursor() {
+  try {
+    const p = await window.keycode.getCursorClient?.();
+    if (!p || typeof p.x !== "number") return;
+    // Сбросить кэш — принудительно пересчитать ignore
+    lastIgnoreMouse = null;
+    updateMousePassthrough(p.x, p.y);
+  } catch {
+    /* ignore */
+  }
 }
 
 function renderCards() {
@@ -493,12 +656,34 @@ function escapeAttr(s) {
 }
 
 
+function formatPasteToast(results) {
+  const list = results || [];
+  const ok = list.filter((r) => r.ok).length;
+  const fail = list.length - ok;
+  const total = list.length;
+  if (!total) return { message: "нет целей", type: "error" };
+  if (fail && !ok) {
+    const first = list.find((r) => !r.ok);
+    return {
+      message: `${first?.target || "окно"}: ${first?.error || "ошибка"}`,
+      type: "error",
+    };
+  }
+  if (fail) {
+    const first = list.find((r) => !r.ok);
+    return {
+      message: `→ ${ok} из ${total} (${first?.target}: ${first?.error || "нет"})`,
+      type: "error",
+    };
+  }
+  return { message: `→ ${ok} из ${total}`, type: "ok" };
+}
+
 async function onPasteCard(cardId) {
   hideCardPreview();
   const enabled = (state.settings?.targets || []).filter((t) => t.enabled).length;
   if (!enabled) {
-    toast("Выберите цели — 🎯", "error");
-    window.keycode.openTargets();
+    toast("Включите окна на полосе или ⊕", "error");
     return;
   }
   const el = document.querySelector(`.card[data-id="${CSS.escape(cardId)}"]`);
@@ -507,11 +692,8 @@ async function onPasteCard(cardId) {
   if (el) setTimeout(() => el.classList.remove("sending"), 500);
   if (!result?.ok && result?.error === "no targets") return;
   if (result?.results) {
-    const ok = result.results.filter((r) => r.ok).length;
-    const fail = result.results.length - ok;
-    if (fail && !ok) toast("Окно не найдено?", "error");
-    else if (fail) toast(`Ок: ${ok}, нет: ${fail}`, "error");
-    else toast(`→ ${ok} чат(а)`, "ok");
+    const t = formatPasteToast(result.results);
+    toast(t.message, t.type);
   }
 }
 
@@ -527,11 +709,15 @@ function openCardEditor(cardId) {
   window.fillTarotImagePicker($("card-image"), card.image);
 
   $("modal-card").classList.remove("hidden");
+  window.keycode.setModalHold?.(true);
 }
 
 function closeCardEditor() {
   $("modal-card").classList.add("hidden");
   state.editingCardId = null;
+  if ($("modal-quit")?.classList.contains("hidden")) {
+    window.keycode.setModalHold?.(false);
+  }
 }
 
 async function saveCardEditor() {
@@ -597,11 +783,16 @@ async function addCard() {
 }
 
 function openQuitDialog() {
+  hideCardPreview();
   $("modal-quit").classList.remove("hidden");
+  window.keycode.setModalHold?.(true);
+  lastIgnoreMouse = null;
+  syncMousePassthroughFromCursor();
 }
 
 function closeQuitDialog() {
   $("modal-quit").classList.add("hidden");
+  window.keycode.setModalHold?.(false);
 }
 
 async function toggleFullscreenEdit() {
@@ -669,6 +860,42 @@ function bindEvents() {
 
   $("btn-open-targets")?.addEventListener("click", () => window.keycode.openTargets());
 
+  $("btn-rail-all")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await setTargetsEnabled((targets) =>
+      targets.map((t) => ({ ...t, enabled: true }))
+    );
+  });
+
+  $("btn-rail-none")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await setTargetsEnabled((targets) =>
+      targets.map((t) => ({ ...t, enabled: false }))
+    );
+  });
+
+  $("btn-rail-pick")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    hideCardPreview();
+    await pickTargetFromRail("field");
+  });
+
+  $("btn-rail-agent")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    hideCardPreview();
+    await pickTargetFromRail("cursor");
+  });
+
+  $("target-rail-list")?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-rail-toggle]");
+    if (!btn) return;
+    e.stopPropagation();
+    const id = btn.getAttribute("data-rail-toggle");
+    await setTargetsEnabled((targets) =>
+      targets.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
+    );
+  });
+
   $("btn-add-card").addEventListener("click", addCard);
 
   $("card-cancel").addEventListener("click", closeCardEditor);
@@ -694,12 +921,14 @@ function bindEvents() {
   window.keycode.onToast((data) => toast(data.message, data.type || ""));
   window.keycode.onPasteDone((data) => {
     if (!document.hasFocus()) {
-      const ok = (data.results || []).filter((r) => r.ok).length;
-      if (ok) toast(`→ ${ok}`, "ok");
+      const t = formatPasteToast(data.results);
+      toast(t.message, t.type);
     }
   });
+
   window.keycode.onDeckReveal(() => {
     document.body.classList.remove("concealing", "booting");
+    setPreviewAllowed(false);
     // Два кадра — окно успевает показаться скрытым, потом плавный выезд
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -711,7 +940,6 @@ function bindEvents() {
   });
   window.keycode.onDeckConceal(() => {
     setRevealed(false);
-    hideCardPreview();
   });
   window.keycode.onPanelExpanded((data) => {
     applyDockClass(state.dock, state.horizontal, !!data?.expanded);
@@ -751,7 +979,10 @@ function bindEvents() {
     applyOpacity(state.settings);
     applyCardFonts(state.settings);
     if (partial.panelScale != null) applyPanelScale(state.settings);
-    if (partial.targets) syncTargetsBadge();
+    if (partial.targets) {
+      syncTargetsBadge();
+      renderTargetRail();
+    }
   });
 
   document.addEventListener(

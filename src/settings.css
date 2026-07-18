@@ -87,6 +87,29 @@ body {
   color: var(--violet);
 }
 
+.panel h2.block-title {
+  margin-top: 18px;
+}
+
+.hint-text {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.hint-text.ok {
+  color: var(--ok);
+}
+
+.hint-text.warn {
+  color: var(--danger);
+}
+
+.hint-text.muted {
+  opacity: 0.85;
+}
+
 .field {
   display: flex;
   flex-direction: column;

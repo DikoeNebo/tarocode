@@ -151,6 +151,10 @@ body {
   transition: border-color 0.15s, background 0.15s;
 }
 
+.target-row.needs-rebind {
+  border-color: rgba(232, 120, 120, 0.45);
+}
+
 .target-row:has(input:checked) {
   border-color: rgba(232, 197, 122, 0.35);
   background: rgba(232, 197, 122, 0.06);

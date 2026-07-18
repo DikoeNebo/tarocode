@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>Выбор чата Cursor</title>
+    <link rel="stylesheet" href="targets.css" />
+    <style>
+      body {
+        padding: 14px 16px 16px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .chat-list {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .chat-item {
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(232, 197, 122, 0.2);
+        background: rgba(8, 4, 16, 0.55);
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+      }
+      .chat-item:hover {
+        border-color: rgba(232, 197, 122, 0.45);
+      }
+      .win-select {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        background: #1a1024;
+        color: var(--text);
+        border: 1px solid rgba(232, 197, 122, 0.25);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="win-header">
+      <div>
+        <h1>Чат Cursor (фон)</h1>
+        <p class="subtitle">Выберите чат из списка — игра не потеряет фокус</p>
+      </div>
+    </header>
+    <label class="field block">
+      <span>Окно Cursor</span>
+      <select id="win-select" class="win-select"></select>
+    </label>
+    <p class="muted" id="status">Загрузка…</p>
+    <div class="chat-list" id="chat-list"></div>
+    <div class="row-actions">
+      <button type="button" class="ghost-btn" id="btn-refresh">Обновить</button>
+      <button type="button" class="ghost-btn" id="btn-cancel">Отмена</button>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+    <script src="chat-pick.js"></script>
+  </body>
+</html>

@@ -15,8 +15,126 @@ const fs = require("fs");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const { pathToFileURL } = require("url");
+const { getUiaClient } = require("./uia-client");
+const { getCdpClient, DEFAULT_PORT: DEFAULT_CDP_PORT } = require("./cdp-client");
+const {
+  launchCursorForIntegration,
+  isCursorRunning,
+  resolveCursorExe,
+  ACCESSIBILITY_FLAG,
+  DEFAULT_CDP_PORT: SETUP_CDP_PORT,
+} = require("./cursor-setup");
 
 const execFileAsync = promisify(execFile);
+
+// Direct spawn of Cursor.exe can emit EACCES async; don't crash the deck.
+process.on("uncaughtException", (err) => {
+  const msg = String(err && err.message ? err.message : err);
+  const code = err && err.code ? String(err.code) : "";
+  if (
+    (code === "EACCES" || code === "EPERM" || /EACCES|EPERM/.test(msg)) &&
+    /spawn/i.test(msg)
+  ) {
+    console.error("[keycode] spawn error (ignored):", msg);
+    return;
+  }
+  console.error("[keycode] uncaughtException:", err);
+  try {
+    dialog.showErrorBox("Error", `Uncaught Exception:\n${msg}`);
+  } catch {
+    /* app may be quitting */
+  }
+});
+
+const UIA_ERROR_RU = {
+  element_not_found: "элемент не найден",
+  not_chat: "это не вкладка/чат агента — кликните по строке агента",
+  not_input: "это не поле ввода — кликните по текстовому полю чата",
+  window_not_found: "окно не найдено",
+  chat_not_found: "чат не найден — перепривяжите через «+ чат Cursor»",
+  chat_ambiguous: "найдено несколько чатов — перепривяжите",
+  chat_select_failed: "не удалось выбрать чат",
+  input_not_found: "поле ввода не найдено — перепривяжите",
+  input_ambiguous: "найдено несколько полей — перепривяжите",
+  input_focus_failed: "не удалось сфокусировать поле",
+  focus_mismatch: "фокус не на текстовом поле",
+  chrome_only: "нужен режим доступности Cursor",
+  no_cursor: "окно Cursor не найдено",
+};
+
+function uiaErr(code, fallback) {
+  if (!code) return fallback || "ошибка UIA";
+  return UIA_ERROR_RU[code] || String(code);
+}
+
+function isCursorLikeTarget(t) {
+  const blob = [
+    t?.processName,
+    t?.fullTitle,
+    t?.match,
+    t?.name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /\bcursor\b/.test(blob);
+}
+
+function locatorKey(loc) {
+  if (!loc) return "";
+  return [
+    loc.controlType || "",
+    loc.name || "",
+    loc.automationId || "",
+    loc.className || "",
+  ].join("|");
+}
+
+/** Migrate legacy Cursor targets toward CDP rebind when needed. */
+function migrateTargets(targets) {
+  let changed = false;
+  const next = (targets || []).map((t) => {
+    if (t.driver === "cdp") return t;
+    if (t.driver === "uia-quiet") return t;
+    if (t.driver === "uia" && !t.needsCdpRebind) {
+      changed = true;
+      return {
+        ...t,
+        needsCdpRebind: true,
+        enabled: false,
+      };
+    }
+    if (t.driver === "win32-field" && !t.needsUiaRebind && !t.needsCdpRebind) {
+      if (isCursorLikeTarget(t)) {
+        changed = true;
+        return {
+          ...t,
+          needsCdpRebind: true,
+          needsUiaRebind: true,
+          enabled: false,
+        };
+      }
+      return t;
+    }
+    const cursorLike = isCursorLikeTarget(t);
+    if (cursorLike && !t.chatLocator && t.driver !== "cdp") {
+      changed = true;
+      return {
+        ...t,
+        driver: "win32-field",
+        needsUiaRebind: true,
+        needsCdpRebind: true,
+        enabled: false,
+      };
+    }
+    if (!t.driver) {
+      changed = true;
+      return { ...t, driver: "win32-field" };
+    }
+    return t;
+  });
+  return { targets: next, changed };
+}
 
 /** Project root (dev folder or packaged app.asar). */
 const appRoot = () => app.getAppPath();
@@ -29,13 +147,15 @@ let settingsWindow = null;
 let targetsWindow = null;
 /** @type {BrowserWindow | null} */
 let pickWindow = null;
+/** @type {BrowserWindow | null} */
+let chatPickWindow = null;
 
 const userDataDir = () => path.join(app.getPath("userData"), "keycode-data");
 const decksDir = () => path.join(userDataDir(), "decks");
 const settingsPath = () => path.join(userDataDir(), "settings.json");
 
 const defaultSettings = {
-  autoEnter: true,
+  autoEnter: false,
   pauseMs: 350,
   showHotkey: "F9",
   panelScale: 1,
@@ -55,6 +175,9 @@ const defaultSettings = {
   showCardPreview: true,
   cardTarotFontPx: 16,
   cardActionFontPx: 13,
+  /** Never steal OS focus from games / other apps (CDP / quiet UIA only) */
+  preserveFocus: true,
+  cdpPort: SETUP_CDP_PORT || DEFAULT_CDP_PORT || 9222,
 };
 
 /** Manual pin (F9) — stays open until unpinned */
@@ -75,6 +198,8 @@ let edgeHoverPaused = false;
 let deckUiReady = false;
 /** Keep deck open while card preview popup is visible */
 let previewHoldOpen = false;
+/** Keep deck open while quit/card modal is visible (don't edge-hide) */
+let modalHoldOpen = false;
 /** Keep deck visible while settings window is open */
 let settingsHeldPin = false;
 let settingsRestorePinned = false;
@@ -93,10 +218,17 @@ function ensureData() {
       "utf8"
     );
   }
-  const defaultDeckSrc = path.join(appRoot(), "data", "default-deck.json");
-  const defaultDeckDest = path.join(decksDir(), "lazy-v1.json");
-  if (!fs.existsSync(defaultDeckDest) && fs.existsSync(defaultDeckSrc)) {
-    fs.copyFileSync(defaultDeckSrc, defaultDeckDest);
+  // Seed bundled decks if missing (hobby + pro)
+  const bundledDecks = [
+    ["default-deck.json", "lazy-v1.json"],
+    ["pro-deck.json", "pro-v1.json"],
+  ];
+  for (const [srcName, destName] of bundledDecks) {
+    const src = path.join(appRoot(), "data", srcName);
+    const dest = path.join(decksDir(), destName);
+    if (!fs.existsSync(dest) && fs.existsSync(src)) {
+      fs.copyFileSync(src, dest);
+    }
   }
   // migrate: pin used to disable edgeHover in settings — fix broken auto-show
   try {
@@ -122,7 +254,19 @@ function readSettings() {
   ensureData();
   try {
     const raw = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
-    return { ...defaultSettings, ...raw };
+    const merged = { ...defaultSettings, ...raw };
+    const mig = migrateTargets(merged.targets || []);
+    if (mig.changed) {
+      merged.targets = mig.targets;
+      try {
+        fs.writeFileSync(settingsPath(), JSON.stringify(merged, null, 2), "utf8");
+      } catch {
+        /* ignore */
+      }
+    } else {
+      merged.targets = mig.targets;
+    }
+    return merged;
   } catch {
     return { ...defaultSettings };
   }
@@ -302,6 +446,58 @@ function closeTargetsWindow() {
   targetsWindow.close();
 }
 
+function closeChatPickWindow() {
+  if (!chatPickWindow || chatPickWindow.isDestroyed()) return;
+  chatPickWindow.close();
+  chatPickWindow = null;
+}
+
+function openChatPickWindow() {
+  if (chatPickWindow && !chatPickWindow.isDestroyed()) {
+    chatPickWindow.focus();
+    return;
+  }
+  const width = 440;
+  const height = 520;
+  const wa = workArea();
+  const x = Math.round(wa.x + (wa.width - width) / 2);
+  const y = Math.round(wa.y + (wa.height - height) / 2);
+  chatPickWindow = new BrowserWindow({
+    x,
+    y,
+    width,
+    height,
+    minWidth: 360,
+    minHeight: 400,
+    title: "Выбор чата Cursor",
+    backgroundColor: "#120a1c",
+    autoHideMenuBar: true,
+    show: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  chatPickWindow.setAlwaysOnTop(true, "floating");
+  chatPickWindow.once("ready-to-show", () => {
+    if (!chatPickWindow || chatPickWindow.isDestroyed()) return;
+    // Prefer inactive show so a game does not lose focus when adding chats mid-play.
+    if (readSettings().preserveFocus !== false) {
+      chatPickWindow.showInactive();
+    } else {
+      chatPickWindow.show();
+      chatPickWindow.focus();
+    }
+  });
+  chatPickWindow.loadFile(path.join(appRoot(), "src", "chat-pick.html"));
+  chatPickWindow.on("closed", () => {
+    chatPickWindow = null;
+    broadcastTargetsUpdated();
+  });
+}
+
 function openTargetsWindow() {
   if (targetsWindow && !targetsWindow.isDestroyed()) {
     targetsWindow.focus();
@@ -386,33 +582,39 @@ function currentStrip() {
   return stripMetrics(readSettings().panelScale);
 }
 
+function railWidth(scale) {
+  const s = Math.min(1.5, Math.max(0.75, Number(scale) || 1));
+  return Math.round(148 * s);
+}
+
 function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
   const wa = workArea();
-  const { strip: cardStrip, cardH, titlebarH } =
+  const metrics =
     scaleOverride != null ? stripMetrics(scaleOverride) : currentStrip();
+  const { strip: cardStrip, cardH, titlebarH, scale } = metrics;
+  const rail = expanded ? 0 : railWidth(scale);
   const previewLane = expanded ? 0 : 300;
   const chrome = expanded ? 240 : 0;
   const pad = 6;
 
   switch (dock) {
     case "top": {
-      // Карты + кнопки у верха; ниже — полоса под описание (клики сквозь неё)
-      const tipLane = expanded ? 0 : 260;
+      // Карты + боковой список; ниже — полоса под описание
+      const tipLane = expanded ? 0 : 400;
       const height = titlebarH + cardH + 4 + tipLane + chrome + pad * 2;
       return {
         x: wa.x,
         y: wa.y,
         width: wa.width,
-        height: Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.5)),
+        height: Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.65)),
         horizontal: true,
         expanded,
       };
     }
     case "bottom": {
-      // Карты + кнопки у низа; выше — полоса под описание
-      const tipLane = expanded ? 0 : 260;
+      const tipLane = expanded ? 0 : 400;
       const height = titlebarH + cardH + 4 + tipLane + chrome + pad * 2;
-      const h = Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.5));
+      const h = Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.65));
       return {
         x: wa.x,
         y: wa.y + wa.height - h,
@@ -423,7 +625,7 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
       };
     }
     case "left": {
-      const w = cardStrip + previewLane + pad + chrome;
+      const w = cardStrip + rail + 6 + previewLane + pad + chrome;
       return {
         x: wa.x,
         y: wa.y,
@@ -435,7 +637,7 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
     }
     case "right":
     default: {
-      const w = cardStrip + previewLane + pad + chrome;
+      const w = cardStrip + rail + 6 + previewLane + pad + chrome;
       return {
         x: wa.x + wa.width - w,
         y: wa.y,
@@ -508,10 +710,11 @@ function deckKeepOpenBounds() {
   if (!deckWindow || deckWindow.isDestroyed()) return null;
   const b = deckWindow.getBounds();
   if (expandedMode || fullscreenEditMode) return b;
-  // Только полоса карт/кнопок — не вся прозрачная зона превью (иначе блокирует клики «рядом»)
+  // Полоса карт + боковой список чатов (не вся зона превью)
   const dock = readSettings().dock || "right";
   const m = currentStrip();
-  const strip = m.strip + 8;
+  const rail = railWidth(m.scale);
+  const strip = m.strip + rail + 14;
   const barH = m.titlebarH + m.cardH + 10;
   switch (dock) {
     case "left":
@@ -536,6 +739,14 @@ function setDeckIgnoreMouse(ignore) {
   }
 }
 
+/** Курсор в координатах клиентской области окна колоды */
+function cursorInDeckClient() {
+  if (!deckWindow || deckWindow.isDestroyed()) return null;
+  const p = screen.getCursorScreenPoint();
+  const b = deckWindow.getContentBounds();
+  return { x: p.x - b.x, y: p.y - b.y };
+}
+
 function tickEdgeHover() {
   if (!deckUiReady || edgeHoverPaused || app.isQuitting || fullscreenEditMode) return;
   const settings = readSettings();
@@ -552,7 +763,7 @@ function tickEdgeHover() {
     overPanel = pointInBounds(point, keepBounds);
   }
 
-  if (near || overPanel || previewHoldOpen) {
+  if (near || overPanel || previewHoldOpen || modalHoldOpen) {
     if (hideDelayTimer) {
       clearTimeout(hideDelayTimer);
       hideDelayTimer = null;
@@ -566,7 +777,8 @@ function tickEdgeHover() {
   if (deckWindow && deckWindow.isVisible() && !hideDelayTimer) {
     hideDelayTimer = setTimeout(() => {
       hideDelayTimer = null;
-      if (pinnedOpen || edgeHoverPaused || previewHoldOpen) return;
+      if (pinnedOpen || edgeHoverPaused || previewHoldOpen || modalHoldOpen)
+        return;
       const p = screen.getCursorScreenPoint();
       const s = readSettings();
       if (isNearDockEdge(p, s.dock || "right", s.edgeThreshold)) return;
@@ -677,7 +889,7 @@ function shutdownApp() {
     hideDelayTimer = null;
   }
   cancelConcealAnim();
-  globalShortcut.unregisterAll();
+  clearShortcuts();
   closePickWindow();
   settingsHeldPin = false;
   targetsHeldPin = false;
@@ -722,6 +934,12 @@ function setDeckVisible(visible, opts = {}) {
     // Сначала окно в «свёрнутом» состоянии UI, потом плавный reveal
     if (!opts.silent) {
       sendDeck("deck-conceal");
+    }
+    // Снова поверх всех — некоторые приложения (Cursor) могут перехватывать z-order
+    try {
+      deckWindow.setAlwaysOnTop(true, "screen-saver");
+    } catch {
+      /* ignore */
     }
     if (opts.inactive && typeof deckWindow.showInactive === "function") {
       deckWindow.showInactive();
@@ -823,8 +1041,18 @@ function toggleDeck() {
   sendPinState();
 }
 
+function clearShortcuts() {
+  if (!app.isReady()) return;
+  try {
+    globalShortcut.unregisterAll();
+  } catch {
+    /* ignore — e.g. second instance quitting before ready */
+  }
+}
+
 function registerShortcuts() {
-  globalShortcut.unregisterAll();
+  if (!app.isReady()) return;
+  clearShortcuts();
   const settings = readSettings();
   const hotkey = settings.showHotkey || "F9";
   try {
@@ -853,12 +1081,37 @@ function registerShortcuts() {
   }
 }
 
+function parseWindowLine(line) {
+  const parts = line.split("\t");
+  if (parts.length < 3) return null;
+  const [hwnd, pid, processName, ...rest] = parts;
+  const title = rest.join("\t").trim();
+  return {
+    hwnd,
+    pid,
+    processName: (processName || "").trim(),
+    title,
+  };
+}
+
+function isOwnAppWindow(win) {
+  const t = `${win.title || ""} ${win.processName || ""}`;
+  return /keycode|lazy.?coder/i.test(t);
+}
+
+function windowDisplayTitle(win) {
+  if (win.title) return win.title;
+  if (win.processName) return win.processName;
+  return `Окно ${String(win.hwnd).slice(-4)}`;
+}
+
 async function listWindows() {
   const script = `
 Add-Type @"
 using System;
 using System.Text;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 public class WinEnum {
   public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
@@ -867,16 +1120,28 @@ public class WinEnum {
   [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
   [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
   public static List<string> List() {
     var list = new List<string>();
     EnumWindows((hWnd, l) => {
       if (!IsWindowVisible(hWnd)) return true;
-      int len = GetWindowTextLength(hWnd);
-      if (len == 0) return true;
-      var sb = new StringBuilder(len + 1);
-      GetWindowText(hWnd, sb, sb.Capacity);
+      int style = GetWindowLong(hWnd, -16);
+      if ((style & 0x40000000) != 0) return true; // WS_CHILD
       uint pid; GetWindowThreadProcessId(hWnd, out pid);
-      list.Add(hWnd.ToInt64() + "\\t" + pid + "\\t" + sb.ToString());
+      string proc = "";
+      try { proc = Process.GetProcessById((int)pid).ProcessName; } catch {}
+      int len = GetWindowTextLength(hWnd);
+      var sb = new StringBuilder(Math.Max(len, 1) + 1);
+      if (len > 0) GetWindowText(hWnd, sb, sb.Capacity);
+      string title = sb.ToString();
+      // Keep titled windows; also untitled top-level of chat apps (rare)
+      bool chatProc = proc.Equals("Cursor", StringComparison.OrdinalIgnoreCase)
+        || proc.Equals("Code", StringComparison.OrdinalIgnoreCase)
+        || proc.IndexOf("chrome", StringComparison.OrdinalIgnoreCase) >= 0
+        || proc.IndexOf("msedge", StringComparison.OrdinalIgnoreCase) >= 0
+        || proc.IndexOf("firefox", StringComparison.OrdinalIgnoreCase) >= 0;
+      if (len == 0 && !chatProc) return true;
+      list.Add(hWnd.ToInt64() + "\\t" + pid + "\\t" + proc + "\\t" + title);
       return true;
     }, IntPtr.Zero);
     return list;
@@ -895,29 +1160,115 @@ public class WinEnum {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .map((line) => {
-        const [hwnd, pid, ...rest] = line.split("\t");
-        const title = rest.join("\t");
-        return { hwnd, pid, title };
-      })
-      .filter((w) => w.title && !/keycode|lazy coder/i.test(w.title));
+      .map(parseWindowLine)
+      .filter((w) => w && !isOwnAppWindow(w));
   } catch (e) {
     console.error(e);
     return [];
   }
 }
 
-async function windowFromPoint(screenX, screenY) {
+const POINT_DUP_PX = 12;
+
+function pointsNear(a, b, threshold = POINT_DUP_PX) {
+  if (!a || !b) return false;
+  const dx = Number(a.x) - Number(b.x);
+  const dy = Number(a.y) - Number(b.y);
+  return dx * dx + dy * dy <= threshold * threshold;
+}
+
+function normalizePoint(p) {
+  if (!p || p.x == null || p.y == null) return null;
+  return { x: Math.round(Number(p.x)), y: Math.round(Number(p.y)) };
+}
+
+/** Electron renderer often gives DIP; Win32/UIA need physical pixels when DPI ≠ 100%. */
+function toPhysicalScreenPoint(screenX, screenY) {
+  try {
+    const dip = {
+      x: Math.round(Number(screenX) || 0),
+      y: Math.round(Number(screenY) || 0),
+    };
+    if (typeof screen.dipToScreenPoint === "function") {
+      const phys = screen.dipToScreenPoint(dip);
+      return {
+        x: Math.round(phys.x),
+        y: Math.round(phys.y),
+      };
+    }
+    return dip;
+  } catch {
+    return {
+      x: Math.round(Number(screenX) || 0),
+      y: Math.round(Number(screenY) || 0),
+    };
+  }
+}
+
+/** True physical cursor via Win32 — most reliable after pick overlay hides. */
+async function getPhysicalCursorPos() {
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class CursorPos {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct POINT { public int X; public int Y; }
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT lpPoint);
+  public static string Read() {
+    POINT p;
+    if (!GetCursorPos(out p)) return "";
+    return p.X.ToString() + "," + p.Y.ToString();
+  }
+}
+"@
+[CursorPos]::Read()
+`;
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-Command", script],
+      { windowsHide: true }
+    );
+    const m = String(stdout || "")
+      .trim()
+      .match(/^(-?\d+)\s*,\s*(-?\d+)$/);
+    if (!m) return null;
+    return { x: Number(m[1]), y: Number(m[2]) };
+  } catch {
+    return null;
+  }
+}
+
+function uniquePoints(points) {
+  const out = [];
+  const seen = new Set();
+  for (const p of points) {
+    if (!p || p.x == null || p.y == null) continue;
+    const pt = { x: Math.round(Number(p.x)), y: Math.round(Number(p.y)) };
+    const key = `${pt.x},${pt.y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(pt);
+  }
+  return out;
+}
+
+async function windowFromPointPhysical(screenX, screenY) {
+  const sx = Math.round(Number(screenX) || 0);
+  const sy = Math.round(Number(screenY) || 0);
   const script = `
 Add-Type @"
 using System;
 using System.Text;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 public class WinPoint {
   [StructLayout(LayoutKind.Sequential)]
   public struct POINT { public int X; public int Y; }
   [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
   [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+  [DllImport("user32.dll")] public static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
   [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
   [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
@@ -927,15 +1278,19 @@ public class WinPoint {
     if (h == IntPtr.Zero) return "";
     IntPtr root = GetAncestor(h, 2); // GA_ROOT
     if (root != IntPtr.Zero) h = root;
+    POINT client; client.X = x; client.Y = y;
+    ScreenToClient(h, ref client);
+    uint pid; GetWindowThreadProcessId(h, out pid);
+    string proc = "";
+    try { proc = Process.GetProcessById((int)pid).ProcessName; } catch {}
     int len = GetWindowTextLength(h);
     var sb = new StringBuilder(Math.Max(len, 1) + 1);
-    GetWindowText(h, sb, sb.Capacity);
-    uint pid; GetWindowThreadProcessId(h, out pid);
-    return h.ToInt64() + "\\t" + pid + "\\t" + sb.ToString();
+    if (len > 0) GetWindowText(h, sb, sb.Capacity);
+    return h.ToInt64() + "\\t" + pid + "\\t" + proc + "\\t" + client.X + "\\t" + client.Y + "\\t" + sb.ToString();
   }
 }
 "@
-[WinPoint]::At(${Math.round(screenX)}, ${Math.round(screenY)})
+[WinPoint]::At(${sx}, ${sy})
 `;
   try {
     const { stdout } = await execFileAsync(
@@ -945,61 +1300,579 @@ public class WinPoint {
     );
     const line = (stdout || "").trim();
     if (!line) return null;
-    const [hwnd, pid, ...rest] = line.split("\t");
-    const title = rest.join("\t");
-    if (!title || /keycode|lazy coder/i.test(title)) return null;
-    return { hwnd, pid, title };
+    const parts = line.split("\t");
+    if (parts.length < 5) return null;
+    const [hwnd, pid, processName, cx, cy, ...rest] = parts;
+    const win = {
+      hwnd,
+      pid,
+      processName: (processName || "").trim(),
+      title: rest.join("\t").trim(),
+      clientX: Number(cx),
+      clientY: Number(cy),
+    };
+    if (isOwnAppWindow(win)) return null;
+    if (!win.title && !win.processName) return null;
+    return win;
   } catch (e) {
     console.error(e);
     return null;
   }
 }
 
-async function focusAndPaste(hwnd, text, autoEnter, pauseMs) {
-  clipboard.writeText(text);
+/** DIP screen coords from Electron → physical → window under point. */
+async function windowFromPoint(screenX, screenY) {
+  const phys = toPhysicalScreenPoint(screenX, screenY);
+  return windowFromPointPhysical(phys.x, phys.y);
+}
 
-  const enterBlock = autoEnter
-    ? `
-Start-Sleep -Milliseconds 80
-[WinPaste]::KeyDown(0x0D)
-Start-Sleep -Milliseconds 30
-[WinPaste]::KeyUp(0x0D)
-`
-    : "";
+async function getWindowClientSize(hwnd) {
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class WinSize {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+  public static string Size(long hwndVal) {
+    RECT r;
+    if (!GetClientRect((IntPtr)hwndVal, out r)) return "";
+    return (r.Right - r.Left) + "\\t" + (r.Bottom - r.Top);
+  }
+}
+"@
+[WinSize]::Size(${Number(hwnd)}L)
+`;
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-Command", script],
+      { windowsHide: true }
+    );
+    const [w, h] = (stdout || "").trim().split("\t").map(Number);
+    if (!w || !h) return null;
+    return { width: w, height: h };
+  } catch {
+    return null;
+  }
+}
+
+function resolveTargetWindow(target, windows) {
+  if (target.hwnd) {
+    const byHwnd = windows.find((w) => String(w.hwnd) === String(target.hwnd));
+    if (byHwnd) return byHwnd;
+  }
+  if (target.fullTitle) {
+    const exact = windows.find((w) => w.title === target.fullTitle);
+    if (exact) return exact;
+  }
+  const match = (target.match || "").toLowerCase();
+  if (match.length >= 4) {
+    const hits = windows.filter((w) =>
+      windowDisplayTitle(w).toLowerCase().includes(match)
+    );
+    if (hits.length === 1) return hits[0];
+  }
+  return null;
+}
+
+function findDuplicateFieldTarget(targets, hwnd, inputPoint, focusPoint) {
+  return (targets || []).find((t) => {
+    if (t.driver === "uia") return false;
+    if (String(t.hwnd) !== String(hwnd)) return false;
+    if (!pointsNear(t.inputPoint, inputPoint)) return false;
+    const a = t.focusPoint || null;
+    const b = focusPoint || null;
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return pointsNear(a, b);
+  });
+}
+
+function upsertTargetFromField({
+  win,
+  inputPoint,
+  focusPoint = null,
+  legacy = false,
+}) {
+  const settings = readSettings();
+  const display = windowDisplayTitle(win);
+  const input = normalizePoint(inputPoint);
+  const focus = normalizePoint(focusPoint);
+  if (!input) {
+    return { ok: false, error: "не указано поле ввода" };
+  }
+
+  const existing = findDuplicateFieldTarget(
+    settings.targets,
+    win.hwnd,
+    input,
+    focus
+  );
+  if (existing) {
+    const targets = (settings.targets || []).map((t) =>
+      t.id === existing.id
+        ? {
+            ...t,
+            enabled: true,
+            fullTitle: display,
+            match: display,
+            hwnd: win.hwnd,
+            processName: win.processName || t.processName,
+            inputPoint: input,
+            focusPoint: focus,
+            legacy: !!legacy,
+            driver: "win32-field",
+            needsUiaRebind: false,
+          }
+        : t
+    );
+    writeSettings({ targets });
+    return {
+      ok: true,
+      duplicate: true,
+      target: {
+        ...existing,
+        fullTitle: display,
+        inputPoint: input,
+        focusPoint: focus,
+      },
+    };
+  }
+
+  const brand =
+    display.match(
+      /Cursor|ChatGPT|Claude|Grok|VS Code|Code|Windsurf|Chrome|Edge|Firefox|Copilot/i
+    )?.[0] ||
+    win.processName ||
+    display.slice(0, 24);
+  const name = uniqueTargetName(brand, settings.targets || []);
+  const target = {
+    id: `tgt-${Date.now()}`,
+    name,
+    match: display,
+    hwnd: win.hwnd,
+    enabled: true,
+    fullTitle: display,
+    processName: win.processName || "",
+    inputPoint: input,
+    focusPoint: focus,
+    legacy: !!legacy,
+    driver: "win32-field",
+    needsUiaRebind: false,
+  };
+  writeSettings({ targets: [...(settings.targets || []), target] });
+  return { ok: true, duplicate: false, target };
+}
+
+function findDuplicateUiaTarget(targets, chatLocator) {
+  const key = locatorKey(chatLocator);
+  if (!key) return null;
+  return (targets || []).find(
+    (t) => t.driver === "uia" && locatorKey(t.chatLocator) === key
+  );
+}
+
+function upsertTargetFromUia({
+  hwnd,
+  windowName,
+  processName,
+  chatLocator,
+  inputLocator,
+  chatName,
+}) {
+  const settings = readSettings();
+  if (!chatLocator || !inputLocator) {
+    return { ok: false, error: "не удалось сохранить локаторы чата/поля" };
+  }
+  const display = windowName || "Cursor";
+  const existing = findDuplicateUiaTarget(settings.targets, chatLocator);
+  if (existing) {
+    const targets = (settings.targets || []).map((t) =>
+      t.id === existing.id
+        ? {
+            ...t,
+            enabled: true,
+            driver: "uia",
+            needsUiaRebind: false,
+            hwnd: String(hwnd),
+            fullTitle: display,
+            match: display,
+            processName: processName || t.processName || "Cursor",
+            chatLocator,
+            inputLocator,
+            chatName: chatName || t.chatName || chatLocator.name || "",
+          }
+        : t
+    );
+    writeSettings({ targets });
+    return {
+      ok: true,
+      duplicate: true,
+      target: targets.find((t) => t.id === existing.id),
+    };
+  }
+
+  const baseName =
+    (chatName || chatLocator.name || "").trim().slice(0, 40) || "Cursor чат";
+  const name = uniqueTargetName(baseName, settings.targets || []);
+  const target = {
+    id: `tgt-${Date.now()}`,
+    name,
+    match: display,
+    hwnd: String(hwnd),
+    enabled: true,
+    fullTitle: display,
+    processName: processName || "Cursor",
+    driver: "uia",
+    needsUiaRebind: false,
+    chatLocator,
+    inputLocator,
+    chatName: chatName || chatLocator.name || "",
+  };
+  writeSettings({ targets: [...(settings.targets || []), target] });
+  return { ok: true, duplicate: false, target };
+}
+
+/** @deprecated window-only add — creates legacy fallback input point */
+async function upsertTargetFromWindow(win) {
+  const size = await getWindowClientSize(win.hwnd);
+  const inputPoint = size
+    ? { x: Math.round(size.width / 2), y: Math.round(size.height * 0.82) }
+    : { x: 200, y: 400 };
+  return upsertTargetFromField({
+    win,
+    inputPoint,
+    focusPoint: null,
+    legacy: true,
+  });
+}
+
+function uniqueTargetName(base, targets) {
+  const root = String(base || "Чат").trim() || "Чат";
+  const taken = new Set((targets || []).map((t) => t.name));
+  if (!taken.has(root)) return root;
+  let n = 2;
+  while (taken.has(`${root} · ${n}`)) n += 1;
+  return `${root} · ${n}`;
+}
+
+/** After UIA already focused the input: only Ctrl+V (+ Enter). */
+async function pasteClipboardKeys(autoEnter, pauseMs) {
+  const pause = Math.max(80, Number(pauseMs) || 350);
+  const doEnter = autoEnter === true;
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class WinKeys {
+  [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+  public static void KeyDown(byte vk) { keybd_event(vk, 0, 0, UIntPtr.Zero); }
+  public static void KeyUp(byte vk) { keybd_event(vk, 0, 2, UIntPtr.Zero); }
+  public static string Paste(bool enter, int pauseMs) {
+    System.Threading.Thread.Sleep(pauseMs);
+    KeyDown(0x11); KeyDown(0x56);
+    System.Threading.Thread.Sleep(40);
+    KeyUp(0x56); KeyUp(0x11);
+    if (enter) {
+      System.Threading.Thread.Sleep(100);
+      KeyDown(0x0D); System.Threading.Thread.Sleep(30); KeyUp(0x0D);
+    }
+    System.Threading.Thread.Sleep(200);
+    return "OK";
+  }
+}
+"@
+[WinKeys]::Paste($${doEnter}, ${pause})
+`;
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-Command", script],
+      { windowsHide: true }
+    );
+    const status = (stdout || "").trim().split(/\r?\n/).pop();
+    if (status === "OK") return { ok: true };
+    return { ok: false, error: status || "ошибка вставки" };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+async function focusAndPasteUia(target, text, autoEnter, pauseMs) {
+  const uia = getUiaClient();
+  const hwnd = target.hwnd;
+  if (!hwnd) return { ok: false, error: "нет hwnd цели" };
+  if (!target.chatLocator || !target.inputLocator) {
+    return { ok: false, error: "нет UIA-локаторов — перепривяжите чат" };
+  }
+
+  try {
+    const probe = await uia.probe(hwnd);
+    if (probe.status === "chrome_only" || probe.accessible === false) {
+      return {
+        ok: false,
+        error: uiaErr("chrome_only"),
+        needsAccessibility: true,
+      };
+    }
+
+    const sel = await uia.selectChat(hwnd, target.chatLocator);
+    if (!sel.ok) {
+      return { ok: false, error: uiaErr(sel.error, "чат не выбран") };
+    }
+
+    await new Promise((r) => setTimeout(r, 150));
+
+    const focus = await uia.focusInput(hwnd, target.inputLocator);
+    if (!focus.ok || focus.focused === false) {
+      return {
+        ok: false,
+        error: uiaErr(focus.error || "focus_mismatch"),
+      };
+    }
+
+    clipboard.writeText(text);
+    const paste = await pasteClipboardKeys(autoEnter, pauseMs);
+    return paste;
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
+async function focusAndPaste(hwnd, text, autoEnter, pauseMs, points = {}) {
+  clipboard.writeText(text);
+  const pause = Math.max(250, Number(pauseMs) || 350);
+  const doEnter = autoEnter === true;
+  const focus = normalizePoint(points.focusPoint);
+  const input = normalizePoint(points.inputPoint);
+  const focusX = focus ? focus.x : -1;
+  const focusY = focus ? focus.y : -1;
+  const inputX = input ? input.x : -1;
+  const inputY = input ? input.y : -1;
 
   const script = `
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public class WinPaste {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct POINT { public int X; public int Y; }
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
   [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
   public static void KeyDown(byte vk) { keybd_event(vk, 0, 0, UIntPtr.Zero); }
   public static void KeyUp(byte vk) { keybd_event(vk, 0, 2, UIntPtr.Zero); }
+  static uint ThreadOf(IntPtr h) { uint pid; return GetWindowThreadProcessId(h, out pid); }
+  public static bool ForceFocus(IntPtr h) {
+    IntPtr fg = GetForegroundWindow();
+    uint fgThread = fg != IntPtr.Zero ? ThreadOf(fg) : 0;
+    uint cur = GetCurrentThreadId();
+    uint targetThread = ThreadOf(h);
+    if (fgThread != 0) AttachThreadInput(cur, fgThread, true);
+    if (targetThread != 0 && targetThread != fgThread) AttachThreadInput(cur, targetThread, true);
+    ShowWindow(h, 9);
+    BringWindowToTop(h);
+    keybd_event(0x12, 0, 0, UIntPtr.Zero);
+    keybd_event(0x12, 0, 2, UIntPtr.Zero);
+    bool ok = SetForegroundWindow(h);
+    if (fgThread != 0) AttachThreadInput(cur, fgThread, false);
+    if (targetThread != 0 && targetThread != fgThread) AttachThreadInput(cur, targetThread, false);
+    return ok || GetForegroundWindow() == h;
+  }
+  public static void ClickClient(IntPtr h, int cx, int cy) {
+    if (cx < 0 || cy < 0) return;
+    POINT pt; pt.X = cx; pt.Y = cy;
+    ClientToScreen(h, ref pt);
+    SetCursorPos(pt.X, pt.Y);
+    System.Threading.Thread.Sleep(30);
+    mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero); // LEFTDOWN
+    System.Threading.Thread.Sleep(20);
+    mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero); // LEFTUP
+    System.Threading.Thread.Sleep(40);
+  }
+  public static string Paste(long hwndVal, int pauseMs, bool enter, int fx, int fy, int ix, int iy) {
+    IntPtr h = (IntPtr)hwndVal;
+    if (!ForceFocus(h)) return "FAIL_FOCUS";
+    System.Threading.Thread.Sleep(pauseMs);
+    if (GetForegroundWindow() != h) {
+      ForceFocus(h);
+      System.Threading.Thread.Sleep(Math.Min(200, pauseMs));
+      if (GetForegroundWindow() != h) return "FAIL_FOCUS";
+    }
+    if (fx >= 0 && fy >= 0) {
+      ClickClient(h, fx, fy);
+      System.Threading.Thread.Sleep(220);
+    }
+    if (ix >= 0 && iy >= 0) {
+      ClickClient(h, ix, iy);
+      System.Threading.Thread.Sleep(120);
+    }
+    KeyDown(0x11); KeyDown(0x56);
+    System.Threading.Thread.Sleep(40);
+    KeyUp(0x56); KeyUp(0x11);
+    if (enter) {
+      System.Threading.Thread.Sleep(100);
+      KeyDown(0x0D); System.Threading.Thread.Sleep(30); KeyUp(0x0D);
+    }
+    System.Threading.Thread.Sleep(400);
+    return "OK";
+  }
 }
 "@
-$h = [IntPtr]${Number(hwnd)}
-[WinPaste]::ShowWindow($h, 9) | Out-Null
-[WinPaste]::SetForegroundWindow($h) | Out-Null
-Start-Sleep -Milliseconds ${Math.max(100, pauseMs || 350)}
-[WinPaste]::KeyDown(0x11)
-[WinPaste]::KeyDown(0x56)
-Start-Sleep -Milliseconds 40
-[WinPaste]::KeyUp(0x56)
-[WinPaste]::KeyUp(0x11)
-${enterBlock}
+[WinPaste]::Paste(${Number(hwnd)}L, ${pause}, $${doEnter}, ${focusX}, ${focusY}, ${inputX}, ${inputY})
 `;
 
   try {
-    await execFileAsync(
+    const { stdout } = await execFileAsync(
       "powershell.exe",
       ["-NoProfile", "-Command", script],
       { windowsHide: true }
     );
-    return { ok: true };
+    const status = (stdout || "").trim().split(/\r?\n/).pop();
+    if (status === "OK") return { ok: true };
+    if (status === "FAIL_FOCUS") {
+      return { ok: false, error: "не удалось активировать окно" };
+    }
+    return { ok: false, error: status || "ошибка вставки" };
   } catch (e) {
     return { ok: false, error: String(e) };
+  }
+}
+
+function upsertTargetFromCdp({
+  cdpTargetId,
+  windowTitle,
+  chatId,
+  chatTitle,
+  port,
+}) {
+  const settings = readSettings();
+  const portN = Number(port) || settings.cdpPort || DEFAULT_CDP_PORT;
+  const existing = (settings.targets || []).find(
+    (t) =>
+      t.driver === "cdp" &&
+      String(t.cdpTargetId) === String(cdpTargetId) &&
+      String(t.chatId) === String(chatId)
+  );
+  if (existing) {
+    const targets = (settings.targets || []).map((t) =>
+      t.id === existing.id
+        ? {
+            ...t,
+            enabled: true,
+            needsCdpRebind: false,
+            needsUiaRebind: false,
+            port: portN,
+            cdpTargetId,
+            chatId,
+            chatTitle: chatTitle || t.chatTitle,
+            fullTitle: windowTitle || t.fullTitle,
+            match: windowTitle || t.match,
+            name: t.name,
+          }
+        : t
+    );
+    writeSettings({ targets });
+    return {
+      ok: true,
+      duplicate: true,
+      target: targets.find((t) => t.id === existing.id),
+    };
+  }
+  const base =
+    (chatTitle || "").trim().slice(0, 40) ||
+    "Cursor чат";
+  const name = uniqueTargetName(base, settings.targets || []);
+  const target = {
+    id: `tgt-${Date.now()}`,
+    name,
+    driver: "cdp",
+    enabled: true,
+    needsCdpRebind: false,
+    needsUiaRebind: false,
+    port: portN,
+    cdpTargetId: String(cdpTargetId || ""),
+    chatId: String(chatId || ""),
+    chatTitle: chatTitle || "",
+    fullTitle: windowTitle || "Cursor",
+    match: windowTitle || "Cursor",
+    processName: "Cursor",
+  };
+  writeSettings({ targets: [...(settings.targets || []), target] });
+  return { ok: true, duplicate: false, target };
+}
+
+async function pasteViaCdp(target, text, autoEnter, cdpPort) {
+  const port = Number(target.port) || Number(cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  try {
+    await cdp.sendToChat(
+      target.cdpTargetId,
+      { id: target.chatId, title: target.chatTitle },
+      text,
+      { submit: autoEnter === true }
+    );
+    return { ok: true };
+  } catch (e) {
+    const msg = String(e.message || e);
+    if (/CDP порт|cdp_closed|fetch|ECONNREFUSED/i.test(msg)) {
+      return {
+        ok: false,
+        error: "CDP закрыт — Настройки → Запустить Cursor для фона",
+        needsCdp: true,
+      };
+    }
+    if (/chat_not_found/i.test(msg)) {
+      return { ok: false, error: "чат не найден — выберите чат снова из списка" };
+    }
+    if (/input_not_found/i.test(msg)) {
+      return { ok: false, error: "поле ввода Cursor не найдено" };
+    }
+    return { ok: false, error: msg };
+  }
+}
+
+/** Quiet ValuePattern write — no SetForegroundWindow. */
+async function pasteQuietUia(target, text) {
+  const uia = getUiaClient();
+  try {
+    const hwnd = target.hwnd;
+    if (!hwnd || !target.inputLocator) {
+      return { ok: false, error: "нет локатора поля для тихой записи" };
+    }
+    // Reuse focusInput path then Value via evaluate in helper — if SetFocus would steal,
+    // we only call a dedicated setValue command if available; else skip.
+    const res = await uia.request(
+      "setValue",
+      {
+        hwnd: String(hwnd),
+        locator: target.inputLocator,
+        value: String(text ?? ""),
+      },
+      8000
+    );
+    if (!res?.ok) {
+      return {
+        ok: false,
+        error: uiaErr(res?.error, "программа не принимает текст в фоне"),
+      };
+    }
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: "эта программа не принимает текст в фоне",
+    };
   }
 }
 
@@ -1016,29 +1889,82 @@ async function pasteCardById(cardId) {
         type: "error",
         message: "Выберите хотя бы одну цель",
       });
-      setDeckVisible(true);
     }
     return { ok: false, error: "no targets" };
   }
 
-  const windows = await listWindows();
+  const preserveFocus = settings.preserveFocus !== false;
+  const windows = preserveFocus ? [] : await listWindows();
   const results = [];
   const prevClip = clipboard.readText();
 
   edgeHoverPaused = true;
-  // Колоду не скрываем — только отпускаем always-on-top, чтобы чат получил фокус
-  if (deckWindow && !deckWindow.isDestroyed()) {
-    deckWindow.setAlwaysOnTop(false);
+  const deckWasVisible =
+    deckWindow && !deckWindow.isDestroyed() && deckWindow.isVisible();
+
+  // In no-focus mode keep deck visible (inactive) — do not steal game focus.
+  if (!preserveFocus) {
+    if (deckWasVisible) {
+      setDeckVisible(false, { force: true, unpin: false, silent: true });
+    } else if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.setAlwaysOnTop(false);
+    }
   }
+
+  const gapMs = Math.max(350, Number(settings.pauseMs) || 350);
+  let legacyWarned = false;
 
   try {
     for (const target of enabled) {
-      const match = (target.match || target.name || "").toLowerCase();
-      const win =
-        windows.find((w) => w.title.toLowerCase().includes(match)) ||
-        (target.hwnd &&
-          windows.find((w) => String(w.hwnd) === String(target.hwnd)));
+      if (target.needsCdpRebind || (preserveFocus && target.driver !== "cdp" && target.driver !== "uia-quiet")) {
+        if (target.needsCdpRebind || (isCursorLikeTarget(target) && target.driver !== "cdp")) {
+          results.push({
+            target: target.name,
+            ok: false,
+            error: "перепривяжите через «+ чат Cursor» (фон / CDP)",
+          });
+          continue;
+        }
+      }
 
+      if (target.driver === "cdp") {
+        const r = await pasteViaCdp(
+          target,
+          card.prompt || "",
+          settings.autoEnter === true,
+          settings.cdpPort
+        );
+        results.push({ target: target.name, ...r });
+        await new Promise((r) => setTimeout(r, gapMs));
+        continue;
+      }
+
+      if (preserveFocus) {
+        if (target.driver === "uia-quiet") {
+          const r = await pasteQuietUia(target, card.prompt || "");
+          results.push({ target: target.name, ...r });
+        } else {
+          results.push({
+            target: target.name,
+            ok: false,
+            error: "эта программа не принимает текст в фоне",
+          });
+        }
+        await new Promise((r) => setTimeout(r, gapMs));
+        continue;
+      }
+
+      // —— focus-allowed legacy paths ——
+      if (target.needsUiaRebind) {
+        results.push({
+          target: target.name,
+          ok: false,
+          error: "перепривяжите через «+ чат Cursor»",
+        });
+        continue;
+      }
+
+      const win = resolveTargetWindow(target, windows);
       if (!win) {
         results.push({
           target: target.name,
@@ -1048,24 +1974,118 @@ async function pasteCardById(cardId) {
         continue;
       }
 
+      const display = windowDisplayTitle(win);
+
+      if (target.driver === "uia") {
+        if (String(target.hwnd) !== String(win.hwnd) || target.fullTitle !== display) {
+          const next = (settings.targets || []).map((t) =>
+            t.id === target.id
+              ? {
+                  ...t,
+                  hwnd: win.hwnd,
+                  fullTitle: display,
+                  match: display,
+                  processName: win.processName || t.processName,
+                }
+              : t
+          );
+          writeSettings({ targets: next });
+          settings.targets = next;
+          target.hwnd = win.hwnd;
+        }
+
+        const r = await focusAndPasteUia(
+          { ...target, hwnd: win.hwnd },
+          card.prompt || "",
+          settings.autoEnter === true,
+          settings.pauseMs
+        );
+        results.push({ target: target.name, ...r });
+        await new Promise((r) => setTimeout(r, gapMs));
+        continue;
+      }
+
+      let inputPoint = normalizePoint(target.inputPoint);
+      const focusPoint = normalizePoint(target.focusPoint);
+
+      if (focusPoint && inputPoint && pointsNear(focusPoint, inputPoint)) {
+        results.push({
+          target: target.name,
+          ok: false,
+          error: "ошибка привязки — добавьте поле заново",
+        });
+        continue;
+      }
+
+      if (!inputPoint) {
+        const size = await getWindowClientSize(win.hwnd);
+        inputPoint = size
+          ? {
+              x: Math.round(size.width / 2),
+              y: Math.round(size.height * 0.82),
+            }
+          : { x: 200, y: 400 };
+        if (!legacyWarned && deckWindow && !deckWindow.isDestroyed()) {
+          legacyWarned = true;
+          deckWindow.webContents.send("toast", {
+            type: "error",
+            message: "Перепривяжите поле прицелом ⊕ (старая цель без поля)",
+          });
+        }
+      }
+
+      if (
+        String(target.hwnd) !== String(win.hwnd) ||
+        target.fullTitle !== display ||
+        !normalizePoint(target.inputPoint)
+      ) {
+        const next = (settings.targets || []).map((t) =>
+          t.id === target.id
+            ? {
+                ...t,
+                hwnd: win.hwnd,
+                fullTitle: display,
+                match: display,
+                processName: win.processName || t.processName,
+                inputPoint: inputPoint,
+                focusPoint: focusPoint,
+                driver: t.driver || "win32-field",
+              }
+            : t
+        );
+        writeSettings({ targets: next });
+        settings.targets = next;
+      }
+
       const r = await focusAndPaste(
         win.hwnd,
         card.prompt || "",
-        settings.autoEnter !== false,
-        settings.pauseMs
+        settings.autoEnter === true,
+        settings.pauseMs,
+        { focusPoint, inputPoint }
       );
       results.push({ target: target.name, ...r });
 
-      await new Promise((r) => setTimeout(r, settings.pauseMs || 350));
+      await new Promise((r) => setTimeout(r, gapMs));
     }
   } finally {
-    try {
-      clipboard.writeText(prevClip);
-    } catch {
-      /* ignore */
+    if (!preserveFocus) {
+      const clipToRestore = prevClip;
+      setTimeout(() => {
+        try {
+          clipboard.writeText(clipToRestore);
+        } catch {
+          /* ignore */
+        }
+      }, 700);
+      if (deckWindow && !deckWindow.isDestroyed()) {
+        deckWindow.setAlwaysOnTop(true, "screen-saver");
+        if (deckWasVisible) {
+          setDeckVisible(true, { force: true, inactive: true });
+        }
+      }
     }
     if (deckWindow && !deckWindow.isDestroyed()) {
-      deckWindow.setAlwaysOnTop(true, "screen-saver");
       deckWindow.webContents.send("paste-done", { cardId, results });
     }
     edgeHoverPaused = false;
@@ -1081,7 +2101,7 @@ function closePickWindow() {
   pickWindow = null;
 }
 
-function startTargetPick() {
+function startTargetPick(mode = "field") {
   return new Promise((resolve) => {
     closePickWindow();
     edgeHoverPaused = true;
@@ -1120,6 +2140,16 @@ function startTargetPick() {
     pickWindow.setIgnoreMouseEvents(false);
     pickWindow.loadFile(path.join(appRoot(), "src", "pick.html"));
 
+    // field | cursor (UIA). Legacy "agent" maps to cursor.
+    const pickMode =
+      mode === "cursor" || mode === "agent" || mode === "uia"
+        ? "cursor"
+        : "field";
+    /** @type {'chat' | 'input'} */
+    let phase = pickMode === "cursor" ? "chat" : "input";
+    /** @type {null | { hwnd: string, windowName: string, processName: string, chatLocator: any, chatName: string }} */
+    let draft = null;
+
     let settled = false;
     const finish = async (payload) => {
       if (settled) return;
@@ -1131,7 +2161,22 @@ function startTargetPick() {
         /* ignore */
       }
       closePickWindow();
+      if (targetsWindow && !targetsWindow.isDestroyed()) {
+        targetsWindow.show();
+      }
+      edgeHoverPaused = false;
+      broadcastTargetsUpdated();
       resolve(payload);
+    };
+
+    const showPickOverlay = (hint) => {
+      if (!pickWindow || pickWindow.isDestroyed()) return;
+      pickWindow.show();
+      pickWindow.focus();
+      pickWindow.webContents.send("pick-hint", {
+        text: hint,
+        phase: phase === "chat" ? "focus" : "input",
+      });
     };
 
     try {
@@ -1141,45 +2186,130 @@ function startTargetPick() {
       /* ignore */
     }
 
+    pickWindow.webContents.once("did-finish-load", () => {
+      showPickOverlay(
+        pickMode === "cursor"
+          ? "Шаг 1/2: кликните по чату/агенту Cursor · Esc — отмена"
+          : "Кликните по полю ввода чата · Esc — отмена"
+      );
+    });
+
     ipcMain.handle("pick-click", async (_e, { screenX, screenY }) => {
-      // Hide overlay so WindowFromPoint sees real window under cursor
       if (pickWindow && !pickWindow.isDestroyed()) {
         pickWindow.hide();
       }
-      await new Promise((r) => setTimeout(r, 50));
-      const win = await windowFromPoint(screenX, screenY);
-      if (!win) {
-        await finish({ ok: false, error: "Окно не найдено — кликните по заголовку чата" });
+      // Дать оверлею исчезнуть, затем читать реальный курсор (физические px).
+      await new Promise((r) => setTimeout(r, 120));
+      const nativePos = await getPhysicalCursorPos();
+      const electronCursor = screen.getCursorScreenPoint();
+      const pickPoints = uniquePoints([
+        nativePos,
+        toPhysicalScreenPoint(screenX, screenY),
+        toPhysicalScreenPoint(electronCursor.x, electronCursor.y),
+        { x: screenX, y: screenY },
+        electronCursor,
+      ]);
+
+      if (pickMode === "field") {
+        let win = null;
+        for (const pt of pickPoints) {
+          win = await windowFromPointPhysical(pt.x, pt.y);
+          if (win) break;
+        }
+        if (!win) {
+          showPickOverlay("Кликните по полю ввода чата · Esc — отмена");
+          return { ok: false, continue: true };
+        }
+        const point = {
+          x: Number(win.clientX),
+          y: Number(win.clientY),
+        };
+        const result = upsertTargetFromField({
+          win,
+          inputPoint: point,
+          focusPoint: null,
+        });
+        await finish(result);
+        return { ok: result.ok };
+      }
+
+      // Cursor UIA binding
+      const uia = getUiaClient();
+      try {
+        const hitAtPoints = async (role) => {
+          let last = null;
+          for (const pt of pickPoints) {
+            const hit = await uia.elementFromPoint(pt.x, pt.y, role);
+            last = hit;
+            if (hit?.ok) return hit;
+          }
+          return last || { ok: false, error: role === "chat" ? "not_chat" : "not_input" };
+        };
+
+        if (phase === "chat") {
+          const hit = await hitAtPoints("chat");
+          if (!hit.ok) {
+            showPickOverlay(
+              `${uiaErr(hit.error, "кликните по строке агента в списке слева")} · Esc — отмена`
+            );
+            return { ok: false, continue: true };
+          }
+          // If we bound a Button row, climb name is fine; prefer ListItem-like name
+          const probe = await uia.probe(hit.hwnd);
+          if (probe.status === "chrome_only" || probe.accessible === false) {
+            await finish({
+              ok: false,
+              error:
+                "Внутренности Cursor недоступны. Настройки → Интеграция Cursor → запустите с флагом доступности.",
+              needsAccessibility: true,
+            });
+            return { ok: false };
+          }
+          draft = {
+            hwnd: String(hit.hwnd),
+            windowName: hit.windowName || "Cursor",
+            processName: "Cursor",
+            chatLocator: hit.locator,
+            chatName: hit.name || hit.locator?.name || "",
+          };
+          phase = "input";
+          showPickOverlay(
+            `Шаг 2/2: кликните по полю ввода «${(
+              draft.chatName || "чат"
+            ).slice(0, 40)}» · Esc — отмена`
+          );
+          return { ok: true, continue: true };
+        }
+
+        const hit = await hitAtPoints("input");
+        if (!hit.ok) {
+          showPickOverlay(
+            `${uiaErr(hit.error, "кликните по полю ввода")} · Esc — отмена`
+          );
+          return { ok: false, continue: true };
+        }
+        if (!draft) {
+          await finish({ ok: false, error: "сначала кликните по чату" });
+          return { ok: false };
+        }
+        if (String(hit.hwnd) !== String(draft.hwnd)) {
+          showPickOverlay("Поле должно быть в том же окне Cursor · Esc — отмена");
+          return { ok: false, continue: true };
+        }
+        const result = upsertTargetFromUia({
+          hwnd: draft.hwnd,
+          windowName: draft.windowName || hit.windowName,
+          processName: draft.processName,
+          chatLocator: draft.chatLocator,
+          inputLocator: hit.locator,
+          chatName: draft.chatName,
+        });
+        await finish(result);
+        return { ok: result.ok };
+      } catch (e) {
+        await finish({ ok: false, error: String(e.message || e) });
         return { ok: false };
       }
-      const short =
-        win.title.match(
-          /Cursor|ChatGPT|Claude|Grok|VS Code|Code|Windsurf|Chrome|Edge|Firefox|Copilot/i
-        )?.[0] || win.title.slice(0, 32);
-      const settings = readSettings();
-      const existing = (settings.targets || []).find(
-        (t) => String(t.hwnd) === String(win.hwnd)
-      );
-      if (existing) {
-        const targets = (settings.targets || []).map((t) =>
-          t.id === existing.id ? { ...t, enabled: true, fullTitle: win.title } : t
-        );
-        writeSettings({ targets });
-        await finish({ ok: true, target: existing, duplicate: true });
-        return { ok: true };
-      }
-      const target = {
-        id: `tgt-${Date.now()}`,
-        name: short,
-        match: short,
-        hwnd: win.hwnd,
-        enabled: true,
-        fullTitle: win.title,
-      };
-      const targets = [...(settings.targets || []), target];
-      writeSettings({ targets });
-      await finish({ ok: true, target });
-      return { ok: true };
     });
 
     ipcMain.handle("pick-cancel", async () => {
@@ -1291,6 +2421,18 @@ function setupIpc() {
 
   ipcMain.handle("list-windows", async () => listWindows());
 
+  ipcMain.handle("add-target-window", async (_e, win) => {
+    if (!win?.hwnd) return { ok: false, error: "нет окна" };
+    const result = await upsertTargetFromWindow({
+      hwnd: String(win.hwnd),
+      pid: win.pid,
+      processName: win.processName || "",
+      title: win.title || "",
+    });
+    broadcastTargetsUpdated();
+    return result;
+  });
+
   ipcMain.handle("paste-card", async (_e, cardId) => pasteCardById(cardId));
 
   ipcMain.handle("set-ignore-mouse", (_e, ignore) => {
@@ -1298,13 +2440,27 @@ function setupIpc() {
     return true;
   });
 
+  ipcMain.handle("get-cursor-client", () => cursorInDeckClient());
+
   ipcMain.handle("set-preview-hold", (_e, on) => {
     previewHoldOpen = !!on;
     return true;
   });
 
-  ipcMain.handle("start-target-pick", async () => {
-    const result = await startTargetPick();
+  ipcMain.handle("set-modal-hold", (_e, on) => {
+    modalHoldOpen = !!on;
+    if (modalHoldOpen && deckWindow && !deckWindow.isDestroyed()) {
+      if (hideDelayTimer) {
+        clearTimeout(hideDelayTimer);
+        hideDelayTimer = null;
+      }
+      setDeckVisible(true, { inactive: true });
+    }
+    return true;
+  });
+
+  ipcMain.handle("start-target-pick", async (_e, mode) => {
+    const result = await startTargetPick(mode);
     edgeHoverPaused = false;
     if (result?.ok) {
       pinnedOpen = true;
@@ -1342,6 +2498,138 @@ function setupIpc() {
       }
     }
     return result;
+  });
+
+  ipcMain.handle("cursor-probe", async () => {
+    try {
+      const settings = readSettings();
+      const port = settings.cdpPort || DEFAULT_CDP_PORT;
+      const cdp = getCdpClient(port);
+      const probe = await cdp.probe();
+      const running = await isCursorRunning();
+      const exe = await resolveCursorExe();
+      let chatsTotal = 0;
+      if (probe.open && probe.targets?.length) {
+        for (const t of probe.targets.slice(0, 3)) {
+          const list = await cdp.listChats(t.id);
+          if (list.ok) chatsTotal += (list.chats || []).length;
+        }
+      }
+      const hintRu = probe.open
+        ? `CDP открыт · окон ${probe.targetCount} · чатов≈${chatsTotal}`
+        : "CDP закрыт. Закройте Cursor и нажмите «Запустить Cursor для фона».";
+      return {
+        ok: probe.open,
+        ...probe,
+        chatsTotal,
+        hint: hintRu,
+        cursorRunning: running,
+        cursorExe: exe,
+        flag: `--remote-debugging-port=${port}`,
+        accessibilityFlag: ACCESSIBILITY_FLAG,
+      };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
+    }
+  });
+
+  ipcMain.handle("cursor-launch-integration", async (_e, opts = {}) => {
+    const settings = readSettings();
+    const port = Number(opts.cdpPort) || settings.cdpPort || DEFAULT_CDP_PORT;
+    const mode = opts.mode || "both";
+    const result = await launchCursorForIntegration({ mode, cdpPort: port });
+    if (!result.ok) return result;
+    await new Promise((r) => setTimeout(r, 2800));
+    try {
+      const cdp = getCdpClient(port);
+      let probe = await cdp.probe();
+      for (let i = 0; i < 8 && !probe.open; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        probe = await cdp.probe();
+      }
+      return {
+        ...result,
+        probe: {
+          ...probe,
+          hint: probe.open
+            ? "Готово: Cursor запущен для фона (CDP)"
+            : "Cursor запускается — повторите «Проверить» через пару секунд",
+        },
+      };
+    } catch (e) {
+      return { ...result, probeError: String(e.message || e) };
+    }
+  });
+
+  ipcMain.handle("cdp-list-windows", async () => {
+    const settings = readSettings();
+    const cdp = getCdpClient(settings.cdpPort || DEFAULT_CDP_PORT);
+    const probe = await cdp.probe();
+    if (!probe.open) {
+      return { ok: false, error: "CDP закрыт — запустите Cursor для фона", windows: [] };
+    }
+    return { ok: true, windows: probe.targets || [], port: probe.port };
+  });
+
+  ipcMain.handle("cdp-list-chats", async (_e, cdpTargetId) => {
+    const settings = readSettings();
+    const cdp = getCdpClient(settings.cdpPort || DEFAULT_CDP_PORT);
+    const list = await cdp.listChats(cdpTargetId);
+    return list;
+  });
+
+  ipcMain.handle("cdp-add-chat", async (_e, payload) => {
+    const settings = readSettings();
+    const result = upsertTargetFromCdp({
+      cdpTargetId: payload?.cdpTargetId,
+      windowTitle: payload?.windowTitle,
+      chatId: payload?.chatId || payload?.id,
+      chatTitle: payload?.chatTitle || payload?.title,
+      port: settings.cdpPort || DEFAULT_CDP_PORT,
+    });
+    if (result.ok) broadcastTargetsUpdated();
+    return result;
+  });
+
+  ipcMain.handle("open-chat-pick", () => {
+    openChatPickWindow();
+    return true;
+  });
+
+  ipcMain.handle("close-chat-pick", () => {
+    closeChatPickWindow();
+    return true;
+  });
+
+  ipcMain.handle("uia-diagnose", async () => {
+    try {
+      const settings = readSettings();
+      const cdp = getCdpClient(settings.cdpPort || DEFAULT_CDP_PORT);
+      const probe = await cdp.probe();
+      let chatsTotal = 0;
+      if (probe.open) {
+        for (const t of (probe.targets || []).slice(0, 4)) {
+          const list = await cdp.listChats(t.id);
+          if (list.ok) chatsTotal += (list.chats || []).length;
+        }
+      }
+      return {
+        ok: probe.open,
+        status: probe.open ? "ok" : "cdp_closed",
+        accessible: !!probe.open,
+        elementCount: 0,
+        chatCandidates: chatsTotal,
+        inputCandidates: 0,
+        buttonCount: 0,
+        windowName: probe.targets?.[0]?.title || "",
+        targetCount: probe.targetCount || 0,
+        hint: probe.open
+          ? `CDP: окон ${probe.targetCount}, чатов≈${chatsTotal}`
+          : "CDP закрыт — нужен запуск Cursor для фона",
+      };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
+    }
   });
 
   ipcMain.handle("toggle-deck", () => {
@@ -1457,7 +2745,7 @@ function setupIpc() {
   });
 
   ipcMain.handle("delete-deck", (_e, id) => {
-    if (id === "lazy-v1") {
+    if (id === "lazy-v1" || id === "pro-v1") {
       return { ok: false, error: "Стандартную колоду нельзя удалить" };
     }
     const file = path.join(decksDir(), `${id}.json`);
@@ -1522,7 +2810,18 @@ app.on("will-quit", () => {
   if (edgePollTimer) clearInterval(edgePollTimer);
   if (hideDelayTimer) clearTimeout(hideDelayTimer);
   cancelConcealAnim();
-  globalShortcut.unregisterAll();
+  clearShortcuts();
+  try {
+    getUiaClient().quit();
+  } catch {
+    /* ignore */
+  }
+  try {
+    getCdpClient().closeAll();
+  } catch {
+    /* ignore */
+  }
+  closeChatPickWindow();
   closePickWindow();
   targetsHeldPin = false;
   settingsHeldPin = false;
@@ -1546,6 +2845,7 @@ app.on("window-all-closed", () => {
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
+  // Already running — quit quietly (will-quit must not touch globalShortcut before ready)
   app.quit();
 } else {
   app.on("second-instance", () => {

@@ -8,11 +8,25 @@ contextBridge.exposeInMainWorld("keycode", {
   setActiveDeck: (id) => ipcRenderer.invoke("set-active-deck", id),
   saveDeck: (deck) => ipcRenderer.invoke("save-deck", deck),
   listWindows: () => ipcRenderer.invoke("list-windows"),
+  addTargetWindow: (win) => ipcRenderer.invoke("add-target-window", win),
   pasteCard: (cardId) => ipcRenderer.invoke("paste-card", cardId),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke("set-ignore-mouse", ignore),
+  getCursorClient: () => ipcRenderer.invoke("get-cursor-client"),
   setPreviewHold: (on) => ipcRenderer.invoke("set-preview-hold", on),
+  setModalHold: (on) => ipcRenderer.invoke("set-modal-hold", on),
   deckUiReady: () => ipcRenderer.invoke("deck-ui-ready"),
-  startTargetPick: () => ipcRenderer.invoke("start-target-pick"),
+  startTargetPick: (mode = "field") =>
+    ipcRenderer.invoke("start-target-pick", mode),
+  cursorProbe: () => ipcRenderer.invoke("cursor-probe"),
+  cursorLaunchIntegration: (opts) =>
+    ipcRenderer.invoke("cursor-launch-integration", opts || {}),
+  uiaDiagnose: () => ipcRenderer.invoke("uia-diagnose"),
+  cdpListWindows: () => ipcRenderer.invoke("cdp-list-windows"),
+  cdpListChats: (cdpTargetId) =>
+    ipcRenderer.invoke("cdp-list-chats", cdpTargetId),
+  cdpAddChat: (payload) => ipcRenderer.invoke("cdp-add-chat", payload),
+  openChatPick: () => ipcRenderer.invoke("open-chat-pick"),
+  closeChatPick: () => ipcRenderer.invoke("close-chat-pick"),
   toggleDeck: () => ipcRenderer.invoke("toggle-deck"),
   setExpanded: (expanded) => ipcRenderer.invoke("set-expanded", expanded),
   setFullscreenEdit: (on) => ipcRenderer.invoke("set-fullscreen-edit", on),
@@ -32,6 +46,11 @@ contextBridge.exposeInMainWorld("keycode", {
   pickClick: (screenX, screenY) =>
     ipcRenderer.invoke("pick-click", { screenX, screenY }),
   pickCancel: () => ipcRenderer.invoke("pick-cancel"),
+  onPickHint: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("pick-hint", handler);
+    return () => ipcRenderer.removeListener("pick-hint", handler);
+  },
   onToast: (cb) => {
     const handler = (_e, data) => cb(data);
     ipcRenderer.on("toast", handler);

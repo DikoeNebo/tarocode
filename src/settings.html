@@ -76,6 +76,10 @@
           <input type="number" id="set-pause" min="100" max="2000" step="50" />
         </label>
         <label class="check block">
+          <input type="checkbox" id="set-preserve-focus" checked />
+          <span>Не забирать фокус (игра остаётся активной)</span>
+        </label>
+        <label class="check block">
           <input type="checkbox" id="set-auto-enter" />
           <span>Enter после вставки</span>
         </label>
@@ -95,6 +99,20 @@
         <div class="actions-row">
           <button type="button" class="ghost-btn" id="btn-folder">Папка данных</button>
         </div>
+
+        <h2 class="block-title">Cursor в фоне (CDP)</h2>
+        <p class="hint-text" id="cursor-status">
+          Чтобы слать карты без потери фокуса игры, Cursor должен быть с отладочным портом
+          (бесплатно, без облака).
+        </p>
+        <div class="actions-row wrap">
+          <button type="button" class="ghost-btn" id="btn-cursor-probe">Проверить CDP</button>
+          <button type="button" class="ghost-btn" id="btn-cursor-launch" title="Только если Cursor закрыт">
+            Запустить Cursor для фона
+          </button>
+          <button type="button" class="ghost-btn" id="btn-uia-diagnose">Диагностика</button>
+        </div>
+        <p class="hint-text muted" id="cursor-diag"></p>
       </section>
 
       <section class="panel panel-decks">
