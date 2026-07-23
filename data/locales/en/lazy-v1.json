@@ -1,0 +1,70 @@
+{
+  "id": "lazy-v1",
+  "name": "Tarocode · Hobby",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plan",
+      "description": "Hierophant: break the task into steps — no code yet",
+      "prompt": "Create a step-by-step plan for the current task. Do not write code.\n\nIf the chat already makes it clear — do not re-ask. Otherwise briefly note:\n- the outcome in one sentence;\n- what already exists;\n- constraint: simple hobby project, no unnecessary complexity.\n\nRequirements:\n1. Small steps: one step = one verifiable thing.\n2. For each step: what to do · what \"done\" means · how to verify.\n3. Start with what must come before anything else.\n4. Risks and what can be simplified or deferred.\n5. Plan only — no implementation.\n\nEnd with a numbered list of steps (one line per step).",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Evaluate",
+      "description": "Justice: project quality score 0–10 and verdict",
+      "prompt": "Evaluate the current plan or latest result honestly — no filler, no flattery.\n\nThis is a project quality score on a 0–10 scale (you must give a number):\n- 0–6 — weak, needs redoing;\n- 7–8 — acceptable, can continue;\n- 9–10 — excellent.\nA perfect 10 is rare. For normal work, ≥ 7 is enough. Below 7 — must redo.\n\nCheck:\n1. Is the goal clear? Can \"done\" be stated unambiguously?\n2. Gaps, omissions, vagueness?\n3. Unnecessary complexity for a hobby project?\n4. What will break first?\n5. Top 3 fixes that would most raise the score.\n\nResponse format:\n- Project quality score: N/10\n- Verdict: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Pros (brief)\n- Cons and risks\n- Specific fixes (list)\n\nDo not suggest starting from scratch if targeted fixes suffice. Do not start coding until asked.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "work",
+      "title": "Work",
+      "description": "Magician: implement the next plan step in code",
+      "prompt": "Do the next open step of the approved plan — only that step, not everything at once.\n\nRules:\n1. If the step is unclear — name it in one sentence and do exactly that.\n2. Do not break what already works without good reason.\n3. Missing data — ask briefly, do not invent.\n4. After work: what you did · where to look · how to verify.\n\nEnd with one line: step status — done / partial / blocked (and why).",
+      "image": "magician",
+      "hotkey": "F3"
+    },
+    {
+      "id": "test",
+      "title": "Test",
+      "description": "Star: verify the result with facts, not words",
+      "prompt": "Test what was just done (the last step or a clearly named part).\n\nDo:\n1. Relevant checks: commands, build, manual scenario — whatever fits.\n2. Show facts: output, errors, what actually works.\n3. If it failed — cause and minimal fix (or say that \"Fix\" is needed).\n4. If OK — \"TEST PASSED\" and list what was verified.\n5. Do not move to the next plan step on red (unless I say otherwise).\n\nResult: green / red + one sentence why.\nIf possible, add a preliminary project quality score 0–10 (below 7 = not ready yet).",
+      "image": "star",
+      "hotkey": "F4"
+    },
+    {
+      "id": "fix",
+      "title": "Fix",
+      "description": "Tower: fix the breakage until acceptable score (≥7)",
+      "prompt": "Fix issues from the last test, error, or project quality score below 7/10.\n\nRules:\n1. Minimal fix — no \"while we're at it\" refactoring and no new features.\n2. First: symptom → likely cause.\n3. After the fix, verify again and show the result.\n4. Briefly: was → did → how you confirmed.\n5. Loop \"fix → verify\" until project quality score is ≥ 7/10.\n6. If stuck — blocker and 2 ways out.\n\nNew features forbidden while the breakage is open.",
+      "image": "tower",
+      "hotkey": "F5"
+    },
+    {
+      "id": "polish",
+      "title": "Polish",
+      "description": "Strength: raise project quality score to 9–10",
+      "prompt": "\"Polish\" mode. Do not stop until the project quality score is 9 or 10 out of 10.\n\nProject quality score scale:\n- below 7 — unacceptable;\n- 7–8 — fine for normal work, but not enough for this card;\n- 9–10 — goal; you may stop.\n\nLoop without asking \"continue?\":\n1. Set project quality score N/10 and name the 3 main gaps holding the score.\n2. If score ≤ 8 — fixes only for those gaps (no new features, no scope expansion).\n3. Verify what you changed.\n4. Set project quality score 0–10 again.\n5. While ≤ 8 — repeat from step 2.\n\nStop only at 9 or 10. Then:\n- Final project quality score: N/10\n- What raised the score\n- What you deliberately left untouched\n\nImportant: 7–8 is not the finish here. Finish is only 9 or 10.",
+      "image": "strength",
+      "hotkey": "F6"
+    },
+    {
+      "id": "backup",
+      "title": "Backup",
+      "description": "Hermit: save a rollback point",
+      "prompt": "Create a safe rollback point for the current project state.\n\nIn order, as far as possible:\n1. git status (or equivalent) — what changed.\n2. If git exists — a meaningful commit OR a ready commit command. No force, no dangerous ops, no --no-verify unless asked.\n3. If no git — copy key files/folder to backup with date in the name.\n4. How to roll back in one or two commands.\n5. Do not push to remote without explicit request.\n\nEnd with: \"Checkpoint saved\" + where/how to roll back.",
+      "image": "hermit",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Full Cycle",
+      "description": "World: plan → work → test, each step ≥ 7 points",
+      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nProject quality score 0–10: an item is closed only at ≥ 7. A perfect 10 is not required in this mode (use \"Polish\" for 9–10).\n\nFor EACH plan item:\n1. Which item now.\n2. Do the work.\n3. Verify the result.\n4. Set project quality score 0–10.\n5. If < 7 — fix and repeat until ≥ 7.\n6. Only then the next item.\n\nRules: do not skip steps; do not inflate the task; report progress briefly and clearly.\nIf no plan — first a short plan (5–8 steps) and confirmation, or proceed if the task is already agreed.\n\nFinal:\n- overall check + overall project quality score 0–10;\n- what's done · what's not done · what I should verify manually;\n- if overall score < 7 — do not declare success, keep polishing.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "id": "lazy-v1",
+  "name": "Tarocode · Hobby",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plan",
+      "description": "Hierofante: divide la tarea en pasos — sin código aún",
+      "prompt": "Crea un plan paso a paso para la tarea actual. No escribas código.\n\nSi el chat ya lo deja claro — no vuelvas a preguntar. Si no, anota brevemente:\n- el resultado en una frase;\n- qué ya existe;\n- restricción: proyecto hobby simple, sin complejidad innecesaria.\n\nRequisitos:\n1. Pasos pequeños: un paso = una cosa verificable.\n2. En cada paso: qué hacer · qué significa «listo» · cómo verificar.\n3. Primero lo imprescindible para seguir.\n4. Riesgos y qué se puede simplificar o posponer.\n5. Solo plan — sin implementación.\n\nAl final — lista numerada de pasos (una línea por paso).",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Evaluar",
+      "description": "Justicia: puntuación de calidad del proyecto 0–10 y veredicto",
+      "prompt": "Evalúa el plan actual o el último resultado con honestidad — sin relleno ni halagos.\n\nEsta es la puntuación de calidad del proyecto en escala 0–10 (debes dar un número):\n- 0–6 — débil, hay que rehacer;\n- 7–8 — aceptable, se puede continuar;\n- 9–10 — excelente.\nUn 10 perfecto es raro. Para trabajo normal basta ≥ 7. Por debajo de 7 — hay que rehacer.\n\nComprueba:\n1. ¿El objetivo es claro? ¿Se puede decir «listo» sin ambigüedad?\n2. ¿Huecos, omisiones, vaguedad?\n3. ¿Complejidad innecesaria para un hobby?\n4. ¿Qué se romperá primero?\n5. Top 3 correcciones que más suban la puntuación.\n\nFormato de respuesta:\n- Puntuación de calidad del proyecto: N/10\n- Veredicto: rehacer (<7) / aceptable (7–8) / excelente (9–10)\n- Pros (breve)\n- Contras y riesgos\n- Correcciones concretas (lista)\n\nNo propongas empezar de cero si bastan arreglos puntuales. No empieces código hasta que lo pidan.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "work",
+      "title": "Trabajar",
+      "description": "Mago: implementa el siguiente paso del plan en código",
+      "prompt": "Haz el siguiente paso abierto del plan aprobado — solo ese, no todo a la vez.\n\nReglas:\n1. Si el paso no es obvio — nómbralo en una frase y haz exactamente eso.\n2. No rompas lo que ya funciona sin necesidad.\n3. Si faltan datos — pregunta brevemente, no inventes.\n4. Después: qué hiciste · dónde mirar · cómo verificar.\n\nAl final una línea: estado del paso — listo / parcial / bloqueado (y por qué).",
+      "image": "magician",
+      "hotkey": "F3"
+    },
+    {
+      "id": "test",
+      "title": "Probar",
+      "description": "Estrella: verifica el resultado con hechos, no palabras",
+      "prompt": "Prueba lo que acabas de hacer (último paso o parte claramente nombrada).\n\nHaz:\n1. Comprobaciones relevantes: comandos, build, escenario manual — lo que corresponda.\n2. Muestra hechos: salida, errores, qué funciona de verdad.\n3. Si falló — causa y arreglo mínimo (o di que hace falta «Arreglar»).\n4. Si OK — «PRUEBA SUPERADA» y lista de lo verificado.\n5. No pases al siguiente paso en rojo (salvo que yo diga lo contrario).\n\nResultado: verde / rojo + una frase del porqué.\nSi puedes, añade puntuación preliminar de calidad del proyecto 0–10 (bajo 7 = aún no listo).",
+      "image": "star",
+      "hotkey": "F4"
+    },
+    {
+      "id": "fix",
+      "title": "Arreglar",
+      "description": "Torre: repara la rotura hasta puntuación aceptable (≥7)",
+      "prompt": "Arregla problemas del último test, error o puntuación de calidad del proyecto por debajo de 7/10.\n\nReglas:\n1. Arreglo mínimo — sin refactorizar «de paso» ni nuevas funciones.\n2. Primero: síntoma → causa probable.\n3. Tras el arreglo, verifica de nuevo y muestra el resultado.\n4. Breve: era → hice → cómo confirmé.\n5. Bucle «arreglo → verificación» hasta puntuación ≥ 7/10.\n6. Si atascado — bloqueo y 2 salidas.\n\nNuevas funciones prohibidas mientras la rotura esté abierta.",
+      "image": "tower",
+      "hotkey": "F5"
+    },
+    {
+      "id": "polish",
+      "title": "Pulir",
+      "description": "Fuerza: sube la puntuación de calidad del proyecto a 9–10",
+      "prompt": "Modo «Pulir». No pares hasta que la puntuación de calidad del proyecto sea 9 o 10 de 10.\n\nEscala de puntuación de calidad del proyecto:\n- bajo 7 — inaceptable;\n- 7–8 — bien para trabajo normal, pero poco para esta carta;\n- 9–10 — objetivo; puedes parar.\n\nBucle sin preguntar «¿continuar?»:\n1. Pon puntuación N/10 y nombra 3 huecos principales que la frenan.\n2. Si puntuación ≤ 8 — arreglos solo en esos huecos (sin funciones nuevas, sin ampliar tarea).\n3. Verifica lo cambiado.\n4. Vuelve a poner puntuación 0–10.\n5. Mientras ≤ 8 — repite desde el paso 2.\n\nPara solo en 9 o 10. Entonces:\n- Puntuación final de calidad del proyecto: N/10\n- Qué subió la puntuación\n- Qué dejaste a propósito sin tocar\n\nImportante: 7–8 no es meta aquí. Meta solo 9 o 10.",
+      "image": "strength",
+      "hotkey": "F6"
+    },
+    {
+      "id": "backup",
+      "title": "Copia",
+      "description": "Ermitaño: guarda un punto de rollback",
+      "prompt": "Crea un punto de rollback seguro del estado actual del proyecto.\n\nEn orden, en la medida posible:\n1. git status (o equivalente) — qué cambió.\n2. Si hay git — commit con sentido O comando de commit listo. Sin force, sin ops peligrosas, sin --no-verify salvo petición.\n3. Sin git — copia de archivos/carpeta clave en backup con fecha en el nombre.\n4. Cómo revertir en uno o dos comandos.\n5. No hagas push a remote sin petición explícita.\n\nAl final: «Punto guardado» + dónde/cómo revertir.",
+      "image": "hermit",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Ciclo completo",
+      "description": "Mundo: plan → trabajo → prueba, cada paso ≥ 7 puntos",
+      "prompt": "Ciclo completo del plan de principio a fin — sin saltos.\n\nPuntuación de calidad del proyecto 0–10: un ítem se cierra solo con ≥ 7. Un 10 perfecto no es obligatorio en este modo (para 9–10 usa «Pulir»).\n\nPara CADA ítem del plan:\n1. Qué ítem ahora.\n2. Haz el trabajo.\n3. Verifica el resultado.\n4. Pon puntuación 0–10.\n5. Si < 7 — arregla y repite hasta ≥ 7.\n6. Solo entonces el siguiente ítem.\n\nReglas: no saltar pasos; no inflar la tarea; progreso breve y claro.\nSin plan — primero plan corto (5–8 pasos) y confirmación, o sigue si la tarea ya está acordada.\n\nFinal:\n- comprobación general + puntuación general 0–10;\n- qué está listo · qué no · qué debo verificar yo a mano;\n- si puntuación general < 7 — no declares éxito, sigue puliendo.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

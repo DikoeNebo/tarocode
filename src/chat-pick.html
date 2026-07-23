@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
     />
-    <title>Выбор чата Cursor</title>
+    <title>Pick Cursor chat</title>
     <link rel="stylesheet" href="targets.css" />
     <style>
       body {
@@ -58,21 +58,22 @@
   <body>
     <header class="win-header">
       <div>
-        <h1>Чат Cursor (фон)</h1>
-        <p class="subtitle">Выберите чат из списка — игра не потеряет фокус</p>
+        <h1 data-i18n="chatPick.title">Cursor chat (background)</h1>
+        <p class="subtitle" data-i18n="chatPick.subtitle">Pick a chat from the list — the game keeps focus</p>
       </div>
     </header>
     <label class="field block">
-      <span>Окно Cursor</span>
+      <span data-i18n="chatPick.window">Cursor window</span>
       <select id="win-select" class="win-select"></select>
     </label>
-    <p class="muted" id="status">Загрузка…</p>
+    <p class="muted" id="status" data-i18n="chatPick.loading">Loading…</p>
     <div class="chat-list" id="chat-list"></div>
     <div class="row-actions">
-      <button type="button" class="ghost-btn" id="btn-refresh">Обновить</button>
-      <button type="button" class="ghost-btn" id="btn-cancel">Отмена</button>
+      <button type="button" class="ghost-btn" id="btn-refresh" data-i18n="chatPick.refresh">Refresh</button>
+      <button type="button" class="ghost-btn" id="btn-cancel" data-i18n="chatPick.cancel">Cancel</button>
     </div>
     <div id="toast" class="toast hidden"></div>
+    <script src="i18n.js"></script>
     <script src="chat-pick.js"></script>
   </body>
 </html>

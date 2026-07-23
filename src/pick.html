@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
     />
-    <title>Прицел</title>
+    <title>Pick</title>
     <style>
       html,
       body {
@@ -81,10 +81,11 @@
     </style>
   </head>
   <body>
-    <div class="hint" id="hint">
-      Кликните по <strong>полю ввода</strong> чата · <kbd>Esc</kbd> — отмена
+    <div class="hint" id="hint" data-i18n-html="pick.hintField">
+      Click the chat <strong>input field</strong> · <kbd>Esc</kbd> — cancel
     </div>
     <div class="reticle" id="reticle"></div>
+    <script src="i18n.js"></script>
     <script src="pick.js"></script>
   </body>
 </html>

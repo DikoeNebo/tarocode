@@ -7,8 +7,8 @@
   --ok: #7dcea0;
   --corner-btn-size: 24px;
   --corner-gap: 2px;
-  /* 3 кнопки = ширина полосы; карты той же ширины (края вровень), пропорция таро 2:3 */
-  --deck-strip-w: calc(3 * var(--corner-btn-size) + 2 * var(--corner-gap));
+  /* 4 кнопки = ширина полосы; карты той же ширины (края вровень), пропорция таро 2:3 */
+  --deck-strip-w: calc(4 * var(--corner-btn-size) + 3 * var(--corner-gap));
   --rail-w: 148px;
   --card-w: var(--deck-strip-w);
   --card-h: calc(var(--card-w) * 3 / 2);
@@ -1265,7 +1265,9 @@ body.settings-open #card-preview {
   transform: scale(0.96);
 }
 
-body.edit-mode .card-edit-btn {
+body.edit-mode .card-edit-btn,
+.card:hover .card-edit-btn,
+.card:focus-within .card-edit-btn {
   display: flex;
 }
 
@@ -1709,4 +1711,205 @@ kbd {
   border-radius: 3px;
   border: 1px solid var(--gold-dim);
   background: rgba(0, 0, 0, 0.3);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.strip-deck-pager {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 6px;
+  max-width: var(--deck-strip-w);
+  width: 100%;
+  padding: 2px;
+  border-radius: calc(var(--radius-inner) + 2px);
+  background: rgba(10, 6, 18, 0.88);
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 122, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.deck-page-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--gold);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition-property: transform, background-color, opacity, color;
+  transition-duration: 0.15s;
+  transition-timing-function: var(--ease-out);
+}
+
+.deck-page-btn > span {
+  display: block;
+  transform: translateY(-0.5px);
+}
+
+/* Extend hit area without overlapping neighbors (~40×40). */
+.deck-page-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translate(-50%, -50%);
+}
+
+.deck-page-btn:hover {
+  background: rgba(232, 197, 122, 0.12);
+  color: var(--text);
+}
+
+.deck-page-btn:active {
+  transform: scale(0.96);
+}
+
+.deck-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.deck-page-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: balance;
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+  transition-property: opacity, filter, transform;
+  transition-duration: 0.18s;
+  transition-timing-function: var(--ease-out);
+}
+
+.deck-page-name.is-swap {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(3px);
+}
+
+.card-send:focus-visible,
+.corner-btn:focus-visible,
+.rail-mini:focus-visible,
+.deck-page-btn:focus-visible,
+.primary-btn:focus-visible,
+.ghost-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+body.dock-right .titlebar,
+body.dock-left .titlebar {
+  align-items: center;
+  gap: 4px;
+  height: auto;
+  min-height: var(--titlebar-h);
+  flex-wrap: wrap;
+}
+
+.card-send {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: inherit;
+  text-align: left;
+}
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 4, 14, 0.55);
+  pointer-events: auto;
+}
+
+.onboarding.hidden {
+  display: none;
+}
+
+.onboarding-card {
+  width: min(340px, 92%);
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #1a1228;
+  border: 1px solid rgba(232, 197, 122, 0.35);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.onboarding-card h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-fantasy);
+  font-size: 22px;
+  color: var(--gold);
+  font-weight: 400;
+}
+
+.onboarding-steps {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.onboarding-steps li {
+  margin-bottom: 6px;
+}
+
+.onboarding-card .primary-btn {
+  width: 100%;
+}
+
+.rail-title {
+  font-size: 14px;
+}
+
+.rail-mini {
+  font-size: 11px;
+  min-height: 24px;
+  height: auto;
+}
+
+.card-hotkey {
+  font-size: 9px !important;
 }

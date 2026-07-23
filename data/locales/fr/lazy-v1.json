@@ -1,0 +1,70 @@
+{
+  "id": "lazy-v1",
+  "name": "Tarocode · Hobby",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plan",
+      "description": "Hiérophante : découpe la tâche en étapes — pas de code pour l'instant",
+      "prompt": "Établis un plan étape par étape pour la tâche actuelle. N'écris pas de code.\n\nSi le chat est déjà clair — ne redemande pas. Sinon note brièvement :\n- le résultat en une phrase ;\n- ce qui existe déjà ;\n- contrainte : projet hobby simple, sans complexité inutile.\n\nExigences :\n1. Petites étapes : une étape = une chose vérifiable.\n2. Pour chaque étape : quoi faire · ce que « terminé » signifie · comment vérifier.\n3. D'abord ce sans quoi on ne peut pas avancer.\n4. Risques et ce qu'on peut simplifier ou reporter.\n5. Plan uniquement — pas d'implémentation.\n\nÀ la fin — liste numérotée des étapes (une ligne par étape).",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Évaluer",
+      "description": "Justice : score de qualité du projet 0–10 et verdict",
+      "prompt": "Évalue honnêtement le plan actuel ou le dernier résultat — sans remplissage ni flatterie.\n\nC'est un score de qualité du projet sur une échelle 0–10 (tu dois donner un nombre) :\n- 0–6 — faible, à refaire ;\n- 7–8 — acceptable, on peut continuer ;\n- 9–10 — excellent.\nUn 10 parfait est rare. Pour un travail normal, ≥ 7 suffit. Sous 7 — il faut refaire.\n\nVérifie :\n1. L'objectif est-il clair ? Peut-on dire « terminé » sans ambiguïté ?\n2. Trous, omissions, flou ?\n3. Complexité inutile pour un hobby ?\n4. Qu'est-ce qui cassera en premier ?\n5. Top 3 corrections qui feraient le plus monter le score.\n\nFormat de réponse :\n- Score de qualité du projet : N/10\n- Verdict : refaire (<7) / acceptable (7–8) / excellent (9–10)\n- Points forts (bref)\n- Points faibles et risques\n- Corrections concrètes (liste)\n\nNe propose pas de tout recommencer si des corrections ciblées suffisent. Ne commence pas le code tant qu'on ne le demande pas.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "work",
+      "title": "Travailler",
+      "description": "Magicien : implémente la prochaine étape du plan en code",
+      "prompt": "Fais la prochaine étape ouverte du plan approuvé — seulement celle-ci, pas tout d'un coup.\n\nRègles :\n1. Si l'étape n'est pas évidente — nomme-la en une phrase et fais exactement ça.\n2. Ne casse pas ce qui fonctionne déjà sans raison.\n3. Données manquantes — demande brièvement, n'invente pas.\n4. Après : ce que tu as fait · où regarder · comment vérifier.\n\nEn fin une ligne : statut de l'étape — terminé / partiel / bloqué (et pourquoi).",
+      "image": "magician",
+      "hotkey": "F3"
+    },
+    {
+      "id": "test",
+      "title": "Tester",
+      "description": "Étoile : vérifie le résultat par les faits, pas les mots",
+      "prompt": "Teste ce qui vient d'être fait (dernière étape ou partie clairement nommée).\n\nFais :\n1. Vérifications pertinentes : commandes, build, scénario manuel — ce qui convient.\n2. Montre les faits : sortie, erreurs, ce qui fonctionne vraiment.\n3. Si échec — cause et correctif minimal (ou dis qu'il faut « Corriger »).\n4. Si OK — « TEST RÉUSSI » et liste de ce qui a été vérifié.\n5. Ne passe pas à l'étape suivante sur rouge (sauf si je dis autrement).\n\nRésultat : vert / rouge + une phrase pourquoi.\nSi possible, ajoute un score préliminaire de qualité du projet 0–10 (sous 7 = pas encore prêt).",
+      "image": "star",
+      "hotkey": "F4"
+    },
+    {
+      "id": "fix",
+      "title": "Corriger",
+      "description": "Tour : répare la panne jusqu'à un score acceptable (≥7)",
+      "prompt": "Corrige les problèmes du dernier test, erreur ou score de qualité du projet sous 7/10.\n\nRègles :\n1. Correctif minimal — pas de refactoring « en passant » ni de nouvelles fonctionnalités.\n2. D'abord : symptôme → cause probable.\n3. Après correction, revérifie et montre le résultat.\n4. Bref : était → fait → comment confirmé.\n5. Boucle « correction → vérification » jusqu'à score ≥ 7/10.\n6. Si bloqué — blocage et 2 sorties.\n\nNouvelles fonctionnalités interdites tant que la panne est ouverte.",
+      "image": "tower",
+      "hotkey": "F5"
+    },
+    {
+      "id": "polish",
+      "title": "Peaufiner",
+      "description": "Force : monte le score de qualité du projet à 9–10",
+      "prompt": "Mode « Peaufiner ». Ne t'arrête pas tant que le score de qualité du projet n'est pas 9 ou 10 sur 10.\n\nÉchelle du score de qualité du projet :\n- sous 7 — inacceptable ;\n- 7–8 — ok pour un travail normal, mais insuffisant pour cette carte ;\n- 9–10 — objectif ; tu peux t'arrêter.\n\nBoucle sans demander « continuer ? » :\n1. Mets le score N/10 et nomme 3 lacunes principales qui le bloquent.\n2. Si score ≤ 8 — corrections uniquement sur ces lacunes (pas de nouvelles fonctionnalités, pas d'élargissement).\n3. Vérifie ce qui a changé.\n4. Remets le score 0–10.\n5. Tant que ≤ 8 — répète à partir de l'étape 2.\n\nArrêt seulement à 9 ou 10. Alors :\n- Score final de qualité du projet : N/10\n- Ce qui a fait monter le score\n- Ce que tu as laissé volontairement intact\n\nImportant : 7–8 n'est pas la fin ici. Fin seulement à 9 ou 10.",
+      "image": "strength",
+      "hotkey": "F6"
+    },
+    {
+      "id": "backup",
+      "title": "Sauvegarde",
+      "description": "Ermite : enregistre un point de rollback",
+      "prompt": "Crée un point de rollback sûr de l'état actuel du projet.\n\nDans l'ordre, autant que possible :\n1. git status (ou équivalent) — ce qui a changé.\n2. Si git existe — commit sensé OU commande de commit prête. Pas de force, pas d'ops dangereuses, pas de --no-verify sans demande.\n3. Sans git — copie des fichiers/dossier clés dans backup avec date dans le nom.\n4. Comment revenir en une ou deux commandes.\n5. Ne pousse pas sur remote sans demande explicite.\n\nÀ la fin : « Point enregistré » + où/comment revenir en arrière.",
+      "image": "hermit",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Cycle complet",
+      "description": "Monde : plan → travail → test, chaque étape ≥ 7 points",
+      "prompt": "Cycle complet du plan du début à la fin — sans sauter.\n\nScore de qualité du projet 0–10 : un point n'est clos qu'à ≥ 7. Un 10 parfait n'est pas obligatoire ici (pour 9–10 utilise « Peaufiner »).\n\nPour CHAQUE point du plan :\n1. Quel point maintenant.\n2. Fais le travail.\n3. Vérifie le résultat.\n4. Mets le score 0–10.\n5. Si < 7 — corrige et répète jusqu'à ≥ 7.\n6. Seulement ensuite le point suivant.\n\nRègles : ne pas sauter d'étapes ; ne pas gonfler la tâche ; progrès bref et clair.\nPas de plan — d'abord un plan court (5–8 étapes) et confirmation, ou enchaîne si la tâche est déjà accordée.\n\nFinal :\n- vérification globale + score global 0–10 ;\n- ce qui est prêt · ce qui ne l'est pas · ce que je dois vérifier à la main ;\n- si score global < 7 — ne déclare pas le succès, continue à peaufiner.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

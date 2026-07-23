@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: file: app:"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: app:"
     />
-    <title>Lazy Coder — Keycode</title>
+    <title>Keycode</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="tarot-picker.css" />
   </head>
@@ -14,89 +14,138 @@
     <div id="app">
       <div class="deck-edge">
         <div class="deck-col">
-          <header class="titlebar" aria-label="Управление">
+          <header class="titlebar" data-i18n-aria="deck.controlsAria" aria-label="Controls">
             <nav class="corner-dock" id="corner-dock">
-              <button type="button" class="corner-btn" id="btn-corner-settings" title="Настройки">
+              <button
+                type="button"
+                class="corner-btn"
+                id="btn-corner-hide"
+                data-i18n-title="deck.hideTitle"
+                data-i18n-aria="deck.hideAria"
+                title="Hide"
+                aria-label="Hide deck"
+              >
+                <span aria-hidden="true">👁</span>
+              </button>
+              <button
+                type="button"
+                class="corner-btn"
+                id="btn-corner-settings"
+                data-i18n-title="deck.settings"
+                data-i18n-aria="deck.settings"
+                title="Settings"
+                aria-label="Settings"
+              >
                 <span aria-hidden="true">⚙</span>
               </button>
-              <button type="button" class="corner-btn corner-btn-targets" id="btn-corner-targets" title="Куда отправлять">
+              <button
+                type="button"
+                class="corner-btn corner-btn-targets"
+                id="btn-corner-targets"
+                data-i18n-title="deck.targets"
+                data-i18n-aria="deck.targetsAria"
+                title="Where to send"
+                aria-label="Where to send"
+              >
                 <span aria-hidden="true">🎯</span>
                 <span class="target-badge hidden" id="target-badge"></span>
               </button>
-              <button type="button" class="corner-btn corner-btn-danger" id="btn-corner-quit" title="Закрыть">
+              <button
+                type="button"
+                class="corner-btn corner-btn-danger"
+                id="btn-corner-quit"
+                data-i18n-title="deck.quit"
+                data-i18n-aria="deck.quitAria"
+                title="Close"
+                aria-label="Quit"
+              >
                 <span aria-hidden="true">✕</span>
               </button>
             </nav>
+            <div
+              class="strip-deck-pager"
+              id="deck-pager"
+              role="group"
+              data-i18n-aria="deck.pagerAria"
+              aria-label="Deck switcher"
+            >
+              <button
+                type="button"
+                class="deck-page-btn"
+                id="btn-deck-prev"
+                data-i18n-title="deck.prevDeck"
+                data-i18n-aria="deck.prevDeck"
+                title="Previous deck"
+                aria-label="Previous deck"
+              >
+                <span aria-hidden="true">‹</span>
+              </button>
+              <span class="deck-page-name" id="deck-page-name" title="">—</span>
+              <button
+                type="button"
+                class="deck-page-btn"
+                id="btn-deck-next"
+                data-i18n-title="deck.nextDeck"
+                data-i18n-aria="deck.nextDeck"
+                title="Next deck"
+                aria-label="Next deck"
+              >
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
           </header>
           <section class="cards-zone">
             <div id="cards" class="cards"></div>
           </section>
         </div>
-        <aside class="target-rail" id="target-rail" aria-label="Окна для отправки">
+        <aside class="target-rail" id="target-rail" data-i18n-aria="deck.railAria" aria-label="Send targets">
           <div class="target-rail-head">
-            <span class="rail-title">Чаты</span>
+            <span class="rail-title" data-i18n="deck.chats">Chats</span>
             <div class="rail-actions">
-              <button type="button" class="rail-mini" id="btn-rail-all" title="Включить все">Все</button>
-              <button type="button" class="rail-mini" id="btn-rail-none" title="Снять все">∅</button>
-              <button type="button" class="rail-mini rail-pick" id="btn-rail-pick" title="Добавить обычное поле окна (Notepad и др.)">+ поле</button>
-              <button type="button" class="rail-mini rail-pick" id="btn-rail-agent" title="Добавить чат Cursor из списка (фон, без потери фокуса)">+ чат</button>
+              <button type="button" class="rail-mini" id="btn-rail-all" data-i18n="deck.all" data-i18n-title="deck.allTitle">All</button>
+              <button type="button" class="rail-mini" id="btn-rail-none" data-i18n="deck.none" data-i18n-title="deck.noneTitle">None</button>
+              <button type="button" class="rail-mini rail-pick" id="btn-rail-pick" data-i18n="deck.addField" data-i18n-title="deck.addFieldTitle">+ field</button>
+              <button type="button" class="rail-mini rail-pick" id="btn-rail-agent" data-i18n="deck.addChat" data-i18n-title="deck.addChatTitle">+ chat</button>
             </div>
           </div>
           <div class="target-rail-list" id="target-rail-list"></div>
         </aside>
       </div>
 
-      <section class="chrome">
-        <div class="targets-panel">
-          <header class="toolbar">
-            <div class="toolbar-left">
-              <button type="button" class="icon-btn" id="btn-hide" title="Скрыть (F9)">👁</button>
-              <label class="field">
-                <select id="deck-select" title="Колода"></select>
-              </label>
-            </div>
-            <div class="dock-switch" title="Край экрана">
-              <button type="button" class="dock-btn" data-dock="top" title="Сверху">▲</button>
-              <button type="button" class="dock-btn" data-dock="left" title="Слева">◀</button>
-              <button type="button" class="dock-btn" data-dock="right" title="Справа">▶</button>
-              <button type="button" class="dock-btn" data-dock="bottom" title="Снизу">▼</button>
-            </div>
-            <div class="toolbar-right">
-              <button type="button" class="ghost-btn" id="btn-edit-mode" title="Правки">✎</button>
-              <button type="button" class="ghost-btn" id="btn-add-card">+ карта</button>
-            </div>
-          </header>
-          <div class="targets-bar">
-            <div class="targets-head">
-              <strong>Куда</strong>
-              <button type="button" class="link-btn" id="btn-open-targets">Открыть окно целей →</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div id="toast" class="toast hidden"></div>
+      <div id="toast" class="toast hidden" role="status"></div>
       <div id="card-preview" class="card-preview hidden" aria-hidden="true"></div>
+      <div id="onboarding" class="onboarding hidden" role="dialog" aria-labelledby="onboarding-title">
+        <div class="onboarding-card">
+          <h2 id="onboarding-title" data-i18n="onboarding.title">Quick start</h2>
+          <ol class="onboarding-steps">
+            <li data-i18n-html="onboarding.step1"><kbd>F9</kbd> — show or hide cards</li>
+            <li data-i18n-html="onboarding.step2">⚙ → “Launch Cursor for background”</li>
+            <li data-i18n-html="onboarding.step3">“+ chat” or “+ field”</li>
+            <li data-i18n-html="onboarding.step4">Enable a chip and click a card</li>
+          </ol>
+          <button type="button" class="primary-btn" id="onboarding-ok" data-i18n="onboarding.ok">Got it</button>
+        </div>
+      </div>
     </div>
 
     <div id="modal-card" class="modal hidden">
       <div class="modal-card wide">
-        <h2>Карточка</h2>
+        <h2 data-i18n="cardModal.title">Card</h2>
         <div class="form-grid">
           <label class="field block">
-            <span>Заголовок</span>
+            <span data-i18n="cardModal.heading">Title</span>
             <input type="text" id="card-title" maxlength="40" />
           </label>
           <label class="field block">
-            <span>Коротко на карте</span>
+            <span data-i18n="cardModal.short">Short on card</span>
             <input type="text" id="card-desc" maxlength="80" />
           </label>
           <label class="field block tarot-field">
-            <span>Карта таро</span>
-            <div id="card-image" class="tarot-picker" role="listbox" aria-label="Tarot card"></div>
+            <span data-i18n="cardModal.tarot">Tarot card</span>
+            <div id="card-image" class="tarot-picker" role="listbox" data-i18n-aria="cardModal.tarot" aria-label="Tarot card"></div>
           </label>
           <label class="field block">
-            <span>Клавиша</span>
+            <span data-i18n="cardModal.hotkey">Hotkey</span>
             <select id="card-hotkey">
               <option value="">—</option>
               <option>F1</option>
@@ -111,28 +160,29 @@
           </label>
         </div>
         <label class="field block">
-          <span>Текст для чата</span>
+          <span data-i18n="cardModal.prompt">Chat text</span>
           <textarea id="card-prompt" rows="8"></textarea>
         </label>
         <div class="modal-actions">
-          <button type="button" class="danger-btn" id="card-delete">Удалить</button>
+          <button type="button" class="danger-btn" id="card-delete" data-i18n="cardModal.delete">Delete</button>
           <div class="spacer"></div>
-          <button type="button" class="ghost-btn" id="card-cancel">Отмена</button>
-          <button type="button" class="primary-btn" id="card-save">Сохранить</button>
+          <button type="button" class="ghost-btn" id="card-cancel" data-i18n="cardModal.cancel">Cancel</button>
+          <button type="button" class="primary-btn" id="card-save" data-i18n="cardModal.save">Save</button>
         </div>
       </div>
     </div>
 
     <div id="modal-quit" class="modal hidden">
       <div class="modal-card quit-card">
-        <h2>Это конец?</h2>
+        <h2 data-i18n="quit.title">Is this the end?</h2>
         <div class="quit-actions">
-          <button type="button" class="primary-btn" id="quit-return">Да, выйти из программы</button>
-          <button type="button" class="ghost-btn" id="quit-stay">Нет, свернуть в фон</button>
+          <button type="button" class="primary-btn" id="quit-return" data-i18n="quit.exit">Yes, quit the app</button>
+          <button type="button" class="ghost-btn" id="quit-stay" data-i18n="quit.minimize">No, minimize to background</button>
         </div>
       </div>
     </div>
 
+    <script src="i18n.js"></script>
     <script src="tarot.js"></script>
     <script src="app.js"></script>
   </body>

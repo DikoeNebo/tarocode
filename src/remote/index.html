@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'"
+    />
+    <meta name="theme-color" content="#120a1c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Keycode Remote</title>
+    <link rel="stylesheet" href="remote.css?v=20260723f" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◈</span>
+        <div class="brand-text">
+          <h1 id="app-title">Keycode</h1>
+          <div
+            class="deck-pager"
+            id="deck-pager"
+            role="group"
+            aria-label="Deck switcher"
+          >
+            <button
+              type="button"
+              class="deck-page-btn"
+              id="btn-deck-prev"
+              title="Previous deck"
+              aria-label="Previous deck"
+            >
+              <span aria-hidden="true">‹</span>
+            </button>
+            <p class="deck-name" id="deck-name">—</p>
+            <button
+              type="button"
+              class="deck-page-btn"
+              id="btn-deck-next"
+              title="Next deck"
+              aria-label="Next deck"
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="status-group">
+        <div class="status" id="status" data-state="idle" role="status">…</div>
+        <button
+          type="button"
+          class="sound-toggle"
+          id="sound-toggle"
+          title="Completion sound"
+          aria-label="Completion sound"
+          aria-pressed="true"
+        >🔊</button>
+      </div>
+    </header>
+
+    <section class="target-bar">
+      <label class="target-label" id="target-label" for="target-select">Chat</label>
+      <select id="target-select"></select>
+      <button type="button" class="ghost" id="btn-refresh" title="Refresh">↻</button>
+    </section>
+
+    <main class="transcript" id="transcript" aria-live="polite">
+      <p class="empty" id="transcript-empty">Pick a Cursor chat to see messages already loaded on the PC.</p>
+    </main>
+
+    <section class="composer" id="composer">
+      <label class="sr-only" id="composer-label" for="composer-input">Message</label>
+      <div class="composer-shell">
+        <textarea
+          id="composer-input"
+          rows="3"
+          maxlength="20000"
+          placeholder="Type a message…"
+          enterkeyhint="send"
+          autocomplete="off"
+          autocorrect="on"
+          autocapitalize="sentences"
+        ></textarea>
+        <div class="composer-footer">
+          <span class="composer-hint" id="composer-hint">Type a message, then tap Send</span>
+          <div class="composer-actions">
+            <button
+              type="button"
+              class="mic-btn"
+              id="btn-mic"
+              title="Dictate"
+              aria-label="Dictate"
+              aria-pressed="false"
+            >🎤</button>
+            <button type="button" class="send-btn" id="btn-send">Send</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cards-dock" id="cards-dock">
+      <div class="cards-head">
+        <span id="cards-label">Cards</span>
+        <span class="busy hidden" id="busy-badge">Sending…</span>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <div id="auth-gate" class="auth-gate hidden">
+      <div class="auth-card">
+        <h2 id="auth-title">Open from Settings QR</h2>
+        <p id="auth-text">
+          This page needs the secret from Keycode Settings → Phone remote.
+          Scan the QR again, or paste the full link that ends with
+          <code>#token=…</code>.
+        </p>
+      </div>
+    </div>
+
+    <script src="remote.js?v=20260723f"></script>
+  </body>
+</html>

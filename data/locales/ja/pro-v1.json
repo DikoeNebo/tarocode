@@ -1,0 +1,70 @@
+{
+  "id": "pro-v1",
+  "name": "Tarocode · プロダクション",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "計画",
+      "description": "教皇：merge 可能な計画、下書きではない",
+      "prompt": "現在のタスクの実装計画を作成。コードは書かない。水増しなし。\n\nコンテキストから記録（過剰に質問しない）：\n- acceptance criteria（done の定義）；\n- scope：IN / OUT；\n- リスク：データ、API、競合、互換性、回帰。\n\n要件：\n1. 小さく検証可能なステップ；各 deliverable + 検証方法。\n2. テスト、エラー、エッジケース、ロールバックを考慮。\n3. シンプルで動く解 > 「理想」アーキテクチャ。\n4. 明示：assumptions と open questions。\n5. 計画のみ。\n\n出力：番号付き計画 + 短い risk list + definition of done。",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "レビュー",
+      "description": "正義：プロジェクト品質スコア 0–10 付きレビュー",
+      "prompt": "現在の計画または diff/結果の厳格レビュー。\n\nプロジェクト品質スコア 0–10 を設定：\n- 0–6 — ブロック：続行/merge 不可；\n- 7–8 — 条件付き許容；\n- 9–10 — 高水準。\n7未満 = ブロッカー。通常レビューは ≥ 7 で可；10 は必須ではない。\n\n確認：\n1. Correctness と edge cases\n2. 回帰と脆弱性\n3. 可読性、結合、不要な複雑さ\n4. テストとエラー処理\n5. セキュリティとデータ（該当時）\n6. 次 PR の修正トップ3\n\n形式：\n- プロジェクト品質スコア：N/10\n- 判定：ブロック (<7) / 許容 (7–8) / 強 (9–10)\n- Findings：Critical / Major / Minor\n- 具体的修正（ファイル/場所が分かれば）\n\n大規模リファクタは依頼時のみ。7未満の「まあいいか」は不可。",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "improve",
+      "title": "精緻化",
+      "description": "節制：実装に必要な最小まで計画を圧縮",
+      "prompt": "現在の計画または設計を実装可能レベルまで改善。\n\nルール：\n1. acceptance criteria 外はすべて削除。\n2. 曖昧さを明確化：インターフェース、データ、エラー、テスト。\n3. 肥大なら——trade-offs 付きでより簡素に。\n4. ステップと検証方法は維持。\n5. 依頼されるまでコードなし。\n\n出力：更新計画全文 + changelog（3–7項目）+ 期待計画 readiness スコア 0–10。",
+      "image": "temperance",
+      "hotkey": "F3"
+    },
+    {
+      "id": "work",
+      "title": "コード",
+      "description": "魔術師：次ステップ——回帰なしの検証可能コード",
+      "prompt": "承認済み計画の次の未完了ステップを実装。\n\nルール：\n1. このステップのみ——「ついでに」なし。\n2. 回帰なし：既存動作を保持。\n3. エラーは明示処理；exceptions を飲み込まない。\n4. データ不足——1–3 の precise 質問、API を作らない。\n5. 後：変更点 · 検証方法 · リスク。\n\n状態：done / partial / blocked + 理由。\nステップ目標——correctness でプロジェクト品質スコア ≥ 7/10。",
+      "image": "magician",
+      "hotkey": "F4"
+    },
+    {
+      "id": "test",
+      "title": "テスト",
+      "description": "星：約束ではなくグリーン実行で証明",
+      "prompt": "今作ったものを CI のように検証。「動くはず」は不可。\n\n実行：\n1. コマンド/テスト/ビルド；実際の出力を示す。\n2. Happy path + 最低1つの failure/edge（または不可の理由）。\n3. 赤——root cause + 最小修正またはブロッカー。\n4. 緑——「テスト合格」+ チェック一覧。\n5. 赤のまま次ステップに進まない。\n\n結果：green/red + 予備的プロジェクト品質スコア 0–10（7未満 = 未完了）。",
+      "image": "star",
+      "hotkey": "F5"
+    },
+    {
+      "id": "fix",
+      "title": "Fix",
+      "description": "塔：スコア ≥ 7 まで最小パッチ",
+      "prompt": "直近のテスト、レビュー、またはプロジェクト品質スコア < 7 の欠陥を修正。\n\nルール：\n1. 最小 fix——ついでリファクタなし。\n2. 症状 → 原因 → blast radius。\n3. パッチ → バグ発見と同じ方法で検証。\n4. before → after → evidence。\n5. スコア/テスト ≥ 7 まで繰り返し。\n6. ブロッカー——trade-offs 付き2案。\n\n欠陥が開いている間は新機能禁止。",
+      "image": "tower",
+      "hotkey": "F6"
+    },
+    {
+      "id": "polish",
+      "title": "仕上げ",
+      "description": "力：プロジェクト品質スコアを 9–10 に",
+      "prompt": "高品質仕上げモード。7–8 で止めるのは禁止。目標——プロジェクト品質スコア 9 または 10。\n\nプロジェクト品質スコア尺度：\n- <7 — 失敗；\n- 7–8 — 「プレッシャー下 merge 可」、このカードには不足；\n- 9–10 — 停止。\n\n「続ける？」なしループ：\n1. スコア N/10 + スコアを下げる findings（Critical/Major）。\n2. ≤ 8 なら——それだけ修正（scope freeze、新機能なし）。\n3. チェック再実行。\n4. 新スコア。\n5. ≤ 8 の間繰り返し。\n\n9 または 10 のみ停止。報告：\n- プロジェクト品質スコア：N/10\n- 品質を上げたもの\n- Residual risk（あれば）\n- 触れなかったものと理由\n\n外部制約で天井が9未満なら——制約と到達可能最大スコアを述べ、まず scope 内修正を尽くす。",
+      "image": "strength",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "サイクル",
+      "description": "世界：end-to-end、各項目 ≥ 7 品質点",
+      "prompt": "計画の完全 end-to-end サイクル。\n\n項目はプロジェクト品質スコア ≥ 7 のみクローズ。9–10 は「仕上げ」を使用。\n\n各項目：\n1. 項目名。\n2. 実装。\n3. 事実で検証（コマンド/テスト/シナリオ）。\n4. スコア 0–10。\n5. < 7 なら ≥ 7 まで fix。\n6. 次項目。\n\n禁止：ステップ飛ばし、scope 膨張、赤テストの隠蔽。\n計画なし——まず短い計画（5–8ステップ）と acceptance criteria、その後実行。\n\n最終：\n- 全体プロジェクト品質スコア 0–10；\n- 完了/未完了；\n- residual risks；\n- merge 前に手動確認すべきこと。",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

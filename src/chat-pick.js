@@ -16,17 +16,28 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function displayChatTitle(title) {
+  if (title === "Текущий агент") return window.I18n.t("msg.currentAgent");
+  return title;
+}
+
 let windows = [];
 let chats = [];
 
+async function applyLocale() {
+  const data = await window.keycode.getState();
+  if (data.i18n) window.I18n.setPack(data.i18n);
+  window.I18n.applyDom();
+}
+
 async function loadWindows() {
-  $("status").textContent = "Читаю окна Cursor (CDP)…";
+  $("status").textContent = window.I18n.t("chatPick.readingWindows");
   const r = await window.keycode.cdpListWindows();
   if (!r?.ok) {
-    $("status").textContent = r?.error || "CDP закрыт";
+    $("status").textContent = r?.error || window.I18n.t("chatPick.cdpClosed");
     $("win-select").innerHTML = "";
     $("chat-list").innerHTML = "";
-    toast(r?.error || "CDP закрыт", "error");
+    toast(r?.error || window.I18n.t("chatPick.cdpClosed"), "error");
     return;
   }
   windows = r.windows || [];
@@ -40,7 +51,7 @@ async function loadWindows() {
     )
     .join("");
   if (!windows.length) {
-    $("status").textContent = "Окон Cursor не найдено";
+    $("status").textContent = window.I18n.t("chatPick.noWindows");
     return;
   }
   await loadChats();
@@ -48,28 +59,27 @@ async function loadWindows() {
 
 async function loadChats() {
   const id = $("win-select").value;
-  $("status").textContent = "Читаю список чатов…";
+  $("status").textContent = window.I18n.t("chatPick.readingChats");
   $("chat-list").innerHTML = "";
   const r = await window.keycode.cdpListChats(id);
   if (!r?.ok) {
-    $("status").textContent = r?.error || "Не удалось получить чаты";
-    toast(r?.error || "Ошибка списка", "error");
+    $("status").textContent = r?.error || window.I18n.t("chatPick.chatsFailed");
+    toast(r?.error || window.I18n.t("chatPick.listError"), "error");
     return;
   }
   chats = r.chats || [];
   if (!chats.length) {
-    $("status").textContent =
-      "Чаты не найдены. Откройте Agents в Cursor или используйте отдельное окно на агента.";
+    $("status").textContent = window.I18n.t("chatPick.noChats");
     return;
   }
-  $("status").textContent = `Найдено: ${chats.length}. Кликните чат, чтобы добавить.`;
+  $("status").textContent = window.I18n.t("chatPick.found", { n: chats.length });
   const winTitle =
     windows.find((w) => w.id === id)?.title || r.windowTitle || "Cursor";
   $("chat-list").innerHTML = chats
     .map(
       (c) => `
     <button type="button" class="chat-item" data-id="${escapeHtml(c.id)}">
-      ${escapeHtml(c.title)}
+      ${escapeHtml(displayChatTitle(c.title))}
     </button>`
     )
     .join("");
@@ -83,11 +93,11 @@ async function loadChats() {
         chatId: chat.id,
         chatTitle: chat.title,
       });
-      if (result?.ok && result.duplicate) toast("Этот чат уже в списке", "error");
+      if (result?.ok && result.duplicate) toast(window.I18n.t("chatPick.duplicate"), "error");
       else if (result?.ok) {
-        toast(`Добавлено: ${result.target.name}`, "ok");
+        toast(window.I18n.t("chatPick.added", { name: result.target.name }), "ok");
         setTimeout(() => window.keycode.closeChatPick(), 400);
-      } else toast(result?.error || "Ошибка", "error");
+      } else toast(result?.error || window.I18n.t("common.error"), "error");
     });
   });
 }
@@ -95,8 +105,13 @@ async function loadChats() {
 $("btn-refresh").addEventListener("click", () => loadWindows());
 $("btn-cancel").addEventListener("click", () => window.keycode.closeChatPick());
 $("win-select").addEventListener("change", () => loadChats());
-
-loadWindows().catch((e) => {
-  console.error(e);
-  toast("Ошибка загрузки", "error");
+window.keycode.onStateChanged?.(async () => {
+  await applyLocale();
 });
+
+applyLocale()
+  .then(() => loadWindows())
+  .catch((e) => {
+    console.error(e);
+    toast(window.I18n?.t?.("chatPick.loading") || "Error", "error");
+  });

@@ -1,0 +1,70 @@
+{
+  "id": "pro-v1",
+  "name": "Tarocode · 生产",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "计划",
+      "description": "教皇：可 merge 的计划，不是草稿",
+      "prompt": "为当前任务制定实现计划。不写代码。不要空话。\n\n从上下文记录（不要过度提问）：\n- acceptance criteria（什么算 done）；\n- scope：IN / OUT；\n- 风险：数据、API、竞态、兼容性、回归。\n\n要求：\n1. 步骤小且可验证；每步有 deliverable + 验证方式。\n2. 考虑测试、错误、边界情况、回滚。\n3. 简单可用的方案优于「理想」架构。\n4. 明确：assumptions 和 open questions。\n5. 只写计划。\n\n输出：编号计划 + 简短 risk list + definition of done。",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "审查",
+      "description": "正义：带项目质量评分 0–10 的审查",
+      "prompt": "严格审查当前计划或 diff/结果。\n\n给出项目质量评分 0–10：\n- 0–6 — 阻塞：不能继续 / 不能 merge；\n- 7–8 — 有保留地可接受；\n- 9–10 — 高要求。\n低于 7 = 阻塞。普通审查 ≥ 7 即可；10 非必须。\n\n检查：\n1. Correctness 与 edge cases\n2. 回归与脆弱性\n3. 可读性、内聚、多余复杂度\n4. 测试与错误处理\n5. 安全与数据（如相关）\n6. 下一 PR 的 top 3 修改\n\n格式：\n- 项目质量评分：N/10\n- 结论：阻塞 (<7) / 可接受 (7–8) / 强 (9–10)\n- Findings：Critical / Major / Minor\n- 具体修改（已知则写文件/位置）\n\n大规模重构仅应要求。低于 7 不接受「差不多就行」。",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "improve",
+      "title": "细化",
+      "description": "节制：把计划压缩到实现所需最小",
+      "prompt": "把当前计划或设计改进到可实施水平。\n\n规则：\n1. 删掉 acceptance criteria 之外的一切。\n2. 澄清模糊处：接口、数据、错误、测试。\n3. 若膨胀——提出更简方案并说明 trade-offs。\n4. 保留步骤与验证方式。\n5. 未要求前不写代码。\n\n输出：完整更新计划 + changelog（3–7 条）+ 预期计划就绪评分 0–10。",
+      "image": "temperance",
+      "hotkey": "F3"
+    },
+    {
+      "id": "work",
+      "title": "编码",
+      "description": "魔术师：下一步——可验证代码且无回归",
+      "prompt": "实现已批准计划的下一个未完成步骤。\n\n规则：\n1. 只做这一步——不要「顺便」。\n2. 无回归：保持现有行为。\n3. 明确处理错误；不要吞掉 exceptions。\n4. 数据不足——1–3 个精确问题，不要编造 API。\n5. 之后：改了什么 · 如何验证 · 风险。\n\n状态：done / partial / blocked + 原因。\n步骤目标——correctness 上项目质量评分 ≥ 7/10。",
+      "image": "magician",
+      "hotkey": "F4"
+    },
+    {
+      "id": "test",
+      "title": "测试",
+      "description": "星星：用绿色运行证明，不要口头承诺",
+      "prompt": "像 CI 一样验证刚完成的内容，不要说「应该能工作」。\n\n执行：\n1. 命令/测试/构建；展示实际输出。\n2. Happy path + 至少一个 failure/edge（或说明为何不能）。\n3. 红色——root cause + 最小修复或阻塞。\n4. 绿色——「测试通过」+ 检查列表。\n5. 红色时不要进入下一步。\n\n结果：green/red + 初步项目质量评分 0–10（低于 7 = 未就绪）。",
+      "image": "star",
+      "hotkey": "F5"
+    },
+    {
+      "id": "fix",
+      "title": "修复",
+      "description": "塔：最小补丁直到评分 ≥ 7",
+      "prompt": "修复最近一次测试、审查或项目质量评分 < 7 的缺陷。\n\n规则：\n1. 最小修复——不要顺便重构。\n2. 症状 → 原因 → blast radius。\n3. 补丁 → 用发现 bug 的同样方式验证。\n4. before → after → evidence。\n5. 重复直到评分/测试 ≥ 7。\n6. 阻塞——2 个带 trade-offs 的选项。\n\n缺陷未关闭前禁止新功能。",
+      "image": "tower",
+      "hotkey": "F6"
+    },
+    {
+      "id": "polish",
+      "title": "打磨",
+      "description": "力量：把项目质量评分提升到 9–10",
+      "prompt": "高质量打磨模式。禁止停在 7–8。目标——项目质量评分 9 或 10。\n\n项目质量评分标准：\n- <7 — 失败；\n- 7–8 — 「压力下可 merge」，对本卡不够；\n- 9–10 — 停止。\n\n循环，不要问「继续吗」：\n1. 评分 N/10 + 阻碍评分的 findings（Critical/Major）。\n2. 若 ≤ 8 — 只修这些（scope freeze，无新功能）。\n3. 重新运行检查。\n4. 新评分。\n5. 只要 ≤ 8 — 重复。\n\n仅在 9 或 10 停止。报告：\n- 项目质量评分：N/10\n- 哪些提升了质量\n- Residual risk（如有）\n- 未动部分及原因\n\n若因外部限制天花板低于 9——说明限制和可达最高分，但先在 scope 内用尽修改。",
+      "image": "strength",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "循环",
+      "description": "世界：端到端，每项 ≥ 7 质量分",
+      "prompt": "计划的完整端到端循环。\n\n只有项目质量评分 ≥ 7 才能关闭一项。9–10 请用「打磨」。\n\n对每一项：\n1. 说明项目。\n2. 实现。\n3. 用事实验证（命令/测试/场景）。\n4. 评分 0–10。\n5. 若 < 7 — 修复直到 ≥ 7。\n6. 下一项。\n\n禁止：跳步、膨胀 scope、掩盖红色测试。\n无计划——先写短计划（5–8 步）含 acceptance criteria，再执行。\n\n结束：\n- 总体项目质量评分 0–10；\n- 已完成 / 未完成；\n- residual risks；\n- merge 前需手动检查的内容。",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

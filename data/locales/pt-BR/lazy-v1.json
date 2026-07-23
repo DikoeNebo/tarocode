@@ -1,0 +1,70 @@
+{
+  "id": "lazy-v1",
+  "name": "Tarocode · Hobby",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plano",
+      "description": "Hierofante: divida a tarefa em passos — ainda sem código",
+      "prompt": "Crie um plano passo a passo para a tarefa atual. Não escreva código.\n\nSe o chat já deixar claro — não pergunte de novo. Caso contrário, anote brevemente:\n- o resultado em uma frase;\n- o que já existe;\n- restrição: projeto hobby simples, sem complexidade desnecessária.\n\nRequisitos:\n1. Passos pequenos: um passo = uma coisa verificável.\n2. Em cada passo: o que fazer · o que significa «pronto» · como verificar.\n3. Primeiro o que é indispensável para continuar.\n4. Riscos e o que pode ser simplificado ou adiado.\n5. Só plano — sem implementação.\n\nNo final — lista numerada de passos (uma linha por passo).",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Avaliar",
+      "description": "Justiça: nota de qualidade do projeto 0–10 e veredito",
+      "prompt": "Avalie o plano atual ou o último resultado com honestidade — sem enrolação nem bajulação.\n\nEsta é a nota de qualidade do projeto na escala 0–10 (você deve dar um número):\n- 0–6 — fraco, precisa refazer;\n- 7–8 — aceitável, pode continuar;\n- 9–10 — excelente.\nUm 10 perfeito é raro. Para trabalho normal, ≥ 7 basta. Abaixo de 7 — precisa refazer.\n\nVerifique:\n1. O objetivo está claro? Dá para dizer «pronto» sem ambiguidade?\n2. Lacunas, omissões, vagueza?\n3. Complexidade desnecessária para um hobby?\n4. O que vai quebrar primeiro?\n5. Top 3 correções que mais elevam a nota.\n\nFormato da resposta:\n- Nota de qualidade do projeto: N/10\n- Veredito: refazer (<7) / aceitável (7–8) / excelente (9–10)\n- Prós (breve)\n- Contras e riscos\n- Correções concretas (lista)\n\nNão sugira começar do zero se correções pontuais bastarem. Não comece código até pedirem.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "work",
+      "title": "Trabalhar",
+      "description": "Mago: implemente o próximo passo do plano em código",
+      "prompt": "Faça o próximo passo aberto do plano aprovado — só ele, não tudo de uma vez.\n\nRegras:\n1. Se o passo não for óbvio — nomeie em uma frase e faça exatamente isso.\n2. Não quebre o que já funciona sem necessidade.\n3. Faltam dados — pergunte brevemente, não invente.\n4. Depois: o que fez · onde olhar · como verificar.\n\nNo final uma linha: status do passo — pronto / parcial / bloqueado (e por quê).",
+      "image": "magician",
+      "hotkey": "F3"
+    },
+    {
+      "id": "test",
+      "title": "Testar",
+      "description": "Estrela: verifique o resultado com fatos, não palavras",
+      "prompt": "Teste o que acabou de ser feito (último passo ou parte claramente nomeada).\n\nFaça:\n1. Verificações relevantes: comandos, build, cenário manual — o que couber.\n2. Mostre fatos: saída, erros, o que realmente funciona.\n3. Se falhou — causa e correção mínima (ou diga que precisa «Corrigir»).\n4. Se OK — «TESTE APROVADO» e lista do verificado.\n5. Não avance para o próximo passo no vermelho (a menos que eu diga o contrário).\n\nResultado: verde / vermelho + uma frase do porquê.\nSe possível, adicione nota preliminar de qualidade do projeto 0–10 (abaixo de 7 = ainda não pronto).",
+      "image": "star",
+      "hotkey": "F4"
+    },
+    {
+      "id": "fix",
+      "title": "Corrigir",
+      "description": "Torre: conserte a quebra até nota aceitável (≥7)",
+      "prompt": "Corrija problemas do último teste, erro ou nota de qualidade do projeto abaixo de 7/10.\n\nRegras:\n1. Correção mínima — sem refatorar «de brinde» e sem recursos novos.\n2. Primeiro: sintoma → causa provável.\n3. Após a correção, verifique de novo e mostre o resultado.\n4. Breve: era → fez → como confirmou.\n5. Ciclo «correção → verificação» até nota ≥ 7/10.\n6. Se travado — bloqueio e 2 saídas.\n\nRecursos novos proibidos enquanto a quebra estiver aberta.",
+      "image": "tower",
+      "hotkey": "F5"
+    },
+    {
+      "id": "polish",
+      "title": "Refinar",
+      "description": "Força: eleve a nota de qualidade do projeto a 9–10",
+      "prompt": "Modo «Refinar». Não pare até a nota de qualidade do projeto ser 9 ou 10 de 10.\n\nEscala de nota de qualidade do projeto:\n- abaixo de 7 — inaceitável;\n- 7–8 — ok para trabalho normal, mas pouco para esta carta;\n- 9–10 — meta; pode parar.\n\nCiclo sem perguntar «continuar?»:\n1. Coloque nota N/10 e nomeie 3 lacunas principais que seguram a nota.\n2. Se nota ≤ 8 — correções só nessas lacunas (sem recursos novos, sem ampliar tarefa).\n3. Verifique o que mudou.\n4. Coloque nota 0–10 de novo.\n5. Enquanto ≤ 8 — repita a partir do passo 2.\n\nPare só em 9 ou 10. Então:\n- Nota final de qualidade do projeto: N/10\n- O que elevou a nota\n- O que deixou de propósito intacto\n\nImportante: 7–8 não é meta aqui. Meta só 9 ou 10.",
+      "image": "strength",
+      "hotkey": "F6"
+    },
+    {
+      "id": "backup",
+      "title": "Backup",
+      "description": "Eremita: salve um ponto de rollback",
+      "prompt": "Crie um ponto de rollback seguro do estado atual do projeto.\n\nEm ordem, na medida do possível:\n1. git status (ou equivalente) — o que mudou.\n2. Se houver git — commit com sentido OU comando de commit pronto. Sem force, sem ops perigosas, sem --no-verify sem pedido.\n3. Sem git — cópia de arquivos/pasta chave em backup com data no nome.\n4. Como reverter em um ou dois comandos.\n5. Não faça push para remote sem pedido explícito.\n\nNo final: «Ponto salvo» + onde/como reverter.",
+      "image": "hermit",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Ciclo completo",
+      "description": "Mundo: plano → trabalho → teste, cada passo ≥ 7 pontos",
+      "prompt": "Ciclo completo do plano do início ao fim — sem pular.\n\nNota de qualidade do projeto 0–10: item só fecha com ≥ 7. Um 10 perfeito não é obrigatório neste modo (para 9–10 use «Refinar»).\n\nPara CADA item do plano:\n1. Qual item agora.\n2. Faça o trabalho.\n3. Verifique o resultado.\n4. Coloque nota 0–10.\n5. Se < 7 — corrija e repita até ≥ 7.\n6. Só então o próximo item.\n\nRegras: não pular passos; não inflar a tarefa; progresso breve e claro.\nSem plano — primeiro plano curto (5–8 passos) e confirmação, ou siga se a tarefa já estiver acordada.\n\nFinal:\n- verificação geral + nota geral 0–10;\n- o que está pronto · o que não está · o que devo verificar manualmente;\n- se nota geral < 7 — não declare sucesso, continue refinando.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

@@ -6,11 +6,19 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
+    "test": "node --test test/**/*.test.js",
+    "check": "node scripts/check-release-assets.js",
+    "prebuild": "npm run check && npm test",
     "build": "electron-builder --win portable",
-    "build:installer": "electron-builder --win nsis"
+    "build:installer": "electron-builder --win nsis",
+    "build:all": "npm run prebuild && electron-builder --win portable nsis"
   },
   "author": "Keycode",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OWNER/keycode.git"
+  },
   "build": {
     "appId": "ru.keycode.lazycoder",
     "productName": "Keycode",
@@ -24,10 +32,24 @@
       "data/**/*",
       "package.json"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "OWNER",
+        "repo": "keycode",
+        "releaseType": "release"
+      }
+    ],
     "win": {
       "target": [
         {
           "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
           "arch": [
             "x64"
           ]
@@ -36,15 +58,19 @@
       "artifactName": "Keycode-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "Keycode.exe"
+      "artifactName": "Keycode-${version}-portable.exe"
     },
     "nsis": {
       "oneClick": true,
-      "artifactName": "Keycode-Setup-${version}.${ext}"
+      "artifactName": "Keycode-Setup-${version}.exe"
     }
   },
   "devDependencies": {
     "electron": "35.0.0",
     "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "qrcode": "^1.5.4"
   }
 }

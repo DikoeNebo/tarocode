@@ -172,18 +172,30 @@ function waitForCardImages(timeoutMs = 1200) {
   });
 }
 
+function applyI18nPack(pack) {
+  if (pack) window.I18n.setPack(pack);
+  window.I18n.applyDom();
+  const hide = document.getElementById("btn-corner-hide");
+  if (hide) {
+    const hotkey = state.settings?.showHotkey || "F9";
+    hide.title = window.I18n.t("deck.hideTitle", { hotkey });
+  }
+}
+
 async function refresh() {
   const data = await window.keycode.getState();
   state.settings = data.settings;
   state.decks = data.decks;
   state.deck = data.deck;
   state.pinnedOpen = !!data.pinnedOpen;
+  applyI18nPack(data.i18n);
   applyDockClass(data.dock || data.settings?.dock, data.horizontal, data.expanded);
   applyFullscreenEdit(!!data.fullscreenEdit);
   applyOpacity(data.settings);
   applyCardFonts(data.settings);
   applyPanelScale(data.settings);
   renderAll();
+  maybeShowOnboarding();
 }
 
 function renderAll() {
@@ -192,9 +204,6 @@ function renderAll() {
   renderTargetRail();
   renderCards();
   document.body.classList.toggle("edit-mode", state.editMode);
-  $("btn-edit-mode")?.classList.toggle("active", state.editMode);
-  const addBtn = $("btn-add-card");
-  if (addBtn) addBtn.disabled = (state.deck?.cards?.length || 0) >= 8;
 }
 
 function targetPointsOverlap(t) {
@@ -205,15 +214,15 @@ function targetPointsOverlap(t) {
 }
 
 function targetKindLabel(t) {
-  if (t.needsCdpRebind) return "перепривязать через CDP";
-  if (t.needsUiaRebind && t.driver !== "cdp") return "перепривязать чат";
-  if (t.driver === "cdp") return "Cursor фон";
-  if (t.driver === "uia-quiet") return "поле (тихо)";
-  if (t.driver === "uia") return "Cursor UIA";
-  if (targetPointsOverlap(t)) return "ошибка привязки — добавьте заново";
-  if (t.inputPoint && !t.legacy) return "поле окна";
-  if (t.legacy || !t.inputPoint) return "нужно поле ⊕";
-  return "поле окна";
+  if (t.needsCdpRebind) return window.I18n.t("driver.rebindChat");
+  if (t.needsUiaRebind && t.driver !== "cdp") return window.I18n.t("driver.rebindChatUia");
+  if (t.driver === "cdp") return window.I18n.t("driver.cdp");
+  if (t.driver === "uia-quiet") return window.I18n.t("driver.quiet");
+  if (t.driver === "uia") return window.I18n.t("driver.uiaLegacy");
+  if (targetPointsOverlap(t)) return window.I18n.t("driver.bindError");
+  if (t.inputPoint && !t.legacy) return window.I18n.t("driver.windowField");
+  if (t.legacy || !t.inputPoint) return window.I18n.t("driver.needField");
+  return window.I18n.t("driver.windowField");
 }
 
 function renderTargetRail() {
@@ -222,7 +231,7 @@ function renderTargetRail() {
   const targets = state.settings?.targets || [];
   if (!targets.length) {
     list.innerHTML =
-      '<div class="rail-empty">«+ чат» — список чатов Cursor (фон). Сначала запустите Cursor для фона в Настройках.</div>';
+      '<div class="rail-empty">' + window.I18n.t("rail.empty") + "</div>";
     return;
   }
   list.innerHTML = targets
@@ -262,33 +271,65 @@ async function setTargetsEnabled(updater) {
 
 async function pickTargetFromRail(mode = "field") {
   if (mode === "cursor" || mode === "agent") {
-    toast("Открываю список чатов Cursor…", "");
+    toast(window.I18n.t("rail.openingChats"), "");
     await window.keycode.openChatPick();
     return;
   }
-  toast("Кликните по полю ввода…", "");
+  toast(window.I18n.t("rail.clickField"), "");
   const result = await window.keycode.startTargetPick("field");
   await refresh();
   if (result?.ok && result.duplicate) {
-    toast("Это же поле уже в списке", "error");
+    toast(window.I18n.t("rail.duplicateField"), "error");
   } else if (result?.ok) {
-    toast(`+ ${result.target?.name || "поле"}`, "ok");
+    toast(window.I18n.t("rail.addedField", { name: result.target?.name || window.I18n.t("rail.fieldFallback") }), "ok");
   } else if (result?.canceled) {
     /* silent */
   } else if (result?.error) toast(result.error, "error");
 }
 
 function renderDeckSelect() {
-  const sel = $("deck-select");
-  const active = state.settings?.activeDeckId;
-  sel.innerHTML = (state.decks || [])
-    .map(
-      (d) =>
-        `<option value="${escapeAttr(d.id)}" ${
-          d.id === active ? "selected" : ""
-        }>${escapeHtml(d.name)}</option>`
-    )
-    .join("");
+  const nameEl = $("deck-page-name");
+  const prevBtn = $("btn-deck-prev");
+  const nextBtn = $("btn-deck-next");
+  if (!nameEl || !prevBtn || !nextBtn) return;
+
+  const decks = state.decks || [];
+  const activeId = state.settings?.activeDeckId;
+  const active =
+    decks.find((d) => d.id === activeId) ||
+    decks[0] ||
+    state.deck ||
+    null;
+  const label = active?.name || active?.id || "—";
+  const prevLabel = nameEl.textContent;
+  if (prevLabel && prevLabel !== "—" && prevLabel !== label) {
+    nameEl.classList.add("is-swap");
+    window.setTimeout(() => {
+      nameEl.textContent = label;
+      nameEl.title = label;
+      nameEl.classList.remove("is-swap");
+    }, 90);
+  } else {
+    nameEl.textContent = label;
+    nameEl.title = label;
+    nameEl.classList.remove("is-swap");
+  }
+
+  const canPage = decks.length > 1;
+  prevBtn.disabled = !canPage;
+  nextBtn.disabled = !canPage;
+}
+
+async function cycleDeck(step) {
+  const decks = state.decks || [];
+  if (decks.length < 2) return;
+  const activeId = state.settings?.activeDeckId || state.deck?.id;
+  let idx = decks.findIndex((d) => d.id === activeId);
+  if (idx < 0) idx = 0;
+  const next = decks[(idx + step + decks.length) % decks.length];
+  if (!next?.id) return;
+  await window.keycode.setActiveDeck(next.id);
+  await refresh();
 }
 
 function syncTargetsBadge() {
@@ -301,15 +342,15 @@ function syncTargetsBadge() {
     badge.textContent = "!";
     badge.classList.remove("hidden");
     badge.classList.add("warn");
-    btn.title = "Окна: добавить / удалить / Enter";
+    btn.title = window.I18n.t("rail.targetsManage");
   } else if (!enabled) {
     badge.textContent = "0";
     badge.classList.remove("hidden", "warn");
-    btn.title = "Окна — никто не выбран (включите чипы на полосе)";
+    btn.title = window.I18n.t("rail.targetsNone");
   } else {
     badge.textContent = String(enabled);
     badge.classList.remove("hidden", "warn");
-    btn.title = `Окна — ${enabled} вкл. (удаление и Enter тут)`;
+    btn.title = window.I18n.t("rail.targetsCount", { n: enabled });
   }
 }
 
@@ -434,7 +475,7 @@ function showCardPreview(card, anchorEl) {
   state.previewCardId = card.id;
 
   el.innerHTML = `
-    <div class="preview-tarot">${escapeHtml(preset.name)}</div>
+    <div class="preview-tarot">${escapeHtml(window.I18n.tarotName(preset.id) || preset.name)}</div>
     <div class="preview-title">${escapeHtml(card.title || "")}</div>
     ${
       card.description
@@ -547,6 +588,18 @@ function hitCapturesMouse(x, y) {
   }
   const rail = document.getElementById("target-rail");
   if (rail && pointInRect(x, y, rail.getBoundingClientRect(), 4)) return true;
+  const stripDeck = document.querySelector(".strip-deck-pager");
+  if (stripDeck && pointInRect(x, y, stripDeck.getBoundingClientRect(), 4)) {
+    return true;
+  }
+  const onboarding = document.getElementById("onboarding");
+  if (
+    onboarding &&
+    !onboarding.classList.contains("hidden") &&
+    pointInRect(x, y, onboarding.getBoundingClientRect(), 0)
+  ) {
+    return true;
+  }
   const dock = document.querySelector(".corner-dock");
   if (dock && pointInRect(x, y, dock.getBoundingClientRect(), 12)) return true;
   for (const btn of document.querySelectorAll(".corner-btn")) {
@@ -604,7 +657,7 @@ function renderCards() {
 
   if (!cards.length) {
     root.innerHTML =
-      '<div class="empty-targets">Нет карт. Добавьте карточку.</div>';
+      '<div class="empty-targets">' + window.I18n.t("cards.empty") + "</div>";
     return;
   }
 
@@ -617,30 +670,59 @@ function renderCards() {
       <article class="card" data-id="${escapeAttr(card.id)}">
         <button type="button" class="card-edit-btn" data-edit="${escapeAttr(
           card.id
-        )}" title="Редактировать">✎</button>
-        <div class="card-art">
-          <img src="${escapeAttr(src)}" alt="${escapeAttr(preset.name)}"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
-          <div class="fallback" style="display:none" title="${escapeAttr(
-            preset.name
-          )}">✦</div>
-          <div class="card-overlay">
-            <div class="card-overlay-top">
-              <div class="card-tarot">${escapeHtml(preset.name)}</div>
+        )}" title="${escapeAttr(window.I18n.t("cards.edit"))}" aria-label="${escapeAttr(
+          window.I18n.t("cards.editAria", {
+            title: card.title || window.I18n.t("cards.cardFallback"),
+          })
+        )}">✎</button>
+        <button type="button" class="card-send" data-send="${escapeAttr(
+          card.id
+        )}" aria-label="${escapeAttr(card.title || window.I18n.t("cards.sendAria"))}${
+          card.hotkey ? `, ${escapeAttr(card.hotkey)}` : ""
+        }">
+          <div class="card-art">
+            <img src="${escapeAttr(src)}" alt=""
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+            <div class="fallback" style="display:none" title="${escapeAttr(
+              window.I18n.tarotName(preset.id) || preset.name
+            )}">✦</div>
+            <div class="card-overlay">
+              <div class="card-overlay-top">
+                <div class="card-tarot">${escapeHtml(window.I18n.tarotName(preset.id) || preset.name)}</div>
+              </div>
+              <div class="card-overlay-bottom">
+                <div class="card-action">${escapeHtml(action)}</div>
+              </div>
             </div>
-            <div class="card-overlay-bottom">
-              <div class="card-action">${escapeHtml(action)}</div>
-            </div>
+            ${
+              card.hotkey
+                ? `<div class="card-hotkey">${escapeHtml(card.hotkey)}</div>`
+                : ""
+            }
           </div>
-          ${
-            card.hotkey
-              ? `<div class="card-hotkey">${escapeHtml(card.hotkey)}</div>`
-              : ""
-          }
-        </div>
+        </button>
       </article>`;
     })
     .join("");
+}
+
+function maybeShowOnboarding() {
+  const el = $("onboarding");
+  if (!el) return;
+  if (state.settings?.firstRunDone) {
+    el.classList.add("hidden");
+    return;
+  }
+  el.classList.remove("hidden");
+  window.keycode.setModalHold?.(true);
+}
+
+async function dismissOnboarding() {
+  const el = $("onboarding");
+  if (el) el.classList.add("hidden");
+  window.keycode.setModalHold?.(false);
+  await window.keycode.dismissFirstRun?.();
+  state.settings = { ...state.settings, firstRunDone: true };
 }
 
 function escapeHtml(s) {
@@ -661,29 +743,33 @@ function formatPasteToast(results) {
   const ok = list.filter((r) => r.ok).length;
   const fail = list.length - ok;
   const total = list.length;
-  if (!total) return { message: "нет целей", type: "error" };
+  const warn = list.find((r) => r.ok && r.warning);
+  if (!total) return { message: window.I18n.t("cards.noTargets"), type: "error" };
   if (fail && !ok) {
     const first = list.find((r) => !r.ok);
     return {
-      message: `${first?.target || "окно"}: ${first?.error || "ошибка"}`,
+      message: window.I18n.t("cards.pasteFail", { target: first?.target || window.I18n.t("cards.windowFallback"), error: first?.error || window.I18n.t("cards.errorFallback") }),
       type: "error",
     };
   }
   if (fail) {
     const first = list.find((r) => !r.ok);
     return {
-      message: `→ ${ok} из ${total} (${first?.target}: ${first?.error || "нет"})`,
+      message: window.I18n.t("cards.pastePartial", { ok, total, target: first?.target, error: first?.error || window.I18n.t("cards.noneFallback") }),
       type: "error",
     };
   }
-  return { message: `→ ${ok} из ${total}`, type: "ok" };
+  if (warn) {
+    return { message: warn.warning, type: "error" };
+  }
+  return { message: window.I18n.t("cards.pasteOk", { ok, total }), type: "ok" };
 }
 
 async function onPasteCard(cardId) {
   hideCardPreview();
   const enabled = (state.settings?.targets || []).filter((t) => t.enabled).length;
   if (!enabled) {
-    toast("Включите окна на полосе или ⊕", "error");
+    toast(window.I18n.t("cards.pickTarget"), "error");
     return;
   }
   const el = document.querySelector(`.card[data-id="${CSS.escape(cardId)}"]`);
@@ -727,7 +813,7 @@ async function saveCardEditor() {
     c.id === id
       ? {
           ...c,
-          title: $("card-title").value.trim() || "Без названия",
+          title: $("card-title").value.trim() || window.I18n.t("cards.untitled"),
           description: $("card-desc").value.trim(),
           prompt: $("card-prompt").value,
           image: window.getTarotPickerValue($("card-image")),
@@ -738,27 +824,27 @@ async function saveCardEditor() {
   state.deck = await window.keycode.saveDeck({ ...state.deck, cards });
   closeCardEditor();
   await refresh();
-  toast("Сохранено", "ok");
+  toast(window.I18n.t("cards.saved"), "ok");
 }
 
 async function deleteEditingCard() {
   const id = state.editingCardId;
   if (!id || !state.deck) return;
   if (state.deck.cards.length <= 1) {
-    toast("Нужна хотя бы одна карта", "error");
+    toast(window.I18n.t("cards.needOne"), "error");
     return;
   }
   const cards = state.deck.cards.filter((c) => c.id !== id);
   state.deck = await window.keycode.saveDeck({ ...state.deck, cards });
   closeCardEditor();
   await refresh();
-  toast("Удалено", "ok");
+  toast(window.I18n.t("cards.deleted"), "ok");
 }
 
 async function addCard() {
   if (!state.deck) return;
   if (state.deck.cards.length >= 8) {
-    toast("Максимум 8", "error");
+    toast(window.I18n.t("cards.max8"), "error");
     return;
   }
   const n = state.deck.cards.length + 1;
@@ -768,9 +854,9 @@ async function addCard() {
   const presets = window.TAROT_PRESETS;
   const card = {
     id: uid("card"),
-    title: `Карта ${n}`,
-    description: "Описание",
-    prompt: "Ваш текст…",
+    title: window.I18n.t("cards.newTitle", { n }),
+    description: window.I18n.t("cards.newDesc"),
+    prompt: window.I18n.t("cards.newPrompt"),
     image: presets[(n - 1) % presets.length].id,
     hotkey: freeHotkey || "",
   };
@@ -809,6 +895,12 @@ async function toggleFullscreenEdit() {
 }
 
 function bindEvents() {
+  $("btn-corner-hide")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideCardPreview();
+    window.keycode.hideDeck();
+  });
+
   $("btn-corner-settings").addEventListener("click", (e) => {
     e.stopPropagation();
     hideCardPreview();
@@ -834,31 +926,19 @@ function bindEvents() {
   $("quit-stay").addEventListener("click", () => {
     closeQuitDialog();
     window.keycode.hideDeck();
-    toast("Скрыто — в фоне. Полный выход: ✕ → «Да, выйти»", "");
+    toast(window.I18n.t("cards.hiddenBg"), "");
   });
 
-  $("btn-hide").addEventListener("click", () => window.keycode.hideDeck());
+  $("onboarding-ok")?.addEventListener("click", () => dismissOnboarding());
 
-  $("deck-select").addEventListener("change", async (e) => {
-    await window.keycode.setActiveDeck(e.target.value);
-    await refresh();
+  $("btn-deck-prev")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await cycleDeck(-1);
   });
-
-  document.querySelectorAll(".dock-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const dock = btn.getAttribute("data-dock");
-      await window.keycode.setDock(dock);
-      await refresh();
-    });
+  $("btn-deck-next")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await cycleDeck(1);
   });
-
-  $("btn-edit-mode").addEventListener("click", () => {
-    state.editMode = !state.editMode;
-    document.body.classList.toggle("edit-mode", state.editMode);
-    $("btn-edit-mode").classList.toggle("active", state.editMode);
-  });
-
-  $("btn-open-targets")?.addEventListener("click", () => window.keycode.openTargets());
 
   $("btn-rail-all")?.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -896,11 +976,24 @@ function bindEvents() {
     );
   });
 
-  $("btn-add-card").addEventListener("click", addCard);
-
   $("card-cancel").addEventListener("click", closeCardEditor);
   $("card-save").addEventListener("click", saveCardEditor);
   $("card-delete").addEventListener("click", deleteEditingCard);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("modal-card")?.classList.contains("hidden")) {
+      closeCardEditor();
+      return;
+    }
+    if (!$("modal-quit")?.classList.contains("hidden")) {
+      closeQuitDialog();
+      return;
+    }
+    if (!$("onboarding")?.classList.contains("hidden")) {
+      dismissOnboarding();
+    }
+  });
 
   $("cards").addEventListener("click", (e) => {
     const edit = e.target.closest("[data-edit]");
@@ -909,12 +1002,13 @@ function bindEvents() {
       openCardEditor(edit.getAttribute("data-edit"));
       return;
     }
-    const card = e.target.closest(".card");
-    if (!card) return;
-    if (state.editMode) {
-      openCardEditor(card.getAttribute("data-id"));
+    const send = e.target.closest("[data-send]");
+    if (send) {
+      onPasteCard(send.getAttribute("data-send"));
       return;
     }
+    const card = e.target.closest(".card");
+    if (!card) return;
     onPasteCard(card.getAttribute("data-id"));
   });
 
@@ -1005,6 +1099,6 @@ refresh()
   .then(() => window.keycode.deckUiReady?.())
   .catch((e) => {
     console.error(e);
-    toast("Ошибка загрузки", "error");
+    toast(window.I18n.t("cards.loadError"), "error");
     window.keycode.deckUiReady?.();
   });

@@ -25,12 +25,32 @@ document.addEventListener("keydown", async (e) => {
   }
 });
 
-window.keycode.onPickHint?.((data) => {
-  if (data?.text && hint) {
-    hint.innerHTML = data.text
-      .replace(/Esc/g, "<kbd>Esc</kbd>")
-      .replace(/полю ввода/g, "<strong>полю ввода</strong>")
-      .replace(/агенту\/вкладке/g, "<strong>агенту/вкладке</strong>");
+function setHintText(text) {
+  if (!hint) return;
+  hint.textContent = "";
+  const parts = String(text || "").split(/(Esc)/g);
+  for (const part of parts) {
+    if (part === "Esc") {
+      const kbd = document.createElement("kbd");
+      kbd.textContent = "Esc";
+      hint.appendChild(kbd);
+    } else if (part) {
+      hint.appendChild(document.createTextNode(part));
+    }
   }
+}
+
+(async () => {
+  try {
+    const data = await window.keycode.getState();
+    if (data?.i18n) window.I18n.setPack(data.i18n);
+    window.I18n.applyDom();
+  } catch {
+    /* ignore */
+  }
+})();
+
+window.keycode.onPickHint?.((data) => {
+  if (data?.text) setHintText(data.text);
   document.body.classList.toggle("phase-focus", data?.phase === "focus");
 });

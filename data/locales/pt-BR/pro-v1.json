@@ -1,0 +1,70 @@
+{
+  "id": "pro-v1",
+  "name": "Tarocode · Produção",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plano",
+      "description": "Hierofante: plano pronto para merge, não rascunho",
+      "prompt": "Crie um plano de implementação para a tarefa atual. Sem código. Sem enrolação.\n\nDo contexto, anote (não pergunte demais):\n- acceptance criteria (o que conta como done);\n- scope: IN / OUT;\n- riscos: dados, API, corridas, compatibilidade, regressões.\n\nRequisitos:\n1. Passos pequenos e verificáveis; cada um com deliverable + como verificar.\n2. Considere testes, erros, casos limite, rollback.\n3. Solução simples que funciona > arquitetura «ideal».\n4. Explícito: suposições e perguntas abertas.\n5. Só plano.\n\nSaída: plano numerado + lista curta de riscos + definition of done.",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Revisar",
+      "description": "Justiça: revisão com nota de qualidade do projeto 0–10",
+      "prompt": "Revisão rigorosa do plano atual ou diff/resultado.\n\nColoque nota de qualidade do projeto 0–10:\n- 0–6 — bloqueio: não continuar / sem merge;\n- 7–8 — aceitável com ressalvas;\n- 9–10 — barra alta.\nAbaixo de 7 = bloqueador. Para revisão normal, ≥ 7 basta; 10 não é obrigatório.\n\nVerifique:\n1. Correctness e edge cases\n2. Regressões e fragilidade\n3. Legibilidade, coesão, complexidade desnecessária\n4. Testes e tratamento de erros\n5. Segurança e dados (se relevante)\n6. Top 3 correções para o próximo PR\n\nFormato:\n- Nota de qualidade do projeto: N/10\n- Veredito: bloqueio (<7) / aceitável (7–8) / forte (9–10)\n- Findings: Critical / Major / Minor\n- Correções concretas (arquivos/lugares se conhecidos)\n\nRefatoração grande só sob pedido. Não aceite «tá bom assim» abaixo de 7.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "improve",
+      "title": "Afinar",
+      "description": "Temperança: reduza o plano ao mínimo para implementar",
+      "prompt": "Melhore o plano ou design atual ao nível pronto para implementar.\n\nRegras:\n1. Corte tudo fora dos acceptance criteria.\n2. Esclareça o vago: interfaces, dados, erros, testes.\n3. Se inchado — proponha mais simples com trade-offs.\n4. Mantenha passos e método de verificação.\n5. Sem código até pedirem.\n\nSaída: plano atualizado completo + changelog (3–7 itens) + nota esperada de prontidão do plano 0–10.",
+      "image": "temperance",
+      "hotkey": "F3"
+    },
+    {
+      "id": "work",
+      "title": "Codificar",
+      "description": "Mago: próximo passo — código verificável sem regressões",
+      "prompt": "Implemente o próximo passo aberto do plano aprovado.\n\nRegras:\n1. Só este passo — sem «de brinde».\n2. Sem regressões: preserve o comportamento existente.\n3. Trate erros explicitamente; não engula exceptions.\n4. Poucos dados — 1–3 perguntas precisas, não invente APIs.\n5. Depois: o que mudou · como verificar · riscos.\n\nStatus: done / partial / blocked + por quê.\nMeta do passo — nota de qualidade do projeto ≥ 7/10 em correctness.",
+      "image": "magician",
+      "hotkey": "F4"
+    },
+    {
+      "id": "test",
+      "title": "Testar",
+      "description": "Estrela: prove com execução verde, não promessa",
+      "prompt": "Verifique o que acabou de ser feito como no CI, não «deveria funcionar».\n\nFaça:\n1. Comandos/testes/build; mostre saída real.\n2. Happy path + pelo menos um failure/edge (ou por que não dá).\n3. Vermelho — root cause + correção mínima ou bloqueio.\n4. Verde — «TESTE APROVADO» + lista de verificações.\n5. No vermelho não avance para o próximo passo.\n\nResultado: green/red + nota preliminar de qualidade do projeto 0–10 (abaixo de 7 = não pronto).",
+      "image": "star",
+      "hotkey": "F5"
+    },
+    {
+      "id": "fix",
+      "title": "Fix",
+      "description": "Torre: patch mínimo até nota ≥ 7",
+      "prompt": "Corrija o defeito do último teste, revisão ou nota de qualidade do projeto < 7.\n\nRegras:\n1. Fix mínimo — sem refatorar «de brinde».\n2. Sintoma → causa → blast radius.\n3. Patch → verifique do mesmo jeito que o bug foi pego.\n4. before → after → evidence.\n5. Repita até nota / teste ≥ 7.\n6. Bloqueio — 2 opções com trade-offs.\n\nRecursos novos proibidos enquanto o defeito estiver aberto.",
+      "image": "tower",
+      "hotkey": "F6"
+    },
+    {
+      "id": "polish",
+      "title": "Refinar",
+      "description": "Força: leve a nota de qualidade do projeto a 9–10",
+      "prompt": "Modo refinamento de alta qualidade. Parar em 7–8 proibido. Meta — nota de qualidade do projeto 9 ou 10 de 10.\n\nEscala de nota de qualidade do projeto:\n- <7 — falha;\n- 7–8 — «merge sob pressão», pouco para esta carta;\n- 9–10 — parar.\n\nCiclo sem «continuar?»:\n1. Nota N/10 + findings que seguram a nota (Critical/Major).\n2. Se ≤ 8 — correções só neles (scope freeze, sem recursos novos).\n3. Rode verificações de novo.\n4. Nova nota.\n5. Enquanto ≤ 8 — repita.\n\nPare só em 9 ou 10. Relatório:\n- Nota de qualidade do projeto: N/10\n- O que elevou a qualidade\n- Residual risk (se houver)\n- O que não tocou e por quê\n\nSe o teto for <9 por limites externos — nomeie e nota máxima alcançável, mas primeiro esgote correções dentro do scope.",
+      "image": "strength",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Ciclo",
+      "description": "Mundo: end-to-end, cada item ≥ 7 pontos de qualidade",
+      "prompt": "Ciclo completo end-to-end do plano.\n\nItem só fecha com nota de qualidade do projeto ≥ 7. Para 9–10 use «Refinar».\n\nPor item:\n1. Nomeie o item.\n2. Implemente.\n3. Verifique com fatos (comandos/testes/cenário).\n4. Nota 0–10.\n5. Se < 7 — corrija até ≥ 7.\n6. Próximo item.\n\nProibido: pular passos, inflar scope, mascarar testes vermelhos.\nSem plano — primeiro plano curto (5–8 passos) com acceptance criteria, depois execução.\n\nFinal:\n- nota geral de qualidade do projeto 0–10;\n- feito / não feito;\n- residual risks;\n- o que verificar manualmente antes do merge.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

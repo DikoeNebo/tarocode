@@ -2,11 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { execFile, spawn } = require("child_process");
 const { promisify } = require("util");
+const { t } = require("./i18n");
 
 const execFileAsync = promisify(execFile);
 
 const ACCESSIBILITY_FLAG = "--force-renderer-accessibility=complete";
 const DEFAULT_CDP_PORT = 9222;
+const SHORTCUT_FILE_NAME = "Cursor background.lnk";
+const SHORTCUT_DESCRIPTION = "Cursor with CDP for Keycode background paste";
 
 function candidateCursorPaths() {
   const local = process.env.LOCALAPPDATA || "";
@@ -65,6 +68,144 @@ async function resolveCursorExe() {
 function cdpPortFlag(port) {
   const p = Number(port) || DEFAULT_CDP_PORT;
   return `--remote-debugging-port=${p}`;
+}
+
+function cdpAddressFlag() {
+  return "--remote-debugging-address=127.0.0.1";
+}
+
+/**
+ * Build Chromium/Cursor args for CDP (+ optional accessibility).
+ * Pure — safe for unit tests.
+ * @param {{ mode?: 'accessibility'|'background'|'both', cdpPort?: number }} [opts]
+ * @returns {string[]}
+ */
+function buildCdpLaunchArgs(opts = {}) {
+  const mode = opts.mode || "both";
+  const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
+  const args = [];
+  if (mode === "accessibility" || mode === "both") {
+    args.push(ACCESSIBILITY_FLAG);
+  }
+  if (mode === "background" || mode === "both") {
+    args.push(cdpPortFlag(cdpPort));
+    args.push(cdpAddressFlag());
+  }
+  if (!args.length) {
+    args.push(cdpPortFlag(cdpPort));
+    args.push(cdpAddressFlag());
+  }
+  return args;
+}
+
+/** Full Target-style string for .lnk / diagnostics (quoted exe + args). */
+function buildShortcutTargetString(exe, args) {
+  const exeQ = `"${String(exe || "").replace(/"/g, "")}"`;
+  const argStr = (Array.isArray(args) ? args : []).join(" ");
+  return argStr ? `${exeQ} ${argStr}` : exeQ;
+}
+
+function keycodeShortcutPaths() {
+  const appData = process.env.APPDATA || "";
+  const desktop = process.env.USERPROFILE
+    ? path.join(process.env.USERPROFILE, "Desktop")
+    : "";
+  const startMenuDir = appData
+    ? path.join(
+        appData,
+        "Microsoft",
+        "Windows",
+        "Start Menu",
+        "Programs",
+        "Keycode"
+      )
+    : "";
+  return {
+    startMenuDir,
+    startMenu: startMenuDir
+      ? path.join(startMenuDir, SHORTCUT_FILE_NAME)
+      : "",
+    desktop: desktop ? path.join(desktop, SHORTCUT_FILE_NAME) : "",
+  };
+}
+
+/**
+ * Create/update Start Menu + Desktop .lnk for Cursor with CDP flags.
+ * Never modifies the official Cursor shortcut. Never kills Cursor.
+ * @param {{ mode?: string, cdpPort?: number }} [opts]
+ */
+async function installCursorCdpShortcut(opts = {}) {
+  const mode = opts.mode || "both";
+  const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
+  const exe = await resolveCursorExe();
+  if (!exe || !fs.existsSync(exe)) {
+    return { ok: false, error: t("cursor.exeMissing") };
+  }
+
+  const args = buildCdpLaunchArgs({ mode, cdpPort });
+  const argString = args.join(" ");
+  const paths = keycodeShortcutPaths();
+  if (!paths.startMenu && !paths.desktop) {
+    return { ok: false, error: t("cursor.shortcutNoPaths") };
+  }
+
+  const workDir = path.dirname(exe);
+  const created = [];
+
+  async function writeLnk(lnkPath) {
+    if (!lnkPath) return;
+    const dir = path.dirname(lnkPath);
+    fs.mkdirSync(dir, { recursive: true });
+    const script = `
+$ErrorActionPreference = 'Stop'
+$W = New-Object -ComObject WScript.Shell
+$S = $W.CreateShortcut(${psQuote(lnkPath)})
+$S.TargetPath = ${psQuote(exe)}
+$S.Arguments = ${psQuote(argString)}
+$S.WorkingDirectory = ${psQuote(workDir)}
+$S.IconLocation = ${psQuote(exe + ",0")}
+$S.Description = ${psQuote(SHORTCUT_DESCRIPTION)}
+$S.Save()
+Write-Output 'OK'
+`;
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+      { windowsHide: true, timeout: 15000 }
+    );
+    if (!String(stdout || "").includes("OK")) {
+      throw new Error(String(stdout || "CreateShortcut failed"));
+    }
+    if (!fs.existsSync(lnkPath)) {
+      throw new Error("shortcut_missing_after_write");
+    }
+    created.push(lnkPath);
+  }
+
+  try {
+    await writeLnk(paths.startMenu);
+    await writeLnk(paths.desktop);
+  } catch (e) {
+    return {
+      ok: false,
+      error: t("cursor.shortcutFail", { err: String(e.message || e) }),
+      exe,
+      args,
+    };
+  }
+
+  return {
+    ok: true,
+    exe,
+    args,
+    cdpPort,
+    flag: argString,
+    target: buildShortcutTargetString(exe, args),
+    shortcuts: created,
+    startMenu: paths.startMenu,
+    desktop: paths.desktop,
+    next: t("cursor.shortcutNext"),
+  };
 }
 
 function psQuote(s) {
@@ -147,31 +288,21 @@ async function launchCursorForIntegration(opts = {}) {
     return {
       ok: false,
       alreadyRunning: true,
-      error:
-        "Cursor уже открыт. Закройте его сами (сохраните работу), затем нажмите «Запустить» снова.",
+      error: t("cursor.alreadyOpen"),
     };
   }
   const exe = await resolveCursorExe();
   if (!exe) {
     return {
       ok: false,
-      error:
-        "Cursor.exe не найден. Установите Cursor или откройте его один раз вручную.",
+      error: t("cursor.exeMissing"),
     };
   }
   if (!fs.existsSync(exe)) {
-    return { ok: false, error: `Файл не найден: ${exe}` };
+    return { ok: false, error: t("cursor.fileMissing", { exe }) };
   }
 
-  const args = [];
-  if (mode === "accessibility" || mode === "both") {
-    args.push(ACCESSIBILITY_FLAG);
-  }
-  if (mode === "background" || mode === "both") {
-    args.push(cdpPortFlag(cdpPort));
-  }
-  if (!args.length) args.push(cdpPortFlag(cdpPort));
-
+  const args = buildCdpLaunchArgs({ mode, cdpPort });
   const errors = [];
 
   try {
@@ -209,9 +340,8 @@ async function launchCursorForIntegration(opts = {}) {
   return {
     ok: false,
     error:
-      "Не удалось запустить Cursor (доступ запрещён или блокировка). " +
-      "Закройте Cursor вручную и откройте его из ярлыка с параметром:\n" +
-      `${args.join(" ")}\n\n` +
+      t("cursor.launchDenied", { flag: args.join(" ") }) +
+      "\n\n" +
       errors.join(" · "),
     exe,
     args,
@@ -221,8 +351,14 @@ async function launchCursorForIntegration(opts = {}) {
 module.exports = {
   ACCESSIBILITY_FLAG,
   DEFAULT_CDP_PORT,
+  SHORTCUT_FILE_NAME,
   isCursorRunning,
   resolveCursorExe,
   launchCursorForIntegration,
+  installCursorCdpShortcut,
+  buildCdpLaunchArgs,
+  buildShortcutTargetString,
+  keycodeShortcutPaths,
   cdpPortFlag,
+  cdpAddressFlag,
 };

@@ -100,12 +100,16 @@ window.fillTarotImagePicker = (container, selectedId) => {
   if (!container) return;
   const groups = [...new Set(window.TAROT_PRESETS.map((p) => p.group))];
   const pick = selectedId || window.TAROT_PRESETS[0].id;
+  const nameOf = (p) =>
+    (window.I18n && window.I18n.tarotName(p.id)) || p.name;
+  const groupOf = (group) =>
+    (window.I18n && window.I18n.tarotGroup(group)) || group;
 
   container.innerHTML = groups
     .map((group) => {
       const items = window.TAROT_PRESETS.filter((p) => p.group === group);
       return `<section class="tarot-picker-group">
-        <h4 class="tarot-picker-group-title">${group}</h4>
+        <h4 class="tarot-picker-group-title">${groupOf(group)}</h4>
         <div class="tarot-picker-grid">${items
           .map(
             (p) =>
@@ -113,7 +117,7 @@ window.fillTarotImagePicker = (container, selectedId) => {
                 p.id === pick ? " selected" : ""
               }" data-id="${p.id}" aria-pressed="${p.id === pick}">
                 <img src="${window.tarotImageUrl(p.id)}" alt="" loading="lazy" />
-                <span class="tarot-picker-name">${p.name}</span>
+                <span class="tarot-picker-name">${nameOf(p)}</span>
               </button>`
           )
           .join("")}</div>

@@ -27,6 +27,8 @@ function escapeAttr(s) {
 async function refresh() {
   const data = await window.keycode.getState();
   settings = data.settings;
+  if (data.i18n) window.I18n.setPack(data.i18n);
+  window.I18n.applyDom();
   render();
 }
 
@@ -38,13 +40,13 @@ function render() {
   const enabled = targets.filter((t) => t.enabled).length;
   const countEl = $("target-count");
   if (!targets.length) {
-    countEl.textContent = "Нет целей";
+    countEl.textContent = window.I18n.t("targets.countNone");
     countEl.classList.add("warn");
   } else if (!enabled) {
-    countEl.textContent = "Никто не выбран";
+    countEl.textContent = window.I18n.t("targets.countZero");
     countEl.classList.add("warn");
   } else {
-    countEl.textContent = `${enabled} из ${targets.length} выбрано`;
+    countEl.textContent = window.I18n.t("targets.countSelected", { enabled, total: targets.length });
     countEl.classList.remove("warn");
   }
 
@@ -52,8 +54,8 @@ function render() {
     list.innerHTML = `
       <div class="empty-state">
         <span class="empty-icon" aria-hidden="true">🎯</span>
-        <div><strong>Чат Cursor</strong> — два клика (агент → поле)</div>
-        <div style="font-size:12px"><strong>Поле</strong> — Notepad и другие окна · вкл/выкл на полосе</div>
+        <div>${window.I18n.t("targets.emptyHintChat")}</div>
+        <div style="font-size:12px">${window.I18n.t("targets.emptyHintField")}</div>
       </div>`;
     return;
   }
@@ -61,18 +63,18 @@ function render() {
   list.innerHTML = targets
     .map((t) => {
       const kind = t.needsCdpRebind
-        ? "перепривязать через CDP"
+        ? window.I18n.t("driver.rebindChatTargets")
         : t.driver === "cdp"
-          ? "Cursor фон"
+          ? window.I18n.t("driver.cdp")
           : t.driver === "uia-quiet"
-            ? "поле (тихо)"
+            ? window.I18n.t("driver.quiet")
             : t.driver === "uia"
-              ? "Cursor UIA"
+              ? window.I18n.t("driver.uiaLegacy")
               : pointsOverlap(t)
-                ? "ошибка привязки — добавьте заново"
+                ? window.I18n.t("driver.bindError")
                 : t.inputPoint && !t.legacy
-                  ? "поле окна"
-                  : "нужно перепривязать поле ⊕";
+                  ? window.I18n.t("driver.windowField")
+                  : window.I18n.t("driver.needRebindField");
       const match = [kind, t.fullTitle || t.match || ""]
         .filter(Boolean)
         .join(" · ");
@@ -85,7 +87,7 @@ function render() {
         </div>
         <button type="button" class="target-remove" data-remove="${escapeAttr(
           t.id
-        )}" title="Убрать">×</button>
+        )}" title="${escapeAttr(window.I18n.t("targets.remove"))}">×</button>
       </label>`;
     })
     .join("");
@@ -105,15 +107,15 @@ function pointsOverlap(t) {
 
 async function pickTarget(mode = "field") {
   if (mode === "cursor" || mode === "agent") {
-    toast("Список чатов Cursor…", "");
+    toast(window.I18n.t("targetsMsg.listingChats"), "");
     await window.keycode.openChatPick();
     return;
   }
-  toast("Кликните по полю ввода…", "");
+  toast(window.I18n.t("targetsMsg.clickField"), "");
   const result = await window.keycode.startTargetPick("field");
   await refresh();
-  if (result?.ok && result.duplicate) toast("Это же поле уже в списке", "error");
-  else if (result?.ok) toast(`Добавлено: ${result.target.name}`, "ok");
+  if (result?.ok && result.duplicate) toast(window.I18n.t("targetsMsg.duplicateField"), "error");
+  else if (result?.ok) toast(window.I18n.t("targetsMsg.added", { name: result.target.name }), "ok");
   else if (result?.error) toast(result.error, "error");
 }
 
@@ -123,10 +125,10 @@ function bindEvents() {
   $("btn-pick").addEventListener("click", () => pickTarget("field"));
   $("btn-pick-agent").addEventListener("click", () => pickTarget("cursor"));
   $("btn-uia-diag")?.addEventListener("click", async () => {
-    toast("Диагностика…", "");
+    toast(window.I18n.t("targetsMsg.diag"), "");
     const r = await window.keycode.uiaDiagnose();
-    if (!r?.ok) toast(r?.error || "Ошибка", "error");
-    else toast(r.hint || "Готово", r.status === "ok" ? "ok" : "error");
+    if (!r?.ok) toast(r?.error || window.I18n.t("common.error"), "error");
+    else toast(r.hint || window.I18n.t("targetsMsg.ready"), r.status === "ok" ? "ok" : "error");
   });
 
   $("btn-all").addEventListener("click", async () => {
@@ -173,5 +175,5 @@ function bindEvents() {
 bindEvents();
 refresh().catch((e) => {
   console.error(e);
-  toast("Ошибка загрузки", "error");
+  toast(window.I18n.t("targetsMsg.loadError"), "error");
 });

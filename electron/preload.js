@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld("keycode", {
   cursorProbe: () => ipcRenderer.invoke("cursor-probe"),
   cursorLaunchIntegration: (opts) =>
     ipcRenderer.invoke("cursor-launch-integration", opts || {}),
+  cursorInstallCdpShortcut: (opts) =>
+    ipcRenderer.invoke("cursor-install-cdp-shortcut", opts || {}),
   uiaDiagnose: () => ipcRenderer.invoke("uia-diagnose"),
   cdpListWindows: () => ipcRenderer.invoke("cdp-list-windows"),
   cdpListChats: (cdpTargetId) =>
@@ -38,6 +40,19 @@ contextBridge.exposeInMainWorld("keycode", {
   newDeck: (name) => ipcRenderer.invoke("new-deck", name),
   deleteDeck: (id) => ipcRenderer.invoke("delete-deck", id),
   openDataFolder: () => ipcRenderer.invoke("open-data-folder"),
+  openLogsFolder: () => ipcRenderer.invoke("open-logs-folder"),
+  donateGetConfig: () => ipcRenderer.invoke("donate-get-config"),
+  donateGetStats: () => ipcRenderer.invoke("donate-get-stats"),
+  donateRecordClick: (payload) =>
+    ipcRenderer.invoke("donate-record-click", payload),
+  donateOpenPay: (method) => ipcRenderer.invoke("donate-open-pay", method),
+  dismissFirstRun: () => ipcRenderer.invoke("dismiss-first-run"),
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  remoteStatus: () => ipcRenderer.invoke("remote-status"),
+  remoteSetEnabled: (enabled) => ipcRenderer.invoke("remote-set-enabled", enabled),
+  remoteRotateToken: () => ipcRenderer.invoke("remote-rotate-token"),
+  remoteQrDataUrl: () => ipcRenderer.invoke("remote-qr-data-url"),
+  remoteDiagnose: () => ipcRenderer.invoke("remote-diagnose"),
   openSettings: () => ipcRenderer.invoke("open-settings"),
   closeSettings: () => ipcRenderer.invoke("close-settings"),
   openTargets: () => ipcRenderer.invoke("open-targets"),

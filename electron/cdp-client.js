@@ -2,7 +2,16 @@
  * Minimal CDP client for Cursor background paste (no focus steal).
  * Uses Node built-in fetch + WebSocket (Electron/Node 22+).
  */
+const { t } = require("./i18n");
+const {
+  normalizeTranscriptMessages,
+  hashTranscript,
+  dedupeTranscriptMessages,
+} = require("./cdp-transcript");
+
 const DEFAULT_PORT = 9222;
+/** Stable sentinel for "already open composer" — do not localize (matching). */
+const CURRENT_AGENT_SENTINEL = "Текущий агент";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -171,17 +180,17 @@ class CdpClient {
 
   async getSession(cdpTargetId) {
     const probe = await this.probe();
-    if (!probe.open) throw new Error("CDP порт закрыт — запустите Cursor для фона");
-    let target = (probe.targets || []).find((t) => t.id === cdpTargetId);
-    if (!target && probe.targets?.length === 1) target = probe.targets[0];
-    if (!target) {
-      // Prefer title containing Agents / Cursor / folder
-      target =
-        (probe.targets || []).find((t) => /Agents|Cursor/i.test(t.title)) ||
-        probe.targets?.[0];
+    if (!probe.open) throw new Error(t("cdp.portClosed"));
+    const wantId = String(cdpTargetId || "");
+    let target = (probe.targets || []).find((t) => t.id === wantId);
+    // Only auto-pick when exactly one window and no specific id was stored
+    if (!target && !wantId && probe.targets?.length === 1) {
+      target = probe.targets[0];
     }
     if (!target?.webSocketDebuggerUrl) {
-      throw new Error("CDP: окно Cursor не найдено");
+      throw new Error(
+        wantId ? t("cdp.windowMissingReselect") : t("cdp.windowMissing")
+      );
     }
     const key = target.id;
     let session = this.sessions.get(key);
@@ -268,7 +277,7 @@ class CdpClient {
         if (!out.length) {
           const comp = document.querySelector('[data-composer-id]');
           if (comp) {
-            push(comp.getAttribute('data-composer-id'), 'Текущий агент', 'current-composer');
+            push(comp.getAttribute('data-composer-id'), ${JSON.stringify(CURRENT_AGENT_SENTINEL)}, 'current-composer');
           }
         }
         return out.slice(0, 60);
@@ -353,32 +362,73 @@ class CdpClient {
     const result = await session.evaluate(`(async () => {
       const text = ${JSON.stringify(payload)};
       const submit = ${submit ? "true" : "false"};
+      const visible = (el) => {
+        if (!el) return false;
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return (
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const isMessageChrome = (el) =>
+        !!el.closest(
+          '[data-message-role], [data-role="user"], [data-role="assistant"], [class*="composer-message"], [class*="chat-message"], [class*="agent-message"], [class*="message-bubble"], .markdown-root, .anysphere-markdown-container-root'
+        );
       const pickEditor = () => {
         const sels = [
           '.aislash-editor-input',
+          '.ui-prompt-input-editor__input[contenteditable="true"]',
+          '[class*="aislash-editor"] [contenteditable="true"]',
+          '[class*="prompt-input"] [contenteditable="true"]',
           '[data-lexical-editor="true"][contenteditable="true"]',
           '.tiptap.ProseMirror[contenteditable="true"]',
-          '.ui-prompt-input-editor__input[contenteditable="true"]',
-          '[class*="aislash"] [contenteditable="true"]',
           '[class*="composer"] [contenteditable="true"]',
           '[class*="ai-input"] textarea',
           'textarea[placeholder]',
           '[role="textbox"][contenteditable="true"]',
         ];
+        const candidates = [];
         for (const sel of sels) {
-          const el = document.querySelector(sel);
-          if (el && el.offsetParent !== null) return el;
+          for (const el of document.querySelectorAll(sel)) {
+            if (!visible(el)) continue;
+            if (isMessageChrome(el) && !el.closest('[class*="prompt"], [class*="aislash"], [class*="ai-input"]')) {
+              continue;
+            }
+            candidates.push(el);
+          }
+          if (candidates.length) break;
         }
-        const all = [...document.querySelectorAll('[contenteditable="true"], textarea')];
-        return all.find((el) => el.offsetParent !== null) || null;
+        if (!candidates.length) {
+          for (const el of document.querySelectorAll('[contenteditable="true"], textarea')) {
+            if (!visible(el)) continue;
+            if (isMessageChrome(el)) continue;
+            candidates.push(el);
+          }
+        }
+        if (!candidates.length) return null;
+        // Prefer the lowest editor on screen — the prompt box, not a mid-chat widget.
+        candidates.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+        return candidates[0];
       };
       const el = pickEditor();
       if (!el) return { ok: false, error: 'input_not_found' };
       el.focus();
       if (el.isContentEditable) {
         try {
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          sel.removeAllRanges();
+          sel.addRange(range);
           document.execCommand('selectAll', false, null);
-          document.execCommand('insertText', false, text);
+          const okInsert = document.execCommand('insertText', false, text);
+          if (!okInsert) {
+            el.textContent = '';
+            document.execCommand('insertText', false, text);
+          }
         } catch (e) {
           el.textContent = text;
           el.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
@@ -390,27 +440,284 @@ class CdpClient {
       }
       if (submit) {
         await new Promise((r) => setTimeout(r, 80));
-        const sendBtn =
-          document.querySelector('button[aria-label="Send"]') ||
-          document.querySelector('.send-with-mode') ||
-          document.querySelector('[class*="send-with-mode"]') ||
-          document.querySelector('button[aria-label*="Send"]');
+        const sendCandidates = [
+          ...document.querySelectorAll(
+            'button[aria-label="Send"], button[aria-label*="Send" i], button[data-testid*="send" i], .send-with-mode, [class*="send-with-mode"] button, form button[type="submit"]'
+          ),
+        ];
+        const sendBtn = sendCandidates.find((btn) => {
+          const style = window.getComputedStyle(btn);
+          const rect = btn.getBoundingClientRect();
+          return (
+            !btn.disabled &&
+            style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        });
         if (sendBtn) sendBtn.click();
         else {
-          el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
-          el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+          const mods = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+          el.dispatchEvent(new KeyboardEvent('keydown', { ...mods, ctrlKey: true }));
+          el.dispatchEvent(new KeyboardEvent('keydown', mods));
+          el.dispatchEvent(new KeyboardEvent('keyup', mods));
         }
       }
-      return { ok: true };
+
+      const normalize = (s) => String(s || '').replace(/\\s+/g, ' ').trim();
+      const readEditor = () => {
+        const cur = pickEditor();
+        if (!cur) return '';
+        return normalize(cur.isContentEditable ? (cur.innerText || cur.textContent) : cur.value);
+      };
+      const draftStillThere = () => {
+        const left = readEditor();
+        const needle = normalize(text);
+        if (!submit || !needle) return false;
+        if (!left) return false;
+        // Composer still holds our draft (send did not clear it).
+        if (left === needle) return true;
+        const head = needle.slice(0, Math.min(48, needle.length));
+        if (head.length >= 12 && left.startsWith(head)) return true;
+        if (needle.length >= 24 && left.includes(needle.slice(0, 24)) && left.length <= needle.length + 8) {
+          return true;
+        }
+        return false;
+      };
+
+      if (submit) {
+        const clickSend = async () => {
+          await new Promise((r) => setTimeout(r, 60));
+          const sendCandidates = [
+            ...document.querySelectorAll(
+              'button[aria-label="Send"], button[aria-label*="Send" i], button[data-testid*="send" i], .send-with-mode, [class*="send-with-mode"] button, form button[type="submit"]'
+            ),
+          ];
+          const sendBtn = sendCandidates.find((btn) => {
+            const style = window.getComputedStyle(btn);
+            const rect = btn.getBoundingClientRect();
+            return (
+              !btn.disabled &&
+              style.display !== 'none' &&
+              style.visibility !== 'hidden' &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          });
+          if (sendBtn) sendBtn.click();
+          else {
+            const cur = pickEditor() || el;
+            const mods = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+            cur.dispatchEvent(new KeyboardEvent('keydown', { ...mods, ctrlKey: true }));
+            cur.dispatchEvent(new KeyboardEvent('keydown', mods));
+            cur.dispatchEvent(new KeyboardEvent('keyup', mods));
+          }
+        };
+        // First submit already clicked above — wait and verify; retry once if draft remains.
+        await new Promise((r) => setTimeout(r, 280));
+        if (draftStillThere()) {
+          await clickSend();
+          await new Promise((r) => setTimeout(r, 350));
+        }
+        // If Cursor still shows the draft, treat as soft warning — many builds keep
+        // text until the model starts. Do not fail the whole paste (phone would restore it).
+        if (draftStillThere()) {
+          return { ok: true, submitted: true, warning: 'inserted_not_sent' };
+        }
+      }
+      return { ok: true, submitted: !!submit };
     })()`);
     if (!result?.ok) throw new Error(result?.error || "insert_failed");
-    return { ok: true };
+    return {
+      ok: true,
+      submitted: result?.submitted === true,
+      warning: result?.warning || "",
+    };
   }
 
   async sendToChat(cdpTargetId, chat, text, { submit = false } = {}) {
     await this.selectChat(cdpTargetId, chat);
     await sleep(150);
     return this.insertText(cdpTargetId, text, { submit });
+  }
+
+  /**
+   * Read chat messages already loaded in the active Cursor composer DOM.
+   * Does not scroll or force-load older history.
+   * @returns {Promise<{ok:boolean, messages?: Array<{id:string,role:string,text:string}>, hash?: string, generating?: boolean, error?: string}>}
+   */
+  async readTranscript(
+    cdpTargetId,
+    chat,
+    { maxMessages = 80, maxChars = 12000, select = true } = {}
+  ) {
+    try {
+      // select=false for SSE polls — avoid re-clicking the sidebar every few seconds
+      if (
+        select &&
+        (chat?.id || chat?.chatId || chat?.title || chat?.chatTitle)
+      ) {
+        await this.selectChat(cdpTargetId, chat);
+        await sleep(120);
+      }
+      const { session } = await this.getSession(cdpTargetId);
+      const maxMsg = Math.max(1, Math.min(200, Number(maxMessages) || 80));
+      const maxCh = Math.max(500, Math.min(40000, Number(maxChars) || 12000));
+      const raw = await session.evaluate(`(() => {
+        const clean = (s) => String(s || '')
+          .replace(/\\r\\n/g, '\\n')
+          .replace(/[ \\t\\f\\v]+\\n/g, '\\n')
+          .replace(/\\n[ \\t\\f\\v]+/g, '\\n')
+          .replace(/[ \\t\\f\\v]{2,}/g, ' ')
+          .replace(/\\n{3,}/g, '\\n\\n')
+          .trim();
+        const roleOf = (el) => {
+          const aria = (el.getAttribute('data-message-role') ||
+            el.getAttribute('data-role') ||
+            el.getAttribute('aria-label') || '').toLowerCase();
+          if (/user|human|you/.test(aria)) return 'user';
+          if (/assistant|agent|ai|model|bot/.test(aria)) return 'assistant';
+          const cls = String(el.className || '').toLowerCase();
+          if (/\\buser\\b|human/.test(cls) && !/assistant|agent/.test(cls)) return 'user';
+          if (/assistant|agent|ai-message|bubble-ai|model/.test(cls)) return 'assistant';
+          const side = el.closest('[data-message-role], [data-role], [class*="human-message"], [class*="user-message"]');
+          if (side) {
+            const sAria = (side.getAttribute('data-message-role') || side.getAttribute('data-role') || '').toLowerCase();
+            if (/user|human/.test(sAria)) return 'user';
+            if (/assistant|agent|ai|model/.test(sAria)) return 'assistant';
+            const sCls = String(side.className || '').toLowerCase();
+            if (/user|human/.test(sCls) && !/assistant|agent/.test(sCls)) return 'user';
+          }
+          return 'assistant';
+        };
+        const textOf = (el) => {
+          const skipSel = [
+            '[class*="thought"]',
+            '[class*="thinking"]',
+            '[class*="tool-call"]',
+            '[class*="tool_call"]',
+            '[class*="composer-tool"]',
+            '[data-testid*="tool"]',
+            '[data-testid*="thought"]',
+            '[contenteditable="true"]',
+            'textarea',
+            'button',
+            'nav',
+          ].join(',');
+          const parts = [...el.querySelectorAll(
+            '.anysphere-markdown-container-root, .markdown-root, [class*="markdown-root"], pre, p, li, h1, h2, h3, h4'
+          )].filter((n) => !n.closest(skipSel));
+          // Prefer direct block children text to avoid repeating nested markdown copies.
+          const blocks = parts.filter((n) => !parts.some((o) => o !== n && o.contains(n)));
+          if (blocks.length) {
+            return clean(blocks.map((n) => n.innerText || n.textContent || '').filter(Boolean).join('\\n\\n'));
+          }
+          // Clone and strip chrome before reading plain text.
+          const clone = el.cloneNode(true);
+          for (const n of clone.querySelectorAll(skipSel)) n.remove();
+          return clean(clone.innerText || clone.textContent || '');
+        };
+        const isChromeNode = (el) => {
+          const cls = String(el.className || '').toLowerCase();
+          const aria = String(el.getAttribute('aria-label') || '').toLowerCase();
+          if (/thought|thinking|tool-call|tool_call|status-row/.test(cls)) return true;
+          if (/thought|thinking/.test(aria)) return true;
+          const sample = clean((el.innerText || '').slice(0, 80));
+          if (/^(Thought|Thinking|Read|Edited|Grepped|Агент|Agent)\\b/i.test(sample) && sample.length < 60) {
+            return true;
+          }
+          return false;
+        };
+        const roots = [
+          '[data-message-role]',
+          '[data-role="user"], [data-role="assistant"]',
+          '[class*="composer-message"]',
+          '[class*="agent-message"]',
+          '[class*="chat-message"]',
+          '[class*="message-bubble"]',
+          '[class*="aislash-message"]',
+        ];
+        let nodes = [];
+        for (const sel of roots) {
+          const found = [...document.querySelectorAll(sel)];
+          if (found.length) {
+            nodes = found;
+            break;
+          }
+        }
+        // Keep outermost message nodes only (drop nested wrappers).
+        nodes = nodes.filter((el) => !nodes.some((other) => other !== el && other.contains(el)));
+        const out = [];
+        const seenKeys = new Set();
+        for (let i = 0; i < nodes.length; i++) {
+          const el = nodes[i];
+          // Skip composer / input chrome
+          if (el.closest('[contenteditable="true"], textarea, [class*="prompt-input"], [class*="aislash-editor"]')) {
+            continue;
+          }
+          if (isChromeNode(el)) continue;
+          const text = textOf(el);
+          if (!text || text.length < 1) continue;
+          const role = roleOf(el);
+          const key = role + '|' + text.replace(/\\s+/g, ' ').toLowerCase().slice(0, 500);
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          out.push({ id: 'm' + i + ':' + role + ':' + text.slice(0, 24), role, text });
+        }
+        const generatingSelectors = [
+          'button[aria-label*="stop" i]',
+          'button[title*="stop" i]',
+          'button[aria-label*="cancel" i]',
+          'button[title*="cancel" i]',
+          '[data-testid*="stop" i]',
+          '[data-testid*="cancel" i]',
+          '[aria-busy="true"][class*="composer"]',
+          '[aria-busy="true"][class*="agent"]',
+        ];
+        const generating = generatingSelectors.some((sel) =>
+          [...document.querySelectorAll(sel)].some((el) => {
+            const style = window.getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            const label = clean(
+              el.getAttribute('aria-label') ||
+              el.getAttribute('title') ||
+              el.getAttribute('data-testid')
+            ).toLowerCase();
+            const belongsToChat = !!el.closest(
+              '[data-composer-id], [class*="composer"], [class*="chat"], [class*="agent"]'
+            );
+            return (belongsToChat || /(stop|cancel).*(generat|response|agent)/.test(label)) &&
+              style.display !== 'none' &&
+              style.visibility !== 'hidden' &&
+              rect.width > 0 &&
+              rect.height > 0 &&
+              !el.disabled;
+          })
+        );
+        return { messages: out, generating };
+      })()`);
+      const messages = normalizeTranscriptMessages(
+        dedupeTranscriptMessages(Array.isArray(raw?.messages) ? raw.messages : []),
+        { maxMessages: maxMsg, maxChars: maxCh }
+      );
+      return {
+        ok: true,
+        messages,
+        hash: hashTranscript(messages),
+        count: messages.length,
+        generating: raw?.generating === true,
+      };
+    } catch (e) {
+      const msg = String(e.message || e);
+      if (/chat_not_found/i.test(msg)) {
+        return { ok: false, error: "chat_not_found", hint: "chat_missing" };
+      }
+      if (/CDP|ECONNREFUSED|fetch|port/i.test(msg)) {
+        return { ok: false, error: msg, hint: "cdp_closed" };
+      }
+      return { ok: false, error: msg };
+    }
   }
 
   closeAll() {

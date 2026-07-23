@@ -1,0 +1,70 @@
+{
+  "id": "pro-v1",
+  "name": "Tarocode · Produktion",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plan",
+      "description": "Hierophant: Plan für merge-fähige Änderung, kein Entwurf",
+      "prompt": "Erstelle einen Umsetzungsplan für die aktuelle Aufgabe. Kein Code. Kein Fülltext.\n\nAus dem Kontext festhalten (nicht überfragen):\n- acceptance criteria (was als done gilt);\n- scope: IN / OUT;\n- Risiken: Daten, API, Races, Kompatibilität, Regressionen.\n\nAnforderungen:\n1. Kleine überprüfbare Schritte; je Schritt Deliverable + wie prüfen.\n2. Tests, Fehler, Edge Cases, Rollback berücksichtigen.\n3. Einfache funktionierende Lösung schlägt „ideale“ Architektur.\n4. Explizit: Annahmen und offene Fragen.\n5. Nur Plan.\n\nAusgabe: nummerierter Plan + kurze Risikoliste + Definition of Done.",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Review",
+      "description": "Gerechtigkeit: Review mit Projektqualitäts-Score 0–10",
+      "prompt": "Strenges Review des aktuellen Plans oder Diff/Ergebnisses.\n\nProjektqualitäts-Score 0–10 setzen:\n- 0–6 — Block: nicht weiter / kein merge;\n- 7–8 — akzeptabel mit Vorbehalten;\n- 9–10 — hohe Latte.\nUnter 7 = Blocker. Für normales Review reicht ≥ 7; 10 nicht Pflicht.\n\nPrüfe:\n1. Correctness und Edge Cases\n2. Regressionen und Fragilität\n3. Lesbarkeit, Kohäsion, unnötige Komplexität\n4. Tests und Fehlerbehandlung\n5. Sicherheit und Daten (falls relevant)\n6. Top-3 Fixes für den nächsten PR\n\nFormat:\n- Projektqualitäts-Score: N/10\n- Urteil: Block (<7) / akzeptabel (7–8) / stark (9–10)\n- Findings: Critical / Major / Minor\n- Konkrete Fixes (Dateien/Stellen falls bekannt)\n\nGroßes Refactoring nur auf Anfrage. Unter 7 kein „reicht schon“ akzeptieren.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "improve",
+      "title": "Verfeinern",
+      "description": "Mäßigung: Plan auf Minimum für Umsetzung trimmen",
+      "prompt": "Verbessere den aktuellen Plan oder das Design auf umsetzungsreifes Niveau.\n\nRegeln:\n1. Alles außerhalb der acceptance criteria streichen.\n2. Unklares präzisieren: Schnittstellen, Daten, Fehler, Tests.\n3. Bei Aufblähung — einfacher vorschlagen mit Trade-offs.\n4. Schritte und Prüfmethode behalten.\n5. Kein Code, bis gebeten.\n\nAusgabe: vollständiger aktualisierter Plan + Changelog (3–7 Punkte) + erwarteter Plan-Readiness-Score 0–10.",
+      "image": "temperance",
+      "hotkey": "F3"
+    },
+    {
+      "id": "work",
+      "title": "Codieren",
+      "description": "Magier: nächster Schritt — prüfbarer Code ohne Regressionen",
+      "prompt": "Setze den nächsten offenen Schritt des genehmigten Plans um.\n\nRegeln:\n1. Nur dieser Schritt — kein „nebenbei“.\n2. Keine Regressionen: bestehendes Verhalten erhalten.\n3. Fehler explizit behandeln; keine Exceptions verschlucken.\n4. Wenig Daten — 1–3 präzise Fragen, keine APIs erfinden.\n5. Danach: was geändert · wie prüfen · Risiken.\n\nStatus: done / partial / blocked + warum.\nSchrittziel — sicherer Projektqualitäts-Score ≥ 7/10 bei Correctness.",
+      "image": "magician",
+      "hotkey": "F4"
+    },
+    {
+      "id": "test",
+      "title": "Test",
+      "description": "Stern: mit grünem Lauf beweisen, nicht versprechen",
+      "prompt": "Prüfe das Gerade-Gemachte wie in CI, nicht „sollte funktionieren“.\n\nTun:\n1. Befehle/Tests/Build; tatsächliche Ausgabe zeigen.\n2. Happy Path + mindestens ein Failure/Edge (oder warum nicht möglich).\n3. Rot — Root Cause + minimaler Fix oder Blocker.\n4. Grün — „TEST BESTANDEN“ + Prüfliste.\n5. Bei Rot nicht zum nächsten Schritt.\n\nErgebnis: green/red + vorläufiger Projektqualitäts-Score 0–10 (unter 7 = nicht fertig).",
+      "image": "star",
+      "hotkey": "F5"
+    },
+    {
+      "id": "fix",
+      "title": "Fix",
+      "description": "Turm: minimaler Patch bis Qualitäts-Score ≥ 7",
+      "prompt": "Behebe den Defekt aus letztem Test, Review oder Projektqualitäts-Score < 7.\n\nRegeln:\n1. Minimaler Fix — kein Refactoring „nebenbei“.\n2. Symptom → Ursache → Blast Radius.\n3. Patch → mit derselben Methode prüfen, mit der der Bug gefunden wurde.\n4. before → after → evidence.\n5. Wiederholen, bis Score / Test ≥ 7.\n6. Blocker — 2 Optionen mit Trade-offs.\n\nNeue Features verboten, solange Defekt offen.",
+      "image": "tower",
+      "hotkey": "F6"
+    },
+    {
+      "id": "polish",
+      "title": "Verfeinern",
+      "description": "Stärke: Projektqualitäts-Score auf 9–10 heben",
+      "prompt": "Modus hohe Qualität. Stopp bei 7–8 verboten. Ziel — Projektqualitäts-Score 9 oder 10 von 10.\n\nSkala Projektqualitäts-Score:\n- <7 — Fail;\n- 7–8 — „merge unter Druck“, für diese Karte zu wenig;\n- 9–10 — Stopp.\n\nSchleife ohne „weitermachen?“:\n1. Projektqualitäts-Score N/10 + Findings, die Score halten (Critical/Major).\n2. Bei ≤ 8 — nur Fixes dafür (Scope Freeze, keine neuen Features).\n3. Prüfungen erneut laufen lassen.\n4. Neuer Projektqualitäts-Score.\n5. Solange ≤ 8 — wiederholen.\n\nStopp nur bei 9 oder 10. Bericht:\n- Projektqualitäts-Score: N/10\n- Was Qualität gehoben hat\n- Residual risk (falls vorhanden)\n- Was nicht angefasst und warum\n\nWenn Decke unter 9 wegen externer Limits — benennen und max. erreichbaren Score, aber zuerst Fixes im Scope erschöpfen.",
+      "image": "strength",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Zyklus",
+      "description": "Welt: end-to-end, jeder Punkt ≥ 7 Qualitätspunkte",
+      "prompt": "Voller end-to-end-Zyklus durch den Plan.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 abgeschlossen. Für 9–10 „Verfeinern“ nutzen.\n\nPro Punkt:\n1. Punkt benennen.\n2. Umsetzen.\n3. Mit Fakten prüfen (Befehle/Tests/Szenario).\n4. Projektqualitäts-Score 0–10.\n5. Bei < 7 — fixen bis ≥ 7.\n6. Nächster Punkt.\n\nVerboten: Schritte überspringen, Scope aufblasen, rote Tests maskieren.\nKein Plan — zuerst kurzer Plan (5–8 Schritte) mit acceptance criteria, dann Ausführung.\n\nFinale:\n- Gesamt-Projektqualitäts-Score 0–10;\n- erledigt / nicht erledigt;\n- residual risks;\n- was vor merge manuell prüfen.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

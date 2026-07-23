@@ -1,90 +1,102 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: file: app:"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: app:"
     />
-    <title>Lazy Coder — Настройки</title>
+    <title>Keycode — Settings</title>
     <link rel="stylesheet" href="settings.css" />
     <link rel="stylesheet" href="tarot-picker.css" />
   </head>
   <body>
     <header class="win-header">
       <div>
-        <h1>Настройки</h1>
-        <p class="subtitle">Карты сбоку обновляются сразу при движении ползунков</p>
+        <h1 data-i18n="settings.title">Settings</h1>
+        <p class="subtitle" data-i18n="settings.subtitle">Side cards update live as you move the sliders</p>
       </div>
-      <button type="button" class="primary-btn" id="btn-done">Готово</button>
+      <button type="button" class="primary-btn" id="btn-done" data-i18n="settings.done">Done</button>
     </header>
 
     <main class="settings-grid">
       <section class="panel panel-general">
-        <h2>Общие</h2>
+        <h2 data-i18n="settings.general">General</h2>
+
+        <label class="field block">
+          <span data-i18n="settings.language">Interface language</span>
+          <select id="set-ui-locale"></select>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.arcanaLanguage">Tarot arcana names</span>
+          <select id="set-arcana-locale"></select>
+        </label>
+        <p class="hint-text muted" data-i18n="settings.languageHint">
+          Changing the interface language also refreshes the two standard decks.
+        </p>
 
         <div class="field block">
-          <span>Сторона экрана для карт</span>
-          <div class="dock-pad" id="dock-pad" role="group" aria-label="Край экрана">
-            <button type="button" class="dock-btn" data-dock="top" title="Сверху">▲</button>
-            <button type="button" class="dock-btn" data-dock="left" title="Слева">◀</button>
+          <span data-i18n="settings.dockSide">Screen side for cards</span>
+          <div class="dock-pad" id="dock-pad" role="group" data-i18n-aria="settings.dockEdge" aria-label="Screen edge">
+            <button type="button" class="dock-btn" data-dock="top" data-i18n-title="settings.dockTop" title="Top">▲</button>
+            <button type="button" class="dock-btn" data-dock="left" data-i18n-title="settings.dockLeft" title="Left">◀</button>
             <span class="dock-pad-center" aria-hidden="true"></span>
-            <button type="button" class="dock-btn" data-dock="right" title="Справа">▶</button>
-            <button type="button" class="dock-btn" data-dock="bottom" title="Снизу">▼</button>
+            <button type="button" class="dock-btn" data-dock="right" data-i18n-title="settings.dockRight" title="Right">▶</button>
+            <button type="button" class="dock-btn" data-dock="bottom" data-i18n-title="settings.dockBottom" title="Bottom">▼</button>
           </div>
         </div>
 
         <label class="check block">
           <input type="checkbox" id="set-edge-hover" checked />
-          <span>Всплывать у края при наведении</span>
+          <span data-i18n="settings.edgeHover">Pop up at edge on hover</span>
         </label>
         <label class="field block">
-          <span>Зона края (px)</span>
+          <span data-i18n="settings.edgeZone">Edge zone (px)</span>
           <input type="number" id="set-edge-threshold" min="6" max="40" step="1" value="14" />
         </label>
         <label class="field block">
-          <span>Размер карт и кнопок (%)</span>
+          <span data-i18n="settings.panelScale">Card and button size (%)</span>
           <input type="range" id="set-panel-scale" min="75" max="150" step="5" value="100" />
           <span class="range-val" id="set-panel-scale-val">100%</span>
         </label>
         <label class="field block">
-          <span>Прозрачность карт (%)</span>
+          <span data-i18n="settings.uiOpacity">Card transparency (%)</span>
           <input type="range" id="set-ui-opacity" min="30" max="100" step="5" value="80" />
           <span class="range-val" id="set-ui-opacity-val">80%</span>
         </label>
         <label class="field block">
-          <span>Непрозрачность текста (%)</span>
+          <span data-i18n="settings.titleOpacity">Text opacity (%)</span>
           <input type="range" id="set-title-opacity" min="50" max="100" step="5" value="100" />
           <span class="range-val" id="set-title-opacity-val">100%</span>
         </label>
         <label class="field block">
-          <span>Шрифт названия таро (px)</span>
+          <span data-i18n="settings.tarotFont">Tarot name font (px)</span>
           <input type="range" id="set-tarot-font" min="10" max="24" step="1" value="16" />
           <span class="range-val" id="set-tarot-font-val">16px</span>
         </label>
         <label class="field block">
-          <span>Шрифт действия (px)</span>
+          <span data-i18n="settings.actionFont">Action font (px)</span>
           <input type="range" id="set-action-font" min="8" max="18" step="1" value="13" />
           <span class="range-val" id="set-action-font-val">13px</span>
         </label>
         <label class="check block">
           <input type="checkbox" id="set-card-preview" checked />
-          <span>Описание при наведении на карту</span>
+          <span data-i18n="settings.cardPreview">Description on card hover</span>
         </label>
         <label class="field block">
-          <span>Пауза между целями (мс)</span>
+          <span data-i18n="settings.pauseMs">Pause between targets (ms)</span>
           <input type="number" id="set-pause" min="100" max="2000" step="50" />
         </label>
         <label class="check block">
           <input type="checkbox" id="set-preserve-focus" checked />
-          <span>Не забирать фокус (игра остаётся активной)</span>
+          <span data-i18n="settings.preserveFocus">Do not steal focus (game stays active)</span>
         </label>
         <label class="check block">
           <input type="checkbox" id="set-auto-enter" />
-          <span>Enter после вставки</span>
+          <span data-i18n="settings.autoEnter">Enter after paste</span>
         </label>
         <label class="field block">
-          <span>Клавиша закрепить / скрыть</span>
+          <span data-i18n="settings.showHotkey">Pin / hide hotkey</span>
           <select id="set-hotkey">
             <option value="F9">F9</option>
             <option value="F10">F10</option>
@@ -96,75 +108,149 @@
           </select>
         </label>
 
-        <div class="actions-row">
-          <button type="button" class="ghost-btn" id="btn-folder">Папка данных</button>
-        </div>
+        <label class="field block">
+          <span data-i18n="settings.cdpPort">Cursor background port</span>
+          <input type="number" id="set-cdp-port" min="1024" max="65535" step="1" value="9222" />
+        </label>
 
-        <h2 class="block-title">Cursor в фоне (CDP)</h2>
-        <p class="hint-text" id="cursor-status">
-          Чтобы слать карты без потери фокуса игры, Cursor должен быть с отладочным портом
-          (бесплатно, без облака).
+        <div class="actions-row wrap">
+          <button type="button" class="ghost-btn" id="btn-folder" data-i18n="settings.dataFolder">Data folder</button>
+          <button type="button" class="ghost-btn" id="btn-logs" data-i18n="settings.logsFolder">Logs folder</button>
+          <button type="button" class="ghost-btn" id="btn-check-updates" data-i18n="settings.checkUpdates">Check for updates</button>
+        </div>
+        <p class="hint-text muted" id="update-status"></p>
+
+        <h2 class="block-title" data-i18n="settings.cursorBg">Cursor in background</h2>
+        <p class="hint-text" id="cursor-status" data-i18n="settings.cursorBgHint">
+          Prefer a permanent shortcut so Cursor always starts with the debug port. Launch only if Cursor is closed.
         </p>
         <div class="actions-row wrap">
-          <button type="button" class="ghost-btn" id="btn-cursor-probe">Проверить CDP</button>
-          <button type="button" class="ghost-btn" id="btn-cursor-launch" title="Только если Cursor закрыт">
-            Запустить Cursor для фона
+          <button type="button" class="ghost-btn" id="btn-cursor-probe" data-i18n="settings.cursorProbe">Check connection</button>
+          <button
+            type="button"
+            class="ghost-btn"
+            id="btn-cursor-shortcut"
+            data-i18n="settings.cursorShortcut"
+            data-i18n-title="settings.cursorShortcutTitle"
+            title="Creates Start Menu + Desktop shortcut with CDP flags"
+          >
+            Always enable background (shortcut)
           </button>
-          <button type="button" class="ghost-btn" id="btn-uia-diagnose">Диагностика</button>
+          <button type="button" class="ghost-btn" id="btn-cursor-launch" data-i18n="settings.cursorLaunch" data-i18n-title="settings.cursorLaunchTitle" title="Only if Cursor is closed">
+            Launch Cursor for background
+          </button>
+          <button type="button" class="ghost-btn" id="btn-uia-diagnose" data-i18n="settings.uiaDiagnose">Detailed diagnostics</button>
         </div>
         <p class="hint-text muted" id="cursor-diag"></p>
+
+        <h2 class="block-title" data-i18n="settings.remoteTitle">Phone remote</h2>
+        <p class="hint-text" data-i18n="settings.remoteHint">
+          Opt-in web remote for Cursor chats on the same Wi‑Fi. Anyone on that network with the link can use it — keep the secret private.
+        </p>
+        <label class="check block">
+          <input type="checkbox" id="set-remote-enabled" />
+          <span data-i18n="settings.remoteEnable">Enable phone remote</span>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.remotePort">Local port</span>
+          <input type="number" id="set-remote-port" min="1024" max="65535" step="1" value="17865" />
+        </label>
+        <ol class="remote-steps hint-text" data-i18n-skip>
+          <li data-i18n="settings.remoteStep1">1. Enable the switch above</li>
+          <li data-i18n="settings.remoteStep2">2. Put the phone on the same Wi‑Fi as this PC</li>
+          <li data-i18n="settings.remoteStep3">3. Open the QR / URL on the phone</li>
+        </ol>
+        <p class="hint-text muted" id="remote-status-line"></p>
+        <p class="hint-text muted" id="remote-diag-line"></p>
+        <label class="field block">
+          <span data-i18n="settings.remotePublicUrl">Phone URL (same Wi‑Fi)</span>
+          <input type="text" id="remote-public-url" readonly />
+        </label>
+        <div class="actions-row wrap">
+          <button type="button" class="ghost-btn" id="btn-remote-copy-url" data-i18n="settings.remoteCopyUrl">
+            Copy URL
+          </button>
+          <button type="button" class="ghost-btn" id="btn-remote-diagnose" data-i18n="settings.remoteDiagnose">
+            Diagnose
+          </button>
+          <button type="button" class="ghost-btn" id="btn-remote-rotate" data-i18n="settings.remoteRotate">
+            New secret
+          </button>
+          <button type="button" class="ghost-btn" id="btn-remote-refresh" data-i18n="settings.remoteRefresh">
+            Refresh status
+          </button>
+        </div>
+        <div class="remote-qr-wrap">
+          <img id="remote-qr" class="remote-qr hidden" alt="QR" />
+          <p class="hint-text muted" id="remote-qr-hint" data-i18n="settings.remoteQrHint">
+            QR uses your PC’s Wi‑Fi address. Secret stays in the link fragment. If the phone cannot open it, allow Keycode through Windows Firewall (private network).
+          </p>
+        </div>
+        <details class="remote-later">
+          <summary data-i18n="settings.remoteLaterTitle">Away from home later (Tailscale)</summary>
+          <p class="hint-text muted" data-i18n="settings.remoteLaterHint">
+            For access outside home Wi‑Fi we will add Tailscale Serve later. Command kept for reference:
+          </p>
+          <label class="field block">
+            <span data-i18n="settings.remoteServeCmd">Tailscale command (later)</span>
+            <input type="text" id="remote-serve-cmd" readonly />
+          </label>
+          <button type="button" class="ghost-btn" id="btn-remote-copy-cmd" data-i18n="settings.remoteCopyCmd">
+            Copy command
+          </button>
+        </details>
       </section>
 
       <section class="panel panel-decks">
-        <h2>Колоды и карты</h2>
+        <h2 data-i18n="settings.decksTitle">Decks and cards</h2>
 
         <div class="deck-toolbar">
           <label class="field grow">
-            <span>Колода</span>
+            <span data-i18n="settings.deck">Deck</span>
             <select id="deck-select"></select>
           </label>
           <label class="field grow">
-            <span>Название</span>
+            <span data-i18n="settings.deckName">Name</span>
             <input type="text" id="deck-name" maxlength="60" />
           </label>
-          <button type="button" class="ghost-btn" id="btn-save-deck-name" title="Сохранить название">
-            Сохранить
+          <button type="button" class="ghost-btn" id="btn-save-deck-name" data-i18n="settings.saveName" data-i18n-title="settings.saveNameTitle" title="Save name">
+            Save
           </button>
         </div>
 
         <div class="actions-row wrap">
-          <button type="button" class="ghost-btn" id="btn-new-deck">+ колода</button>
-          <button type="button" class="ghost-btn" id="btn-export">Экспорт</button>
-          <button type="button" class="ghost-btn" id="btn-import">Импорт</button>
-          <button type="button" class="danger-btn" id="btn-delete-deck">Удалить колоду</button>
-          <button type="button" class="ghost-btn" id="btn-add-card">+ карта</button>
+          <button type="button" class="ghost-btn" id="btn-new-deck" data-i18n="settings.newDeck">+ deck</button>
+          <button type="button" class="ghost-btn" id="btn-export" data-i18n="settings.export">Export</button>
+          <button type="button" class="ghost-btn" id="btn-import" data-i18n="settings.import">Import</button>
+          <button type="button" class="danger-btn" id="btn-delete-deck" data-i18n="settings.deleteDeck">Delete deck</button>
+          <button type="button" class="ghost-btn" id="btn-add-card" data-i18n="settings.addCard">+ card</button>
         </div>
 
         <div class="deck-editor">
           <div class="cards-list-wrap">
-            <div class="cards-list-head">Карты (до 8)</div>
+            <div class="cards-list-head" data-i18n="settings.cardsUpTo8">Cards (up to 8)</div>
             <div id="cards-list" class="cards-list"></div>
           </div>
 
           <form class="card-form" id="card-form">
-            <h3 id="card-form-title">Редактирование карты</h3>
-            <p class="hint" id="card-form-hint">Выберите карту слева или добавьте новую</p>
+            <h3 id="card-form-title" data-i18n="settings.editCard">Edit card</h3>
+            <p class="hint" id="card-form-hint" data-i18n="settings.pickCardHint">Select a card on the left or add a new one</p>
 
             <div class="form-grid">
               <label class="field block">
-                <span>Название таро</span>
+                <span data-i18n="settings.cardTitle">Title</span>
                 <input type="text" id="card-title" maxlength="40" />
               </label>
               <label class="field block">
-                <span>Коротко на карте</span>
+                <span data-i18n="settings.cardDesc">Short on card</span>
                 <input type="text" id="card-desc" maxlength="80" />
               </label>
               <label class="field block tarot-field">
-                <span>Карта таро</span>
-                <div id="card-image" class="tarot-picker" role="listbox" aria-label="Tarot card"></div>
+                <span data-i18n="settings.cardTarot">Tarot card</span>
+                <div id="card-image" class="tarot-picker" role="listbox" data-i18n-aria="settings.cardTarot" aria-label="Tarot card"></div>
               </label>
               <label class="field block">
-                <span>Клавиша</span>
+                <span data-i18n="settings.cardHotkey">Hotkey</span>
                 <select id="card-hotkey">
                   <option value="">—</option>
                   <option>F1</option>
@@ -180,22 +266,93 @@
             </div>
 
             <label class="field block">
-              <span>Текст для чата (полный промпт)</span>
+              <span data-i18n="settings.cardPrompt">Chat text (full prompt)</span>
               <textarea id="card-prompt" rows="10"></textarea>
             </label>
 
             <div class="actions-row">
-              <button type="button" class="danger-btn" id="card-delete" disabled>Удалить карту</button>
+              <button type="button" class="danger-btn" id="card-delete" disabled data-i18n="settings.deleteCard">Delete card</button>
               <div class="spacer"></div>
-              <button type="button" class="primary-btn" id="card-save" disabled>Сохранить карту</button>
+              <button type="button" class="primary-btn" id="card-save" disabled data-i18n="settings.saveCard">Save card</button>
             </div>
           </form>
         </div>
       </section>
     </main>
 
+    <button
+      type="button"
+      class="donate-fab"
+      id="btn-donate"
+      data-i18n-title="donate.fabTitle"
+      title="Support the project"
+      aria-haspopup="dialog"
+    >
+      <span class="donate-fab-cup" aria-hidden="true">☕</span>
+      <span class="donate-fab-label" data-i18n="donate.fab">Support</span>
+    </button>
+
+    <div id="modal-donate" class="donate-modal hidden" role="dialog" aria-modal="true" aria-labelledby="donate-modal-title">
+      <div class="donate-modal-backdrop" id="donate-modal-backdrop"></div>
+      <div class="donate-modal-panel">
+        <header class="donate-modal-head">
+          <h2 id="donate-modal-title" data-i18n="donate.title">Support Tarocode</h2>
+          <button type="button" class="donate-modal-close" id="donate-modal-close" data-i18n-aria="donate.close" aria-label="Close">✕</button>
+        </header>
+
+        <p class="donate-hint" data-i18n="donate.purposeHint">What is this for? (optional)</p>
+        <div class="donate-purpose" id="donate-purpose" role="tablist">
+          <button type="button" class="donate-purpose-btn active" data-purpose="unknown" role="tab" aria-selected="true">
+            <span class="donate-purpose-icon" aria-hidden="true">?</span>
+            <span class="donate-purpose-label" data-i18n="donate.purposeUnknown">?</span>
+          </button>
+          <button type="button" class="donate-purpose-btn" data-purpose="coffee" role="tab" aria-selected="false">
+            <span class="donate-purpose-icon" aria-hidden="true">☕</span>
+            <span class="donate-purpose-label" data-i18n="donate.purposeCoffee">Coffee</span>
+          </button>
+          <button type="button" class="donate-purpose-btn" data-purpose="beer" role="tab" aria-selected="false">
+            <span class="donate-purpose-icon" aria-hidden="true">🍺</span>
+            <span class="donate-purpose-label" data-i18n="donate.purposeBeer">Beer</span>
+          </button>
+          <button type="button" class="donate-purpose-btn" data-purpose="cats" role="tab" aria-selected="false">
+            <span class="donate-purpose-icon" aria-hidden="true">🐱</span>
+            <span class="donate-purpose-label" data-i18n="donate.purposeCats">Cats</span>
+          </button>
+        </div>
+
+        <div class="donate-stats" id="donate-stats" aria-live="polite">
+          <div class="donate-stats-empty" id="donate-stats-empty" data-i18n="donate.statsEmpty">No stats yet (clicks count after 24 hours)</div>
+          <div class="donate-stats-bars hidden" id="donate-stats-bars">
+            <div class="donate-stat-row" data-stat="unknown"><span class="donate-stat-ico">?</span><span class="donate-stat-bar"><i></i></span><span class="donate-stat-pct">0%</span></div>
+            <div class="donate-stat-row" data-stat="coffee"><span class="donate-stat-ico">☕</span><span class="donate-stat-bar"><i></i></span><span class="donate-stat-pct">0%</span></div>
+            <div class="donate-stat-row" data-stat="beer"><span class="donate-stat-ico">🍺</span><span class="donate-stat-bar"><i></i></span><span class="donate-stat-pct">0%</span></div>
+            <div class="donate-stat-row" data-stat="cats"><span class="donate-stat-ico">🐱</span><span class="donate-stat-bar"><i></i></span><span class="donate-stat-pct">0%</span></div>
+          </div>
+        </div>
+
+        <p class="donate-hint" data-i18n="donate.payHint">Choose how to send support</p>
+        <div class="donate-pay">
+          <button type="button" class="donate-pay-btn" id="donate-pay-tbank" data-method="tbank" disabled>
+            <span class="donate-pay-flag" aria-hidden="true">🇷🇺</span>
+            <span data-i18n="donate.payTbank">T-Bank collect</span>
+          </button>
+          <button type="button" class="donate-pay-btn" id="donate-pay-lava" data-method="lava" disabled>
+            <span class="donate-pay-flag" aria-hidden="true">🌍</span>
+            <span data-i18n="donate.payLava">Lava.top</span>
+          </button>
+          <button type="button" class="donate-pay-btn" id="donate-pay-crypto" data-method="crypto" disabled>
+            <span class="donate-pay-flag" aria-hidden="true">◈</span>
+            <span data-i18n="donate.payCrypto">Crypto</span>
+          </button>
+        </div>
+        <p class="donate-crypto-meta muted hidden" id="donate-crypto-meta"></p>
+        <p class="donate-soon muted hidden" id="donate-soon" data-i18n="donate.soon">Payment links coming soon</p>
+      </div>
+    </div>
+
     <div id="toast" class="toast hidden"></div>
 
+    <script src="i18n.js"></script>
     <script src="tarot.js"></script>
     <script src="settings.js"></script>
   </body>

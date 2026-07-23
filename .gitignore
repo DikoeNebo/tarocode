@@ -2,7 +2,8 @@ node_modules/
 dist/
 dist_*/
 dist2/
-data/
 .cursor/
 *.log
 .DS_Store
+data/*.bak
+*.tmp

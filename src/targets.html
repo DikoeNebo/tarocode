@@ -1,38 +1,40 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
     />
-    <title>Lazy Coder — Куда отправлять</title>
+    <title>Lazy Coder — Where to send</title>
     <link rel="stylesheet" href="targets.css" />
   </head>
   <body>
     <header class="win-header">
       <div>
-        <h1>Куда отправлять</h1>
-        <p class="subtitle">Поле окна или чат Cursor (UIA). Вкл/выкл — на полосе у карт</p>
+        <h1 data-i18n="targets.title">Where to send</h1>
+        <p class="subtitle" data-i18n="targets.subtitle">
+          Cursor chat from the list or a normal field. On/off — on the card strip
+        </p>
       </div>
-      <button type="button" class="primary-btn" id="btn-done">Готово</button>
+      <button type="button" class="primary-btn" id="btn-done" data-i18n="targets.done">Done</button>
     </header>
 
     <main class="targets-main">
       <div class="targets-toolbar">
-        <button type="button" class="pick-btn" id="btn-pick" title="Добавить обычное поле ввода">
+        <button type="button" class="pick-btn" id="btn-pick" data-i18n-title="targets.fieldTitle" title="Add a normal input field">
           <span class="pick-icon" aria-hidden="true">⊕</span>
-          <span class="pick-label">Поле</span>
+          <span class="pick-label" data-i18n="targets.field">Field</span>
         </button>
-        <button type="button" class="pick-btn" id="btn-pick-agent" title="Список чатов Cursor (CDP, без потери фокуса)">
+        <button type="button" class="pick-btn" id="btn-pick-agent" data-i18n-title="targets.chatTitle" title="Cursor chat list">
           <span class="pick-icon" aria-hidden="true">⇄</span>
-          <span class="pick-label">Чат Cursor</span>
+          <span class="pick-label" data-i18n="targets.chat">Cursor chat</span>
         </button>
-        <button type="button" class="link-btn" id="btn-uia-diag" title="Сколько элементов видит UIA">Диагностика</button>
+        <button type="button" class="link-btn" id="btn-uia-diag" data-i18n="targets.diag" data-i18n-title="targets.diagTitle" title="Check Cursor connection">Diagnostics</button>
         <div class="bulk-actions">
-          <button type="button" class="link-btn" id="btn-all">Все</button>
+          <button type="button" class="link-btn" id="btn-all" data-i18n="targets.all">All</button>
           <span class="sep">·</span>
-          <button type="button" class="link-btn" id="btn-none">Снять</button>
+          <button type="button" class="link-btn" id="btn-none" data-i18n="targets.none">None</button>
         </div>
       </div>
 
@@ -41,7 +43,7 @@
       <footer class="targets-footer">
         <label class="check">
           <input type="checkbox" id="auto-enter" />
-          <span>Enter после вставки</span>
+          <span data-i18n="targets.autoEnter">Enter after paste</span>
         </label>
         <span class="count" id="target-count"></span>
       </footer>
@@ -49,6 +51,7 @@
 
     <div id="toast" class="toast hidden"></div>
 
+    <script src="i18n.js"></script>
     <script src="targets.js"></script>
   </body>
 </html>

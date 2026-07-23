@@ -1,0 +1,70 @@
+{
+  "id": "pro-v1",
+  "name": "Tarocode · Produkcja",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plan",
+      "description": "Hierofant: plan pod merge, nie szkic",
+      "prompt": "Stwórz plan implementacji bieżącego zadania. Bez kodu. Bez lania wody.\n\nZ kontekstu zapisz (nie pytaj za dużo):\n- acceptance criteria (co uznajemy za done);\n- scope: IN / OUT;\n- ryzyka: dane, API, wyścigi, kompatybilność, regresje.\n\nWymagania:\n1. Małe, weryfikowalne kroki; każdy z deliverable + jak sprawdzić.\n2. Uwzględnij testy, błędy, edge cases, rollback.\n3. Proste działające rozwiązanie > „idealna” architektura.\n4. Wyraźnie: założenia i otwarte pytania.\n5. Tylko plan.\n\nWynik: numerowany plan + krótka lista ryzyk + definition of done.",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Review",
+      "description": "Sprawiedliwość: review z oceną jakości projektu 0–10",
+      "prompt": "Surowe review bieżącego planu lub diff/wyniku.\n\nUstaw ocenę jakości projektu 0–10:\n- 0–6 — blokada: nie można kontynuować / merge;\n- 7–8 — akceptowalnie z zastrzeżeniami;\n- 9–10 — wysoka poprzeczka.\nPoniżej 7 = blocker. Do normalnego review wystarczy ≥ 7; 10 nie jest wymagane.\n\nSprawdź:\n1. Correctness i edge cases\n2. Regresje i kruchość\n3. Czytelność, spójność, zbędna złożoność\n4. Testy i obsługa błędów\n5. Bezpieczeństwo i dane (jeśli dotyczy)\n6. Top 3 poprawki do następnego PR\n\nFormat:\n- Ocena jakości projektu: N/10\n- Werdykt: blokada (<7) / akceptowalnie (7–8) / mocno (9–10)\n- Findings: Critical / Major / Minor\n- Konkretne poprawki (pliki/miejsca, jeśli znane)\n\nDuży refactoring tylko na prośbę. Poniżej 7 nie akceptuj „i tak wystarczy”.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "improve",
+      "title": "Doprecyzuj",
+      "description": "Umiarkowanie: ściśnij plan do minimum potrzebnego do implementacji",
+      "prompt": "Ulepsz bieżący plan lub design do poziomu gotowego do implementacji.\n\nZasady:\n1. Wytnij wszystko poza acceptance criteria.\n2. Doprecyzuj niejasności: interfejsy, dane, błędy, testy.\n3. Jeśli spuchnięte — zaproponuj prościej z trade-offs.\n4. Zachowaj kroki i sposób weryfikacji.\n5. Bez kodu, dopóki nie poproszą.\n\nWynik: pełny zaktualizowany plan + changelog (3–7 punktów) + oczekiwana ocena gotowości planu 0–10.",
+      "image": "temperance",
+      "hotkey": "F3"
+    },
+    {
+      "id": "work",
+      "title": "Koduj",
+      "description": "Mag: następny krok — weryfikowalny kod bez regresji",
+      "prompt": "Zaimplementuj następny otwarty krok zatwierdzonego planu.\n\nZasady:\n1. Tylko ten krok — bez „przy okazji”.\n2. Bez regresji: zachowaj istniejące zachowanie.\n3. Obsługuj błędy jawnie; nie połykaj exceptions.\n4. Mało danych — 1–3 precyzyjne pytania, nie wymyślaj API.\n5. Po: co się zmieniło · jak sprawdzić · ryzyka.\n\nStatus: done / partial / blocked + dlaczego.\nCel kroku — pewna ocena jakości projektu ≥ 7/10 pod kątem correctness.",
+      "image": "magician",
+      "hotkey": "F4"
+    },
+    {
+      "id": "test",
+      "title": "Test",
+      "description": "Gwiazda: udowodnij zielonym przebiegiem, nie obietnicą",
+      "prompt": "Sprawdź to, co właśnie zrobiono, jak w CI, nie „powinno działać”.\n\nZrób:\n1. Polecenia/testy/build; pokaż rzeczywisty output.\n2. Happy path + minimum jeden failure/edge (lub dlaczego niemożliwe).\n3. Czerwone — root cause + minimalna poprawka lub blocker.\n4. Zielone — „TEST ZALICZONY” + lista sprawdzeń.\n5. Na czerwonym nie przechodź do następnego kroku.\n\nWynik: green/red + wstępna ocena jakości projektu 0–10 (poniżej 7 = nie gotowe).",
+      "image": "star",
+      "hotkey": "F5"
+    },
+    {
+      "id": "fix",
+      "title": "Fix",
+      "description": "Wieża: minimalny patch do oceny ≥ 7",
+      "prompt": "Napraw defekt z ostatniego testu, review lub oceny jakości projektu < 7.\n\nZasady:\n1. Minimalny fix — bez refaktoryzacji „przy okazji”.\n2. Objaw → przyczyna → blast radius.\n3. Patch → weryfikacja tym samym sposobem, który złapał bug.\n4. before → after → evidence.\n5. Powtarzaj, aż ocena / test ≥ 7.\n6. Blocker — 2 opcje z trade-offs.\n\nNowe funkcje zabronione, dopóki defekt jest otwarty.",
+      "image": "tower",
+      "hotkey": "F6"
+    },
+    {
+      "id": "polish",
+      "title": "Dopracuj",
+      "description": "Siła: podnieś ocenę jakości projektu do 9–10",
+      "prompt": "Tryb dopracowania wysokiej jakości. Zatrzymanie na 7–8 zabronione. Cel — ocena jakości projektu 9 lub 10 z 10.\n\nSkala oceny jakości projektu:\n- <7 — porażka;\n- 7–8 — „merge pod presją”, za mało dla tej karty;\n- 9–10 — stop.\n\nPętla bez „kontynuować?”:\n1. Ocena N/10 + findings trzymające ocenę (Critical/Major).\n2. Jeśli ≤ 8 — poprawki tylko w nich (scope freeze, bez nowych funkcji).\n3. Uruchom sprawdzenia ponownie.\n4. Nowa ocena.\n5. Dopóki ≤ 8 — powtarzaj.\n\nStop tylko przy 9 lub 10. Raport:\n- Ocena jakości projektu: N/10\n- Co podniosło jakość\n- Residual risk (jeśli jest)\n- Czego nie ruszałeś i dlaczego\n\nJeśli sufit poniżej 9 przez zewnętrzne ograniczenia — nazwij je i maks. osiągalną ocenę, ale najpierw wyczerp poprawki w scope.",
+      "image": "strength",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Cykl",
+      "description": "Świat: end-to-end, każdy punkt ≥ 7 punktów jakości",
+      "prompt": "Pełny cykl end-to-end przez plan.\n\nPunkt zamknięty tylko przy ocenie jakości projektu ≥ 7. Dla 9–10 użyj „Dopracuj”.\n\nNa każdy punkt:\n1. Nazwij punkt.\n2. Zaimplementuj.\n3. Sprawdź faktami (polecenia/testy/scenariusz).\n4. Ocena 0–10.\n5. Jeśli < 7 — fixuj, aż ≥ 7.\n6. Następny punkt.\n\nZabronione: przeskakiwanie kroków, puchnięcie scope, maskowanie czerwonych testów.\nBez planu — najpierw krótki plan (5–8 kroków) z acceptance criteria, potem wykonanie.\n\nFinał:\n- ogólna ocena jakości projektu 0–10;\n- zrobione / nie zrobione;\n- residual risks;\n- co sprawdzić ręcznie przed merge.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

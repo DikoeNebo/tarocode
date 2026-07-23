@@ -1,0 +1,70 @@
+{
+  "id": "pro-v1",
+  "name": "Tarocode · Producción",
+  "cards": [
+    {
+      "id": "plan",
+      "title": "Plan",
+      "description": "Hierofante: plan listo para merge, no borrador",
+      "prompt": "Crea un plan de implementación para la tarea actual. Sin código. Sin relleno.\n\nDel contexto anota (no preguntes de más):\n- acceptance criteria (qué cuenta como done);\n- scope: IN / OUT;\n- riesgos: datos, API, carreras, compatibilidad, regresiones.\n\nRequisitos:\n1. Pasos pequeños y verificables; cada uno con deliverable + cómo verificar.\n2. Considera tests, errores, casos límite, rollback.\n3. Solución simple que funcione > arquitectura «ideal».\n4. Explícito: supuestos y preguntas abiertas.\n5. Solo plan.\n\nSalida: plan numerado + lista corta de riesgos + definition of done.",
+      "image": "hierophant",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evaluate",
+      "title": "Revisar",
+      "description": "Justicia: revisión con puntuación de calidad del proyecto 0–10",
+      "prompt": "Revisión estricta del plan actual o diff/resultado.\n\nPon puntuación de calidad del proyecto 0–10:\n- 0–6 — bloqueo: no continuar / no merge;\n- 7–8 — aceptable con reservas;\n- 9–10 — barra alta.\nBajo 7 = bloqueador. Para revisión normal basta ≥ 7; 10 no es obligatorio.\n\nComprueba:\n1. Correctness y edge cases\n2. Regresiones y fragilidad\n3. Legibilidad, cohesión, complejidad innecesaria\n4. Tests y manejo de errores\n5. Seguridad y datos (si aplica)\n6. Top 3 arreglos para el siguiente PR\n\nFormato:\n- Puntuación de calidad del proyecto: N/10\n- Veredicto: bloqueo (<7) / aceptable (7–8) / fuerte (9–10)\n- Findings: Critical / Major / Minor\n- Arreglos concretos (archivos/lugares si se conocen)\n\nRefactor grande solo bajo petición. No aceptes «así vale» bajo 7.",
+      "image": "justice",
+      "hotkey": "F2"
+    },
+    {
+      "id": "improve",
+      "title": "Afinar",
+      "description": "Templanza: reduce el plan al mínimo para implementar",
+      "prompt": "Mejora el plan o diseño actual a nivel listo para implementar.\n\nReglas:\n1. Corta todo fuera de acceptance criteria.\n2. Aclara lo vago: interfaces, datos, errores, tests.\n3. Si está hinchado — propón más simple con trade-offs.\n4. Conserva pasos y método de verificación.\n5. Sin código hasta que lo pidan.\n\nSalida: plan actualizado completo + changelog (3–7 ítems) + puntuación esperada de preparación del plan 0–10.",
+      "image": "temperance",
+      "hotkey": "F3"
+    },
+    {
+      "id": "work",
+      "title": "Codificar",
+      "description": "Mago: siguiente paso — código verificable sin regresiones",
+      "prompt": "Implementa el siguiente paso abierto del plan aprobado.\n\nReglas:\n1. Solo este paso — sin «de paso».\n2. Sin regresiones: conserva el comportamiento existente.\n3. Maneja errores explícitamente; no tragues exceptions.\n4. Pocos datos — 1–3 preguntas precisas, no inventes APIs.\n5. Después: qué cambió · cómo verificar · riesgos.\n\nEstado: done / partial / blocked + por qué.\nMeta del paso — puntuación de calidad del proyecto ≥ 7/10 en correctness.",
+      "image": "magician",
+      "hotkey": "F4"
+    },
+    {
+      "id": "test",
+      "title": "Probar",
+      "description": "Estrella: demuestra con ejecución verde, no promesa",
+      "prompt": "Verifica lo recién hecho como en CI, no «debería funcionar».\n\nHaz:\n1. Comandos/tests/build; muestra salida real.\n2. Happy path + al menos un failure/edge (o por qué no se puede).\n3. Rojo — root cause + arreglo mínimo o bloqueo.\n4. Verde — «PRUEBA SUPERADA» + lista de comprobaciones.\n5. En rojo no pases al siguiente paso.\n\nResultado: green/red + puntuación preliminar de calidad del proyecto 0–10 (bajo 7 = no listo).",
+      "image": "star",
+      "hotkey": "F5"
+    },
+    {
+      "id": "fix",
+      "title": "Fix",
+      "description": "Torre: parche mínimo hasta puntuación ≥ 7",
+      "prompt": "Arregla el defecto del último test, revisión o puntuación de calidad del proyecto < 7.\n\nReglas:\n1. Fix mínimo — sin refactorizar «de paso».\n2. Síntoma → causa → blast radius.\n3. Parche → verifica igual que se detectó el bug.\n4. before → after → evidence.\n5. Repite hasta puntuación / test ≥ 7.\n6. Bloqueo — 2 opciones con trade-offs.\n\nNuevas funciones prohibidas mientras el defecto esté abierto.",
+      "image": "tower",
+      "hotkey": "F6"
+    },
+    {
+      "id": "polish",
+      "title": "Pulir",
+      "description": "Fuerza: lleva la puntuación de calidad del proyecto a 9–10",
+      "prompt": "Modo pulido de alta calidad. Parar en 7–8 prohibido. Meta — puntuación de calidad del proyecto 9 o 10 de 10.\n\nEscala de puntuación de calidad del proyecto:\n- <7 — fallo;\n- 7–8 — «merge bajo presión», poco para esta carta;\n- 9–10 — parar.\n\nBucle sin «¿continuar?»:\n1. Puntuación N/10 + findings que la frenan (Critical/Major).\n2. Si ≤ 8 — arreglos solo en esos (scope freeze, sin funciones nuevas).\n3. Vuelve a ejecutar comprobaciones.\n4. Nueva puntuación.\n5. Mientras ≤ 8 — repite.\n\nPara solo en 9 o 10. Informe:\n- Puntuación de calidad del proyecto: N/10\n- Qué subió la calidad\n- Residual risk (si hay)\n- Qué no tocaste y por qué\n\nSi el techo es <9 por límites externos — nómbralos y puntuación máxima alcanzable, pero primero agota arreglos dentro del scope.",
+      "image": "strength",
+      "hotkey": "F7"
+    },
+    {
+      "id": "fullcycle",
+      "title": "Ciclo",
+      "description": "Mundo: end-to-end, cada ítem ≥ 7 puntos de calidad",
+      "prompt": "Ciclo completo end-to-end del plan.\n\nUn ítem se cierra solo con puntuación de calidad del proyecto ≥ 7. Para 9–10 usa «Pulir».\n\nPor cada ítem:\n1. Nombra el ítem.\n2. Implementa.\n3. Verifica con hechos (comandos/tests/escenario).\n4. Puntuación 0–10.\n5. Si < 7 — arregla hasta ≥ 7.\n6. Siguiente ítem.\n\nProhibido: saltar pasos, inflar scope, enmascarar tests rojos.\nSin plan — primero plan corto (5–8 pasos) con acceptance criteria, luego ejecución.\n\nFinal:\n- puntuación general de calidad del proyecto 0–10;\n- hecho / no hecho;\n- residual risks;\n- qué verificar a mano antes del merge.",
+      "image": "world",
+      "hotkey": "F8"
+    }
+  ]
+}

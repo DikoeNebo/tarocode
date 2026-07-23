@@ -12,6 +12,7 @@ const {
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const { pathToFileURL } = require("url");
@@ -19,13 +20,56 @@ const { getUiaClient } = require("./uia-client");
 const { getCdpClient, DEFAULT_PORT: DEFAULT_CDP_PORT } = require("./cdp-client");
 const {
   launchCursorForIntegration,
+  installCursorCdpShortcut,
   isCursorRunning,
   resolveCursorExe,
   ACCESSIBILITY_FLAG,
   DEFAULT_CDP_PORT: SETUP_CDP_PORT,
 } = require("./cursor-setup");
+const {
+  safeId,
+  trySafeId,
+  deckFilePath,
+  safeTarotFilePath,
+  atomicWriteJson,
+  pickSettingsPartial,
+  normalizeDeck,
+  listExistingDeckIds,
+  MAX_DECK_IMPORT_BYTES,
+  DEFAULT_REMOTE_PORT,
+} = require("./data-store");
+const { PasteQueue } = require("./paste-queue");
+const {
+  createRemoteServer,
+  generateRemoteToken,
+} = require("./remote-server");
+const log = require("./logger");
+const i18n = require("./i18n");
+const donateConfig = require("./donate-config");
+const {
+  clicksPath,
+  recordClick,
+  computeStats,
+  publicConfig,
+  resolveAllowedUrl,
+} = require("./donate-stats");
+
+const pasteQueue = new PasteQueue();
+/** @type {ReturnType<typeof createRemoteServer> | null} */
+let remoteServer = null;
 
 const execFileAsync = promisify(execFile);
+
+// Isolate smoke runs from the real user profile (settings/decks).
+if (process.env.KEYCODE_SMOKE_I18N === "1") {
+  const smokeDir = path.join(
+    require("os").tmpdir(),
+    `keycode-smoke-${process.pid}`
+  );
+  fs.mkdirSync(smokeDir, { recursive: true });
+  app.setPath("userData", smokeDir);
+  console.log("[smoke-i18n] userData", smokeDir);
+}
 
 // Direct spawn of Cursor.exe can emit EACCES async; don't crash the deck.
 process.on("uncaughtException", (err) => {
@@ -46,25 +90,63 @@ process.on("uncaughtException", (err) => {
   }
 });
 
-const UIA_ERROR_RU = {
-  element_not_found: "элемент не найден",
-  not_chat: "это не вкладка/чат агента — кликните по строке агента",
-  not_input: "это не поле ввода — кликните по текстовому полю чата",
-  window_not_found: "окно не найдено",
-  chat_not_found: "чат не найден — перепривяжите через «+ чат Cursor»",
-  chat_ambiguous: "найдено несколько чатов — перепривяжите",
-  chat_select_failed: "не удалось выбрать чат",
-  input_not_found: "поле ввода не найдено — перепривяжите",
-  input_ambiguous: "найдено несколько полей — перепривяжите",
-  input_focus_failed: "не удалось сфокусировать поле",
-  focus_mismatch: "фокус не на текстовом поле",
-  chrome_only: "нужен режим доступности Cursor",
-  no_cursor: "окно Cursor не найдено",
+const UIA_ERROR_KEYS = {
+  element_not_found: "err.element_not_found",
+  not_chat: "err.not_chat",
+  not_input: "err.not_input",
+  window_not_found: "err.window_not_found",
+  chat_not_found: "err.chat_not_found",
+  chat_ambiguous: "err.chat_ambiguous",
+  chat_select_failed: "err.chat_select_failed",
+  input_not_found: "err.input_not_found",
+  input_ambiguous: "err.input_ambiguous",
+  input_focus_failed: "err.input_focus_failed",
+  focus_mismatch: "err.focus_mismatch",
+  chrome_only: "err.chrome_only",
+  no_cursor: "err.no_cursor",
 };
 
+function t(key, vars) {
+  return i18n.t(key, vars);
+}
+
 function uiaErr(code, fallback) {
-  if (!code) return fallback || "ошибка UIA";
-  return UIA_ERROR_RU[code] || String(code);
+  if (!code) return fallback || t("err.uia");
+  const key = UIA_ERROR_KEYS[code];
+  return key ? t(key) : String(code);
+}
+
+function systemLocale() {
+  try {
+    return app.getLocale();
+  } catch {
+    return "en";
+  }
+}
+
+function refreshLocaleFromSettings(settings) {
+  const ui = i18n.resolveUiLocale(settings?.uiLocale ?? "system", systemLocale());
+  i18n.setActiveUiLocale(ui);
+  return ui;
+}
+
+function syncBundledDecks(locale, { onlyIfMissing = false } = {}) {
+  for (const deckId of ["lazy-v1", "pro-v1"]) {
+    const dest = path.join(decksDir(), `${deckId}.json`);
+    if (onlyIfMissing && fs.existsSync(dest)) continue;
+    const src = i18n.bundledDeckPath(locale, deckId);
+    if (fs.existsSync(src)) {
+      try {
+        fs.copyFileSync(src, dest);
+      } catch (e) {
+        log.warn("syncBundledDecks", String(e.message || e));
+      }
+    }
+  }
+}
+
+function i18nPayload(settings = readSettings()) {
+  return i18n.buildI18nPayload(settings, systemLocale());
 }
 
 function isCursorLikeTarget(t) {
@@ -178,6 +260,17 @@ const defaultSettings = {
   /** Never steal OS focus from games / other apps (CDP / quiet UIA only) */
   preserveFocus: true,
   cdpPort: SETUP_CDP_PORT || DEFAULT_CDP_PORT || 9222,
+  /** First-run onboarding shown once */
+  firstRunDone: false,
+  /** "system" or locale code (en, ru, …) */
+  uiLocale: "system",
+  /** "en" (default), "ui", or locale code for Rider–Waite titles */
+  arcanaLocale: "en",
+  /** Phone remote: LAN Wi-Fi default; Tailscale mode later */
+  remoteEnabled: false,
+  remotePort: DEFAULT_REMOTE_PORT,
+  remoteToken: "",
+  remoteAccessMode: "lan",
 };
 
 /** Manual pin (F9) — stays open until unpinned */
@@ -211,25 +304,27 @@ const CONCEAL_ANIM_MS = 300;
 
 function ensureData() {
   fs.mkdirSync(decksDir(), { recursive: true });
+  try {
+    log.initLogger(userDataDir());
+  } catch {
+    /* ignore */
+  }
   if (!fs.existsSync(settingsPath())) {
-    fs.writeFileSync(
-      settingsPath(),
-      JSON.stringify(defaultSettings, null, 2),
-      "utf8"
-    );
+    atomicWriteJson(settingsPath(), defaultSettings);
   }
-  // Seed bundled decks if missing (hobby + pro)
-  const bundledDecks = [
-    ["default-deck.json", "lazy-v1.json"],
-    ["pro-deck.json", "pro-v1.json"],
-  ];
-  for (const [srcName, destName] of bundledDecks) {
-    const src = path.join(appRoot(), "data", srcName);
-    const dest = path.join(decksDir(), destName);
-    if (!fs.existsSync(dest) && fs.existsSync(src)) {
-      fs.copyFileSync(src, dest);
+  // Seed bundled decks if missing (locale pack → hobby + pro)
+  let seedLocale = "en";
+  try {
+    if (fs.existsSync(settingsPath())) {
+      const s = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
+      seedLocale = i18n.resolveUiLocale(s.uiLocale || "system", systemLocale());
+    } else {
+      seedLocale = i18n.resolveUiLocale("system", systemLocale());
     }
+  } catch {
+    seedLocale = "en";
   }
+  syncBundledDecks(seedLocale, { onlyIfMissing: true });
   // migrate: pin used to disable edgeHover in settings — fix broken auto-show
   try {
     const s = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
@@ -243,7 +338,7 @@ function ensureData() {
       changed = true;
     }
     if (changed) {
-      fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2), "utf8");
+      atomicWriteJson(settingsPath(), s);
     }
   } catch {
     /* ignore */
@@ -259,7 +354,7 @@ function readSettings() {
     if (mig.changed) {
       merged.targets = mig.targets;
       try {
-        fs.writeFileSync(settingsPath(), JSON.stringify(merged, null, 2), "utf8");
+        atomicWriteJson(settingsPath(), merged);
       } catch {
         /* ignore */
       }
@@ -273,21 +368,78 @@ function readSettings() {
 }
 
 function writeSettings(partial) {
-  const next = { ...readSettings(), ...partial };
-  fs.writeFileSync(settingsPath(), JSON.stringify(next, null, 2), "utf8");
+  const safe = pickSettingsPartial(partial);
+  const next = { ...readSettings(), ...safe };
+  if (safe.activeDeckId != null) {
+    const id = trySafeId(safe.activeDeckId);
+    if (!id) delete next.activeDeckId;
+    else next.activeDeckId = id;
+  }
+  if (safe.remotePort != null) {
+    const p = Number(safe.remotePort);
+    next.remotePort = Number.isFinite(p)
+      ? Math.min(65535, Math.max(1024, Math.round(p)))
+      : DEFAULT_REMOTE_PORT;
+  }
+  if (safe.remoteEnabled != null) {
+    next.remoteEnabled = safe.remoteEnabled === true;
+  }
+  if (safe.remoteToken != null) {
+    const tok = String(safe.remoteToken || "").trim();
+    // Only accept generated-looking tokens (ignore empty / short values)
+    if (tok.length >= 16 && tok.length <= 128) next.remoteToken = tok;
+    else next.remoteToken = readSettings().remoteToken || "";
+  }
+  if (safe.remoteAccessMode != null) {
+    next.remoteAccessMode =
+      String(safe.remoteAccessMode).toLowerCase() === "tailscale" ? "tailscale" : "lan";
+  }
+  atomicWriteJson(settingsPath(), next);
   return next;
+}
+
+function assertTrustedSender(event) {
+  try {
+    const wc = event?.sender;
+    if (!wc || wc.isDestroyed()) return false;
+    const url = String(wc.getURL?.() || "");
+    if (!url.startsWith("file:")) return false;
+    const owned = [
+      deckWindow,
+      settingsWindow,
+      targetsWindow,
+      pickWindow,
+      chatPickWindow,
+    ];
+    if (owned.some((w) => w && !w.isDestroyed() && w.webContents === wc)) {
+      return true;
+    }
+    // Fallback: URL under app root / asar
+    const appPath = path.resolve(appRoot());
+    let filePath = decodeURIComponent(url.replace(/^file:\/+/i, ""));
+    if (/^\/[A-Za-z]:/.test(filePath)) filePath = filePath.slice(1);
+    const resolved = path.resolve(filePath);
+    const prefix = appPath.endsWith(path.sep) ? appPath : appPath + path.sep;
+    return resolved === appPath || resolved.startsWith(prefix);
+  } catch {
+    return false;
+  }
 }
 
 function listDecks() {
   ensureData();
-  const files = fs.readdirSync(decksDir()).filter((f) => f.endsWith(".json"));
+  const files = fs
+    .readdirSync(decksDir())
+    .filter((f) => f.endsWith(".json") && !f.endsWith(".bak.json") && !f.endsWith(".bak"));
   return files
     .map((f) => {
       try {
+        const base = path.basename(f, ".json");
+        if (!trySafeId(base)) return null;
         const d = JSON.parse(fs.readFileSync(path.join(decksDir(), f), "utf8"));
         return {
-          id: d.id || path.basename(f, ".json"),
-          name: d.name || path.basename(f, ".json"),
+          id: trySafeId(d.id) || base,
+          name: d.name || base,
           file: f,
           cardCount: Array.isArray(d.cards) ? d.cards.length : 0,
         };
@@ -300,25 +452,46 @@ function listDecks() {
 
 function loadDeck(id) {
   ensureData();
-  const file = path.join(decksDir(), `${id}.json`);
-  if (!fs.existsSync(file)) {
+  const safe = trySafeId(id);
+  if (!safe) {
     const first = listDecks()[0];
-    if (!first) return { id: "empty", name: "Пусто", cards: [] };
+    if (!first) return { id: "empty", name: t("err.emptyDeck"), cards: [] };
     return loadDeck(first.id);
   }
-  const d = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (!Array.isArray(d.cards)) d.cards = [];
-  d.cards = d.cards.slice(0, 8);
-  return d;
+  let file;
+  try {
+    file = deckFilePath(decksDir(), safe);
+  } catch {
+    const first = listDecks()[0];
+    if (!first) return { id: "empty", name: t("err.emptyDeck"), cards: [] };
+    return loadDeck(first.id);
+  }
+  if (!fs.existsSync(file)) {
+    const first = listDecks()[0];
+    if (!first) return { id: "empty", name: t("err.emptyDeck"), cards: [] };
+    return loadDeck(first.id);
+  }
+  try {
+    const d = JSON.parse(fs.readFileSync(file, "utf8"));
+    return normalizeDeck(
+      { ...d, id: safe, name: d.name || safe },
+      { forceNewId: false, existingIds: new Set(), allowEmpty: true }
+    );
+  } catch (e) {
+    log.warn("loadDeck failed", String(e.message || e));
+    return { id: safe, name: safe, cards: [] };
+  }
 }
 
 function saveDeck(deck) {
   ensureData();
-  if (!deck.id) deck.id = `deck-${Date.now()}`;
-  deck.cards = (deck.cards || []).slice(0, 8);
-  const file = path.join(decksDir(), `${deck.id}.json`);
-  fs.writeFileSync(file, JSON.stringify(deck, null, 2), "utf8");
-  return deck;
+  const normalized = normalizeDeck(deck || {}, {
+    existingIds: new Set(),
+    forceNewId: !trySafeId(deck?.id),
+  });
+  const file = deckFilePath(decksDir(), normalized.id);
+  atomicWriteJson(file, normalized);
+  return normalized;
 }
 
 function workArea() {
@@ -354,6 +527,10 @@ function broadcastStateChanged() {
   if (targetsWindow && !targetsWindow.isDestroyed()) {
     targetsWindow.webContents.send("state-changed");
   }
+  if (chatPickWindow && !chatPickWindow.isDestroyed()) {
+    chatPickWindow.webContents.send("state-changed");
+  }
+  notifyRemoteDeckChanged();
 }
 
 function broadcastTargetsUpdated() {
@@ -399,7 +576,7 @@ function openSettingsWindow() {
     height,
     minWidth: 760,
     minHeight: 520,
-    title: "Lazy Coder — Настройки",
+    title: t("settings.winTitle"),
     backgroundColor: "#120a1c",
     autoHideMenuBar: true,
     show: false,
@@ -409,6 +586,7 @@ function openSettingsWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -469,7 +647,7 @@ function openChatPickWindow() {
     height,
     minWidth: 360,
     minHeight: 400,
-    title: "Выбор чата Cursor",
+    title: t("chatPick.winTitle"),
     backgroundColor: "#120a1c",
     autoHideMenuBar: true,
     show: false,
@@ -478,6 +656,7 @@ function openChatPickWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
   chatPickWindow.setAlwaysOnTop(true, "floating");
@@ -528,7 +707,7 @@ function openTargetsWindow() {
     height,
     minWidth: 400,
     minHeight: 420,
-    title: "Lazy Coder — Куда отправлять",
+    title: t("targets.winTitle"),
     backgroundColor: "#120a1c",
     autoHideMenuBar: true,
     show: false,
@@ -537,6 +716,7 @@ function openTargetsWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -566,14 +746,14 @@ function openTargetsWindow() {
   });
 }
 
-/** Base: 3×24px buttons + 2×2px gap = 76; card height 2:3 */
+/** Base: 4×24px buttons + 3×2px gap; card height 2:3 */
 function stripMetrics(scale) {
   const s = Math.min(1.5, Math.max(0.75, Number(scale) || 1));
   const btn = Math.round(24 * s);
   const gap = Math.max(1, Math.round(2 * s));
-  const strip = 3 * btn + 2 * gap;
+  const strip = 4 * btn + 3 * gap;
   const cardH = Math.round((strip * 3) / 2);
-  const titlebarH = btn;
+  const titlebarH = Math.max(btn, Math.round(28 * s));
   const cardGap = Math.max(1, Math.round(2 * s));
   return { scale: s, btn, gap, strip, cardH, titlebarH, cardGap };
 }
@@ -830,6 +1010,7 @@ function createDeckWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -1055,12 +1236,15 @@ function registerShortcuts() {
   clearShortcuts();
   const settings = readSettings();
   const hotkey = settings.showHotkey || "F9";
+  const failed = [];
   try {
-    globalShortcut.register(hotkey, () => {
+    const ok = globalShortcut.register(hotkey, () => {
       toggleDeck();
     });
+    if (!ok) failed.push(hotkey);
   } catch (e) {
-    console.warn("show hotkey failed", hotkey, e);
+    log.warn("show hotkey failed", String(e.message || e));
+    failed.push(hotkey);
     try {
       globalShortcut.register("F9", () => toggleDeck());
     } catch {
@@ -1072,12 +1256,20 @@ function registerShortcuts() {
   for (const card of deck.cards || []) {
     if (!card.hotkey) continue;
     try {
-      globalShortcut.register(card.hotkey, () => {
-        pasteCardById(card.id);
+      const ok = globalShortcut.register(card.hotkey, () => {
+        pasteQueue.enqueue(() => pasteCardById(card.id));
       });
+      if (!ok) failed.push(card.hotkey);
     } catch (e) {
-      console.warn("card hotkey failed", card.hotkey, e);
+      log.warn("card hotkey failed", String(card.hotkey));
+      failed.push(card.hotkey);
     }
+  }
+  if (failed.length && deckWindow && !deckWindow.isDestroyed()) {
+    sendDeck("toast", {
+      type: "error",
+      message: t("toast.hotkeyBusy", { keys: failed.join(", ") }),
+    });
   }
 }
 
@@ -1102,7 +1294,7 @@ function isOwnAppWindow(win) {
 function windowDisplayTitle(win) {
   if (win.title) return win.title;
   if (win.processName) return win.processName;
-  return `Окно ${String(win.hwnd).slice(-4)}`;
+  return t("msg.windowN", { n: String(win.hwnd).slice(-4) });
 }
 
 async function listWindows() {
@@ -1401,7 +1593,7 @@ function upsertTargetFromField({
   const input = normalizePoint(inputPoint);
   const focus = normalizePoint(focusPoint);
   if (!input) {
-    return { ok: false, error: "не указано поле ввода" };
+    return { ok: false, error: t("err.noInputField") };
   }
 
   const existing = findDuplicateFieldTarget(
@@ -1466,6 +1658,81 @@ function upsertTargetFromField({
   return { ok: true, duplicate: false, target };
 }
 
+function findDuplicateQuietTarget(targets, hwnd, inputLocator) {
+  const key = locatorKey(inputLocator);
+  if (!key || !hwnd) return null;
+  return (targets || []).find(
+    (t) =>
+      t.driver === "uia-quiet" &&
+      String(t.hwnd) === String(hwnd) &&
+      locatorKey(t.inputLocator) === key
+  );
+}
+
+function upsertTargetFromQuietUia({
+  hwnd,
+  windowName,
+  processName,
+  inputLocator,
+}) {
+  const settings = readSettings();
+  if (!hwnd || !inputLocator) {
+    return { ok: false, error: t("err.saveQuietFail") };
+  }
+  const display = windowName || processName || t("err.fieldDefault");
+  const existing = findDuplicateQuietTarget(
+    settings.targets,
+    hwnd,
+    inputLocator
+  );
+  if (existing) {
+    const targets = (settings.targets || []).map((t) =>
+      t.id === existing.id
+        ? {
+            ...t,
+            enabled: true,
+            driver: "uia-quiet",
+            needsUiaRebind: false,
+            needsCdpRebind: false,
+            hwnd: String(hwnd),
+            fullTitle: display,
+            match: display,
+            processName: processName || t.processName || "",
+            inputLocator,
+          }
+        : t
+    );
+    writeSettings({ targets });
+    return {
+      ok: true,
+      duplicate: true,
+      target: targets.find((t) => t.id === existing.id),
+    };
+  }
+  const brand =
+    display.match(
+      /Notepad|Блокнот|Cursor|ChatGPT|Chrome|Edge|Firefox|Code/i
+    )?.[0] ||
+    processName ||
+    display.slice(0, 24);
+  const name = uniqueTargetName(brand, settings.targets || []);
+  const target = {
+    id: `tgt-${Date.now()}`,
+    name,
+    match: display,
+    hwnd: String(hwnd),
+    enabled: true,
+    fullTitle: display,
+    processName: processName || "",
+    driver: "uia-quiet",
+    needsUiaRebind: false,
+    needsCdpRebind: false,
+    inputLocator,
+  };
+  writeSettings({ targets: [...(settings.targets || []), target] });
+  return { ok: true, duplicate: false, target };
+}
+
 function findDuplicateUiaTarget(targets, chatLocator) {
   const key = locatorKey(chatLocator);
   if (!key) return null;
@@ -1484,7 +1751,7 @@ function upsertTargetFromUia({
 }) {
   const settings = readSettings();
   if (!chatLocator || !inputLocator) {
-    return { ok: false, error: "не удалось сохранить локаторы чата/поля" };
+    return { ok: false, error: t("err.saveChatFail") };
   }
   const display = windowName || "Cursor";
   const existing = findDuplicateUiaTarget(settings.targets, chatLocator);
@@ -1515,7 +1782,7 @@ function upsertTargetFromUia({
   }
 
   const baseName =
-    (chatName || chatLocator.name || "").trim().slice(0, 40) || "Cursor чат";
+    (chatName || chatLocator.name || "").trim().slice(0, 40) || t("err.cursorChat");
   const name = uniqueTargetName(baseName, settings.targets || []);
   const target = {
     id: `tgt-${Date.now()}`,
@@ -1550,7 +1817,7 @@ async function upsertTargetFromWindow(win) {
 }
 
 function uniqueTargetName(base, targets) {
-  const root = String(base || "Чат").trim() || "Чат";
+  const root = String(base || t("err.chatDefault")).trim() || t("err.chatDefault");
   const taken = new Set((targets || []).map((t) => t.name));
   if (!taken.has(root)) return root;
   let n = 2;
@@ -1594,7 +1861,7 @@ public class WinKeys {
     );
     const status = (stdout || "").trim().split(/\r?\n/).pop();
     if (status === "OK") return { ok: true };
-    return { ok: false, error: status || "ошибка вставки" };
+    return { ok: false, error: status || t("err.pasteFail") };
   } catch (e) {
     return { ok: false, error: String(e) };
   }
@@ -1603,9 +1870,9 @@ public class WinKeys {
 async function focusAndPasteUia(target, text, autoEnter, pauseMs) {
   const uia = getUiaClient();
   const hwnd = target.hwnd;
-  if (!hwnd) return { ok: false, error: "нет hwnd цели" };
+  if (!hwnd) return { ok: false, error: t("err.noHwnd") };
   if (!target.chatLocator || !target.inputLocator) {
-    return { ok: false, error: "нет UIA-локаторов — перепривяжите чат" };
+    return { ok: false, error: t("err.noUiaLocators") };
   }
 
   try {
@@ -1620,7 +1887,7 @@ async function focusAndPasteUia(target, text, autoEnter, pauseMs) {
 
     const sel = await uia.selectChat(hwnd, target.chatLocator);
     if (!sel.ok) {
-      return { ok: false, error: uiaErr(sel.error, "чат не выбран") };
+      return { ok: false, error: uiaErr(sel.error, t("err.chatNotSelected")) };
     }
 
     await new Promise((r) => setTimeout(r, 150));
@@ -1741,9 +2008,9 @@ public class WinPaste {
     const status = (stdout || "").trim().split(/\r?\n/).pop();
     if (status === "OK") return { ok: true };
     if (status === "FAIL_FOCUS") {
-      return { ok: false, error: "не удалось активировать окно" };
+      return { ok: false, error: t("err.activateFail") };
     }
-    return { ok: false, error: status || "ошибка вставки" };
+    return { ok: false, error: status || t("err.pasteFail") };
   } catch (e) {
     return { ok: false, error: String(e) };
   }
@@ -1791,7 +2058,7 @@ function upsertTargetFromCdp({
   }
   const base =
     (chatTitle || "").trim().slice(0, 40) ||
-    "Cursor чат";
+    t("err.cursorChat");
   const name = uniqueTargetName(base, settings.targets || []);
   const target = {
     id: `tgt-${Date.now()}`,
@@ -1816,42 +2083,47 @@ async function pasteViaCdp(target, text, autoEnter, cdpPort) {
   const port = Number(target.port) || Number(cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
   try {
-    await cdp.sendToChat(
+    const r = await cdp.sendToChat(
       target.cdpTargetId,
       { id: target.chatId, title: target.chatTitle },
       text,
       { submit: autoEnter === true }
     );
-    return { ok: true };
+    return {
+      ok: true,
+      warning:
+        r?.warning === "inserted_not_sent" ? t("err.insertedNotSent") : "",
+    };
   } catch (e) {
     const msg = String(e.message || e);
     if (/CDP порт|cdp_closed|fetch|ECONNREFUSED/i.test(msg)) {
       return {
         ok: false,
-        error: "CDP закрыт — Настройки → Запустить Cursor для фона",
+        error: t("err.cdpClosedSettings"),
         needsCdp: true,
       };
     }
     if (/chat_not_found/i.test(msg)) {
-      return { ok: false, error: "чат не найден — выберите чат снова из списка" };
+      return { ok: false, error: t("err.chatMissingReselect") };
     }
     if (/input_not_found/i.test(msg)) {
-      return { ok: false, error: "поле ввода Cursor не найдено" };
+      return { ok: false, error: t("err.cursorInputMissing") };
+    }
+    if (/inserted_not_sent/i.test(msg)) {
+      return { ok: false, error: t("err.insertedNotSent"), insertedNotSent: true };
     }
     return { ok: false, error: msg };
   }
 }
 
 /** Quiet ValuePattern write — no SetForegroundWindow. */
-async function pasteQuietUia(target, text) {
+async function pasteQuietUia(target, text, autoEnter) {
   const uia = getUiaClient();
   try {
     const hwnd = target.hwnd;
     if (!hwnd || !target.inputLocator) {
-      return { ok: false, error: "нет локатора поля для тихой записи" };
+      return { ok: false, error: t("err.noQuietLocator") };
     }
-    // Reuse focusInput path then Value via evaluate in helper — if SetFocus would steal,
-    // we only call a dedicated setValue command if available; else skip.
     const res = await uia.request(
       "setValue",
       {
@@ -1864,14 +2136,20 @@ async function pasteQuietUia(target, text) {
     if (!res?.ok) {
       return {
         ok: false,
-        error: uiaErr(res?.error, "программа не принимает текст в фоне"),
+        error: uiaErr(res?.error, t("err.noBackgroundText")),
+      };
+    }
+    if (autoEnter === true) {
+      return {
+        ok: true,
+        warning: t("err.pastedNoEnter"),
       };
     }
     return { ok: true };
   } catch (e) {
     return {
       ok: false,
-      error: "эта программа не принимает текст в фоне",
+      error: t("err.appNoBackground"),
     };
   }
 }
@@ -1880,14 +2158,14 @@ async function pasteCardById(cardId) {
   const settings = readSettings();
   const deck = loadDeck(settings.activeDeckId);
   const card = (deck.cards || []).find((c) => c.id === cardId);
-  if (!card) return { ok: false, error: "Карточка не найдена" };
+  if (!card) return { ok: false, error: t("err.cardMissing") };
 
   const enabled = (settings.targets || []).filter((t) => t.enabled);
   if (!enabled.length) {
     if (deckWindow && !deckWindow.isDestroyed()) {
       deckWindow.webContents.send("toast", {
         type: "error",
-        message: "Выберите хотя бы одну цель",
+        message: t("toast.noTargets"),
       });
     }
     return { ok: false, error: "no targets" };
@@ -1896,7 +2174,8 @@ async function pasteCardById(cardId) {
   const preserveFocus = settings.preserveFocus !== false;
   const windows = preserveFocus ? [] : await listWindows();
   const results = [];
-  const prevClip = clipboard.readText();
+  const needsClipboard = !preserveFocus;
+  const prevClip = needsClipboard ? clipboard.readText() : "";
 
   edgeHoverPaused = true;
   const deckWasVisible =
@@ -1921,7 +2200,7 @@ async function pasteCardById(cardId) {
           results.push({
             target: target.name,
             ok: false,
-            error: "перепривяжите через «+ чат Cursor» (фон / CDP)",
+            error: t("err.rebindCdp"),
           });
           continue;
         }
@@ -1941,13 +2220,18 @@ async function pasteCardById(cardId) {
 
       if (preserveFocus) {
         if (target.driver === "uia-quiet") {
-          const r = await pasteQuietUia(target, card.prompt || "");
+          const r = await pasteQuietUia(
+            target,
+            card.prompt || "",
+            settings.autoEnter === true
+          );
           results.push({ target: target.name, ...r });
         } else {
           results.push({
             target: target.name,
             ok: false,
-            error: "эта программа не принимает текст в фоне",
+            error:
+              t("err.noBackgroundDisableFocus"),
           });
         }
         await new Promise((r) => setTimeout(r, gapMs));
@@ -1959,7 +2243,7 @@ async function pasteCardById(cardId) {
         results.push({
           target: target.name,
           ok: false,
-          error: "перепривяжите через «+ чат Cursor»",
+          error: t("err.rebindCursorChat"),
         });
         continue;
       }
@@ -1969,7 +2253,7 @@ async function pasteCardById(cardId) {
         results.push({
           target: target.name,
           ok: false,
-          error: "окно не найдено",
+          error: t("err.window_not_found"),
         });
         continue;
       }
@@ -2012,7 +2296,7 @@ async function pasteCardById(cardId) {
         results.push({
           target: target.name,
           ok: false,
-          error: "ошибка привязки — добавьте поле заново",
+          error: t("err.bindFailField"),
         });
         continue;
       }
@@ -2029,7 +2313,7 @@ async function pasteCardById(cardId) {
           legacyWarned = true;
           deckWindow.webContents.send("toast", {
             type: "error",
-            message: "Перепривяжите поле прицелом ⊕ (старая цель без поля)",
+            message: t("toast.rebindFieldAim"),
           });
         }
       }
@@ -2069,7 +2353,7 @@ async function pasteCardById(cardId) {
       await new Promise((r) => setTimeout(r, gapMs));
     }
   } finally {
-    if (!preserveFocus) {
+    if (needsClipboard) {
       const clipToRestore = prevClip;
       setTimeout(() => {
         try {
@@ -2092,6 +2376,658 @@ async function pasteCardById(cardId) {
   }
 
   return { ok: results.some((r) => r.ok), results };
+}
+
+/** Ephemeral phone-remote chat id: live|{cdpTargetId}|{chatId}|{chatTitle} (URI-encoded parts). */
+function encodeLiveChatRef({ cdpTargetId, chatId, chatTitle }) {
+  return [
+    "live",
+    encodeURIComponent(String(cdpTargetId || "")),
+    encodeURIComponent(String(chatId || "")),
+    encodeURIComponent(String(chatTitle || "")),
+  ].join("|");
+}
+
+/**
+ * Resolve phone remote chat id: live CDP ref or legacy saved settings target.
+ * @returns {{ kind:'live'|'saved', cdpTargetId:string, chatId:string, chatTitle:string, name:string, port:number, needsCdpRebind?:boolean } | null}
+ */
+function resolveRemoteChatRef(id) {
+  const raw = String(id || "").trim();
+  if (!raw) return null;
+  const settings = readSettings();
+  const port = Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+
+  if (raw.startsWith("live|")) {
+    const parts = raw.split("|");
+    if (parts.length < 3) return null;
+    const cdpTargetId = decodeURIComponent(parts[1] || "");
+    const chatId = decodeURIComponent(parts[2] || "");
+    const chatTitle = decodeURIComponent(parts[3] || "");
+    if (!cdpTargetId || !chatId) return null;
+    return {
+      kind: "live",
+      cdpTargetId,
+      chatId,
+      chatTitle,
+      name: chatTitle || chatId,
+      port,
+    };
+  }
+
+  const target = (settings.targets || []).find(
+    (x) => x.id === raw && x.driver === "cdp"
+  );
+  if (!target) return null;
+  return {
+    kind: "saved",
+    cdpTargetId: String(target.cdpTargetId || ""),
+    chatId: String(target.chatId || ""),
+    chatTitle: String(target.chatTitle || ""),
+    name: target.name || target.chatTitle || target.id,
+    port: Number(target.port) || port,
+    needsCdpRebind: !!target.needsCdpRebind,
+  };
+}
+
+/** Live open Cursor chats from CDP (not limited to saved Keycode targets). */
+async function listRemoteLiveChats() {
+  const settings = readSettings();
+  const port = Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  let probe;
+  try {
+    probe = await cdp.probe();
+  } catch (e) {
+    return {
+      ok: false,
+      error: String(e.message || e),
+      hint: "cdp_closed",
+      chats: [],
+      port,
+    };
+  }
+  if (!probe?.open) {
+    return { ok: false, error: "cdp_closed", hint: "cdp_closed", chats: [], port };
+  }
+
+  const chats = [];
+  const seen = new Set();
+  for (const win of (probe.targets || []).slice(0, 8)) {
+    let list;
+    try {
+      list = await cdp.listChats(win.id);
+    } catch {
+      continue;
+    }
+    if (!list?.ok) continue;
+    for (const c of list.chats || []) {
+      const chatId = String(c.id || "");
+      const chatTitle = String(c.title || "");
+      if (!chatId && !chatTitle) continue;
+      const id = encodeLiveChatRef({
+        cdpTargetId: win.id,
+        chatId: chatId || chatTitle,
+        chatTitle,
+      });
+      if (seen.has(id)) continue;
+      seen.add(id);
+      chats.push({
+        id,
+        name: chatTitle || chatId,
+        cdpTargetId: win.id,
+        chatId: chatId || chatTitle,
+        chatTitle,
+        windowTitle: String(win.title || ""),
+      });
+      if (chats.length >= 80) break;
+    }
+    if (chats.length >= 80) break;
+  }
+  return { ok: true, chats, port };
+}
+
+/** Phone remote: paste text into a single Cursor chat (live or saved). Never logs text. */
+async function pasteTextToTarget(text, targetId, notify = { kind: "text", cardId: null }) {
+  const settings = readSettings();
+  const kind = notify.kind || "text";
+  // Phone remote (free text + cards) always submits. Desktop strip follows Settings → Enter.
+  const submit =
+    kind === "text" || kind === "card" || notify.submit === true
+      ? true
+      : settings.autoEnter === true;
+  const ref = resolveRemoteChatRef(targetId);
+  if (!ref) {
+    return { ok: false, error: t("remote.errUnknownTarget"), hint: "unknown_target" };
+  }
+  if (ref.needsCdpRebind) {
+    return { ok: false, error: t("err.rebindCdp") };
+  }
+
+  const r = await pasteViaCdp(
+    {
+      cdpTargetId: ref.cdpTargetId,
+      chatId: ref.chatId,
+      chatTitle: ref.chatTitle,
+      port: ref.port,
+      name: ref.name,
+    },
+    String(text || ""),
+    submit,
+    settings.cdpPort
+  );
+  const results = [{ target: ref.name, ...r }];
+  if (deckWindow && !deckWindow.isDestroyed()) {
+    deckWindow.webContents.send("paste-done", {
+      cardId: notify.cardId ?? null,
+      kind,
+      results,
+    });
+  }
+  return { ok: !!r.ok, results };
+}
+
+/** Phone remote: paste one card into a single Cursor chat (live or saved). */
+async function pasteCardToTarget(cardId, targetId) {
+  const settings = readSettings();
+  const deck = loadDeck(settings.activeDeckId);
+  const card = (deck.cards || []).find((c) => c.id === cardId);
+  if (!card) return { ok: false, error: t("err.cardMissing") };
+  return pasteTextToTarget(card.prompt || "", targetId, {
+    kind: "card",
+    cardId,
+  });
+}
+
+function getRemoteStatePayload() {
+  const settings = readSettings();
+  const deck = loadDeck(settings.activeDeckId);
+  const decks = listDecks().map((d) => ({
+    id: d.id,
+    name: d.name || d.id,
+  }));
+  const cards = (deck.cards || []).map((c) => ({
+    id: c.id,
+    title: c.title || "",
+    description: c.description || "",
+    image: c.image || "",
+    hotkey: c.hotkey || "",
+    // Full prompt intentionally omitted until paste (server uses local deck).
+  }));
+  return {
+    deck: { id: deck.id, name: deck.name || deck.id },
+    decks,
+    cards,
+    // Chat list comes from GET /api/chats (live CDP); kept empty for backward compat.
+    targets: [],
+    autoEnter: settings.autoEnter === true,
+    uiLocale: i18n.getActiveUiLocale() || "en",
+    suggestions: [], // reserved for future AI highlights
+  };
+}
+
+/** Activate a deck by id, or cycle with step ±1. Used by IPC + phone remote. */
+function activateDeck({ deckId, step } = {}) {
+  const decks = listDecks();
+  if (!decks.length) return { ok: false, error: "no_decks" };
+
+  let nextId = null;
+  if (deckId != null && String(deckId).trim()) {
+    const safe = trySafeId(String(deckId).trim());
+    if (!safe || !decks.some((d) => d.id === safe)) {
+      return { ok: false, error: "unknown_deck" };
+    }
+    nextId = safe;
+  } else if (step === 1 || step === -1) {
+    const settings = readSettings();
+    let idx = decks.findIndex((d) => d.id === settings.activeDeckId);
+    if (idx < 0) idx = 0;
+    nextId = decks[(idx + step + decks.length) % decks.length].id;
+  } else {
+    return { ok: false, error: "deck_id_or_step_required" };
+  }
+
+  writeSettings({ activeDeckId: nextId });
+  registerShortcuts();
+  const deck = loadDeck(nextId);
+  broadcastStateChanged();
+  return { ok: true, deck: { id: deck.id, name: deck.name || deck.id } };
+}
+
+function notifyRemoteDeckChanged() {
+  if (!remoteServer || typeof remoteServer.notifyDeck !== "function") return;
+  try {
+    remoteServer.notifyDeck({ ok: true, ...getRemoteStatePayload() });
+  } catch (e) {
+    log.warn("remote deck notify failed", { err: String(e.message || e) });
+  }
+}
+
+async function readRemoteChat(targetId, { select = true } = {}) {
+  const settings = readSettings();
+  const ref = resolveRemoteChatRef(targetId);
+  if (!ref) {
+    return { ok: false, error: "unknown_target", hint: "unknown_target" };
+  }
+  if (ref.needsCdpRebind) {
+    return { ok: false, error: t("err.rebindCdp"), hint: "rebind" };
+  }
+  const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  return cdp.readTranscript(
+    ref.cdpTargetId,
+    {
+      id: ref.chatId,
+      title: ref.chatTitle,
+    },
+    { select: select !== false }
+  );
+}
+
+function ensureRemoteToken(settings, { persist = true } = {}) {
+  if (settings.remoteToken && String(settings.remoteToken).length >= 16) {
+    return settings;
+  }
+  if (!persist) return settings;
+  const token = generateRemoteToken();
+  return writeSettings({ remoteToken: token });
+}
+
+async function probeTailscaleServe(port) {
+  const p = Number(port) || DEFAULT_REMOTE_PORT;
+  try {
+    const { stdout } = await execFileAsync("tailscale", ["status", "--json"], {
+      timeout: 5000,
+      windowsHide: true,
+    });
+    let status;
+    try {
+      status = JSON.parse(stdout || "{}");
+    } catch {
+      status = {};
+    }
+    const self = status.Self || status.self || {};
+    const dns =
+      self.DNSName ||
+      self.dnsName ||
+      (Array.isArray(self.DNSName) ? self.DNSName[0] : "") ||
+      "";
+    const host = String(dns || "").replace(/\.$/, "");
+    let serveUrl = "";
+    try {
+      const { stdout: serveOut } = await execFileAsync(
+        "tailscale",
+        ["serve", "status", "--json"],
+        { timeout: 4000, windowsHide: true }
+      );
+      const serve = JSON.parse(serveOut || "{}");
+      // Look for proxy to our localhost port
+      const web = serve.Web || serve.web || {};
+      for (const [key, val] of Object.entries(web)) {
+        const handlers = val?.Handlers || val?.handlers || val || {};
+        const entries = typeof handlers === "object" ? Object.values(handlers) : [];
+        for (const h of entries) {
+          const proxy = String(h?.Proxy || h?.proxy || "");
+          if (proxy.includes(`:${p}`) || proxy.includes(`127.0.0.1:${p}`)) {
+            serveUrl = key.startsWith("https://") ? key : `https://${host}`;
+            break;
+          }
+        }
+        if (serveUrl) break;
+      }
+      if (!serveUrl && host) {
+        // No matching handler yet — still show expected URL after serve setup
+        serveUrl = "";
+      }
+    } catch {
+      /* serve status optional */
+    }
+    const command = `tailscale serve --bg ${p}`;
+    return {
+      ok: true,
+      installed: true,
+      online: self.Online !== false && self.online !== false,
+      dnsName: host,
+      serveUrl: serveUrl || (host ? `https://${host}` : ""),
+      command,
+      port: p,
+    };
+  } catch (e) {
+    const msg = String(e.message || e);
+    const missing = /not recognized|ENOENT|cannot find/i.test(msg);
+    return {
+      ok: false,
+      installed: !missing,
+      online: false,
+      dnsName: "",
+      serveUrl: "",
+      command: `tailscale serve --bg ${p}`,
+      port: p,
+      error: missing ? "tailscale_missing" : msg,
+    };
+  }
+}
+
+const REMOTE_UI_ASSET_VERSION = "20260723f";
+
+function buildRemotePublicUrl(serveUrl, token) {
+  const base = String(serveUrl || "").replace(/\/$/, "");
+  if (!base || !token) return "";
+  // Query busts stale phone caches of remote.js/css (fragment token stays after ?v=).
+  return `${base}/?v=${REMOTE_UI_ASSET_VERSION}#token=${encodeURIComponent(token)}`;
+}
+
+/** Pick a private IPv4 address for same-Wi-Fi QR (skip loopback / link-local). */
+function detectLanIPv4() {
+  const nets = os.networkInterfaces() || {};
+  const scored = [];
+  for (const [ifName, list] of Object.entries(nets)) {
+    for (const n of list || []) {
+      if (!n || n.internal) continue;
+      const fam = n.family;
+      if (fam !== "IPv4" && fam !== 4) continue;
+      const ip = String(n.address || "");
+      if (!ip || ip.startsWith("127.") || ip.startsWith("169.254.")) continue;
+      let score = 0;
+      if (ip.startsWith("192.168.")) score = 30;
+      else if (ip.startsWith("10.")) score = 20;
+      else {
+        const m = /^172\.(\d+)\./.exec(ip);
+        const oct = m ? Number(m[1]) : 0;
+        if (oct >= 16 && oct <= 31) score = 10;
+        else continue;
+      }
+      // Prefer real Wi-Fi over Hyper-V / VPN / hotspot adapters
+      if (/wi-?fi|wlan|wireless/i.test(ifName)) score += 50;
+      else if (/vethernet|hyper-v|wsl|radmin|vpn|virtual|loopback/i.test(ifName)) {
+        score -= 40;
+      }
+      scored.push({ ip, score });
+    }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0]?.ip || "";
+}
+
+function remoteAccessModeOf(settings) {
+  return String(settings?.remoteAccessMode || "lan").toLowerCase() === "tailscale"
+    ? "tailscale"
+    : "lan";
+}
+
+async function syncRemoteServer() {
+  const settings = readSettings();
+  const enabled = settings.remoteEnabled === true;
+  const port = Math.min(
+    65535,
+    Math.max(1024, Number(settings.remotePort) || DEFAULT_REMOTE_PORT)
+  );
+  const mode = remoteAccessModeOf(settings);
+
+  if (!enabled) {
+    if (remoteServer) {
+      await remoteServer.stop();
+    }
+    return { ok: true, running: false, port, accessMode: mode };
+  }
+
+  const withToken = ensureRemoteToken(settings);
+  if (!remoteServer) {
+    remoteServer = createRemoteServer({
+      getToken: () => readSettings().remoteToken || "",
+      getPort: () => {
+        const s = readSettings();
+        return Number(s.remotePort) || DEFAULT_REMOTE_PORT;
+      },
+      getAccessMode: () => remoteAccessModeOf(readSettings()),
+      getRemoteState: getRemoteStatePayload,
+      setActiveDeck: (opts) => activateDeck(opts || {}),
+      listChats: listRemoteLiveChats,
+      readChat: readRemoteChat,
+      pasteCard: (cardId, targetId) =>
+        pasteQueue.enqueue(() => pasteCardToTarget(cardId, targetId)),
+      pasteText: (text, targetId) =>
+        pasteQueue.enqueue(() => pasteTextToTarget(text, targetId)),
+      staticDir: path.join(appRoot(), "src", "remote"),
+      tarotDir: path.join(appRoot(), "assets", "tarot"),
+      log: (level, msg, meta) => {
+        if (level === "WARN") log.warn(msg, meta);
+        else log.info(msg, meta);
+      },
+      allowLoopbackWithoutTailscale: process.env.KEYCODE_REMOTE_DEV === "1",
+    });
+  }
+
+  const st = remoteServer.status();
+  const wantHost = mode === "tailscale" ? "127.0.0.1" : "0.0.0.0";
+  if (st.running && (st.port !== port || st.host !== wantHost || st.accessMode !== mode)) {
+    await remoteServer.stop();
+  }
+  if (!remoteServer.status().running) {
+    try {
+      await remoteServer.start(port);
+    } catch (e) {
+      log.warn("remote start failed", { err: String(e.message || e) });
+      return {
+        ok: false,
+        running: false,
+        port,
+        accessMode: mode,
+        error: String(e.message || e),
+        token: withToken.remoteToken || "",
+      };
+    }
+  }
+  const running = remoteServer.status();
+  return {
+    ok: true,
+    running: true,
+    host: running.host || wantHost,
+    port: running.port || port,
+    accessMode: mode,
+    token: withToken.remoteToken || "",
+  };
+}
+
+async function getRemoteStatusPayload() {
+  let settings = readSettings();
+  // Only mint a token when remote is (or was) enabled — avoid writing on every status poll
+  if (settings.remoteEnabled === true) {
+    settings = ensureRemoteToken(settings);
+  }
+  const port = Math.min(
+    65535,
+    Math.max(1024, Number(settings.remotePort) || DEFAULT_REMOTE_PORT)
+  );
+  const mode = remoteAccessModeOf(settings);
+  const lanIp = detectLanIPv4();
+  const server = remoteServer?.status?.() || {
+    running: false,
+    port,
+    host: mode === "tailscale" ? "127.0.0.1" : "0.0.0.0",
+  };
+  const ts = await probeTailscaleServe(port);
+  const lanUrl = lanIp
+    ? buildRemotePublicUrl(`http://${lanIp}:${port}`, settings.remoteToken)
+    : "";
+  const tailscaleUrl = buildRemotePublicUrl(
+    ts.serveUrl || (ts.dnsName ? `https://${ts.dnsName}` : ""),
+    settings.remoteToken
+  );
+  // Primary phone URL: LAN for now; Tailscale URL kept for later
+  const publicUrl = mode === "tailscale" ? tailscaleUrl : lanUrl;
+  const localUrlWithToken = settings.remoteToken
+    ? `http://127.0.0.1:${port}/#token=${encodeURIComponent(settings.remoteToken)}`
+    : `http://127.0.0.1:${port}/`;
+  return {
+    ok: true,
+    enabled: settings.remoteEnabled === true,
+    running: !!server.running,
+    accessMode: mode,
+    host: server.host || (mode === "tailscale" ? "127.0.0.1" : "0.0.0.0"),
+    port,
+    lanIp,
+    token: settings.remoteToken || "",
+    localUrl: `http://127.0.0.1:${port}/`,
+    localUrlWithToken,
+    lanUrl,
+    publicUrl,
+    serveCommand: ts.command || `tailscale serve --bg ${port}`,
+    tailscale: { ...ts, url: tailscaleUrl, later: true },
+    firewallHint: t("settingsMsg.remoteFirewallHint"),
+    // Future AI hook placeholder (empty)
+    suggestionsSupported: false,
+  };
+}
+
+/** Self-check from main (does not go through HTTP auth). */
+async function diagnoseRemote() {
+  const status = await getRemoteStatusPayload();
+  const steps = [];
+  const push = (ok, code, detail) => {
+    steps.push({ ok, code, detail: detail || "" });
+  };
+
+  if (!status.enabled) {
+    push(false, "remote_off", t("settingsMsg.remoteDiagOff"));
+    return { ok: false, status, steps, next: t("settingsMsg.remoteDiagNextEnable") };
+  }
+  push(true, "remote_on", t("settingsMsg.remoteRunning", { port: status.port }));
+
+  if (!status.running) {
+    push(false, "not_listening", t("settingsMsg.remoteStopped"));
+    return { ok: false, status, steps, next: t("settingsMsg.remoteDiagNextPort") };
+  }
+  push(true, "listening", `${status.host}:${status.port}`);
+
+  if (!status.token || status.token.length < 16) {
+    push(false, "no_token", t("settingsMsg.remoteDiagNoToken"));
+    return { ok: false, status, steps, next: t("settingsMsg.remoteDiagNextRotate") };
+  }
+  push(true, "token", t("settingsMsg.remoteDiagTokenOk"));
+
+  if (status.accessMode === "lan") {
+    if (!status.lanIp) {
+      push(false, "no_lan_ip", t("settingsMsg.remoteDiagNoLanIp"));
+      return {
+        ok: false,
+        status,
+        steps,
+        next: t("settingsMsg.remoteDiagNextLan"),
+      };
+    }
+    push(true, "lan_ip", status.lanIp);
+    if (!status.publicUrl) {
+      push(false, "no_url", t("settingsMsg.remoteDiagNoLanUrl"));
+      return {
+        ok: false,
+        status,
+        steps,
+        next: t("settingsMsg.remoteDiagNextLan"),
+      };
+    }
+    push(true, "url", status.publicUrl.replace(/#token=.*/, "#token=…"));
+    push(true, "firewall", t("settingsMsg.remoteFirewallHint"));
+  } else {
+    // Tailscale mode (later)
+    if (!status.tailscale?.installed) {
+      push(false, "tailscale", t("settingsMsg.remoteNoTailscale"));
+      return {
+        ok: false,
+        status,
+        steps,
+        next: t("settingsMsg.remoteDiagNextTailscale"),
+      };
+    }
+    if (!status.tailscale?.online) {
+      push(false, "tailscale_offline", t("settingsMsg.remoteTailscaleOffline"));
+      return {
+        ok: false,
+        status,
+        steps,
+        next: t("settingsMsg.remoteDiagNextTailscaleLogin"),
+      };
+    }
+    push(true, "tailscale", status.tailscale.dnsName || "online");
+    if (!status.publicUrl) {
+      push(false, "serve", t("settingsMsg.remoteDiagNoServe"));
+      return {
+        ok: false,
+        status,
+        steps,
+        next: t("settingsMsg.remoteDiagNextServe", { cmd: status.serveCommand }),
+      };
+    }
+    push(true, "url", status.publicUrl.replace(/#token=.*/, "#token=…"));
+  }
+
+  let state;
+  try {
+    state = getRemoteStatePayload();
+  } catch (e) {
+    push(false, "state", String(e.message || e));
+    return { ok: false, status, steps, next: t("settingsMsg.remoteDiagNextRestart") };
+  }
+
+  let live;
+  try {
+    live = await listRemoteLiveChats();
+  } catch (e) {
+    live = { ok: false, chats: [], error: String(e.message || e), hint: "cdp_closed" };
+  }
+
+  push(
+    true,
+    "state",
+    t("settingsMsg.remoteDiagState", {
+      cards: (state.cards || []).length,
+      targets: (live.chats || []).length,
+    })
+  );
+
+  if (!live.ok) {
+    push(false, "no_targets", t("settingsMsg.remoteDiagNoTargets"));
+    return {
+      ok: false,
+      status,
+      steps,
+      next: t("settingsMsg.remoteDiagNextCdp"),
+    };
+  }
+  if (!(live.chats || []).length) {
+    push(false, "no_targets", t("settingsMsg.remoteDiagNoTargets"));
+  } else {
+    push(true, "targets", t("settingsMsg.remoteDiagTargets", { n: live.chats.length }));
+  }
+
+  // Optional: probe CDP for first live chat
+  const first = (live.chats || [])[0];
+  if (first?.id) {
+    try {
+      const chat = await readRemoteChat(first.id, { select: true });
+      if (chat?.ok) {
+        push(
+          true,
+          "cdp_chat",
+          t("settingsMsg.remoteDiagChatOk", { n: (chat.messages || []).length })
+        );
+      } else {
+        push(false, "cdp_chat", chat?.error || chat?.hint || "cdp");
+      }
+    } catch (e) {
+      push(false, "cdp_chat", String(e.message || e));
+    }
+  }
+
+  const allOk = steps.every((s) => s.ok);
+  return {
+    ok: allOk,
+    status,
+    steps,
+    next: allOk
+      ? t("settingsMsg.remoteDiagReady")
+      : t("settingsMsg.remoteDiagFixSteps"),
+  };
 }
 
 function closePickWindow() {
@@ -2134,6 +3070,7 @@ function startTargetPick(mode = "field") {
         preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
       },
     });
     pickWindow.setAlwaysOnTop(true, "screen-saver");
@@ -2189,8 +3126,8 @@ function startTargetPick(mode = "field") {
     pickWindow.webContents.once("did-finish-load", () => {
       showPickOverlay(
         pickMode === "cursor"
-          ? "Шаг 1/2: кликните по чату/агенту Cursor · Esc — отмена"
-          : "Кликните по полю ввода чата · Esc — отмена"
+          ? t("pick.hintStep1")
+          : t("pick.hintFieldEsc")
       );
     });
 
@@ -2211,13 +3148,38 @@ function startTargetPick(mode = "field") {
       ]);
 
       if (pickMode === "field") {
+        const preserve = readSettings().preserveFocus !== false;
+        if (preserve) {
+          const uia = getUiaClient();
+          let hit = null;
+          for (const pt of pickPoints) {
+            hit = await uia.elementFromPoint(pt.x, pt.y, "input");
+            if (hit?.ok) break;
+          }
+          if (!hit?.ok) {
+            await finish({
+              ok: false,
+              error:
+                t("err.pickNoBackground"),
+            });
+            return { ok: false };
+          }
+          const result = upsertTargetFromQuietUia({
+            hwnd: hit.hwnd,
+            windowName: hit.windowName || "",
+            processName: hit.processName || "",
+            inputLocator: hit.locator,
+          });
+          await finish(result);
+          return { ok: result.ok };
+        }
         let win = null;
         for (const pt of pickPoints) {
           win = await windowFromPointPhysical(pt.x, pt.y);
           if (win) break;
         }
         if (!win) {
-          showPickOverlay("Кликните по полю ввода чата · Esc — отмена");
+          showPickOverlay(t("pick.hintInputEsc"));
           return { ok: false, continue: true };
         }
         const point = {
@@ -2250,7 +3212,7 @@ function startTargetPick(mode = "field") {
           const hit = await hitAtPoints("chat");
           if (!hit.ok) {
             showPickOverlay(
-              `${uiaErr(hit.error, "кликните по строке агента в списке слева")} · Esc — отмена`
+              `${uiaErr(hit.error, t("err.clickAgentRow"))}${t("pick.escSuffix")}`
             );
             return { ok: false, continue: true };
           }
@@ -2260,7 +3222,7 @@ function startTargetPick(mode = "field") {
             await finish({
               ok: false,
               error:
-                "Внутренности Cursor недоступны. Настройки → Интеграция Cursor → запустите с флагом доступности.",
+                t("err.cursorA11y"),
               needsAccessibility: true,
             });
             return { ok: false };
@@ -2274,9 +3236,9 @@ function startTargetPick(mode = "field") {
           };
           phase = "input";
           showPickOverlay(
-            `Шаг 2/2: кликните по полю ввода «${(
-              draft.chatName || "чат"
-            ).slice(0, 40)}» · Esc — отмена`
+            t("pick.hintStep2", {
+              name: (draft.chatName || t("err.chatDefault")).slice(0, 40),
+            })
           );
           return { ok: true, continue: true };
         }
@@ -2284,16 +3246,16 @@ function startTargetPick(mode = "field") {
         const hit = await hitAtPoints("input");
         if (!hit.ok) {
           showPickOverlay(
-            `${uiaErr(hit.error, "кликните по полю ввода")} · Esc — отмена`
+            `${uiaErr(hit.error, t("err.clickInput"))} · Esc — cancel`
           );
           return { ok: false, continue: true };
         }
         if (!draft) {
-          await finish({ ok: false, error: "сначала кликните по чату" });
+          await finish({ ok: false, error: t("err.clickChatFirst") });
           return { ok: false };
         }
         if (String(hit.hwnd) !== String(draft.hwnd)) {
-          showPickOverlay("Поле должно быть в том же окне Cursor · Esc — отмена");
+          showPickOverlay(t("pick.hintSameWindow"));
           return { ok: false, continue: true };
         }
         const result = upsertTargetFromUia({
@@ -2326,6 +3288,7 @@ function startTargetPick(mode = "field") {
 function setupIpc() {
   ipcMain.handle("get-state", () => {
     const settings = readSettings();
+    refreshLocaleFromSettings(settings);
     const decks = listDecks();
     const deck = loadDeck(settings.activeDeckId);
     const layout = dockLayout(settings.dock || "right", expandedMode);
@@ -2339,25 +3302,113 @@ function setupIpc() {
       fullscreenEdit: fullscreenEditMode,
       pinnedOpen,
       tarotBase: "app://tarot/",
+      i18n: i18nPayload(settings),
     };
   });
 
-  ipcMain.handle("save-settings", (_e, partial) => {
-    if (partial && partial.panelScale != null) {
-      partial = {
-        ...partial,
-        panelScale: stripMetrics(partial.panelScale).scale,
+  ipcMain.handle("save-settings", (e, partial) => {
+    if (!assertTrustedSender(e)) return readSettings();
+    let safe = pickSettingsPartial(partial || {});
+    if (safe.panelScale != null) {
+      safe = {
+        ...safe,
+        panelScale: stripMetrics(safe.panelScale).scale,
       };
     }
-    const s = writeSettings(partial);
-    if (partial.dock || partial.panelScale != null) {
+    const before = readSettings();
+    const s = writeSettings(safe);
+    if (safe.dock || safe.panelScale != null) {
       applyDock(s.dock || "right");
     }
-    if (partial.showHotkey) registerShortcuts();
-    else if (partial.activeDeckId === undefined) registerShortcuts();
-    if (partial.targets) broadcastTargetsUpdated();
+    if (safe.showHotkey != null || safe.activeDeckId != null || safe.targets) {
+      registerShortcuts();
+    }
+    if (safe.targets) broadcastTargetsUpdated();
+    if (safe.uiLocale != null || safe.arcanaLocale != null) {
+      const ui = refreshLocaleFromSettings(s);
+      if (safe.uiLocale != null && safe.uiLocale !== before.uiLocale) {
+        syncBundledDecks(ui, { onlyIfMissing: false });
+      }
+      try {
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+          settingsWindow.setTitle(t("settings.winTitle"));
+        }
+        if (targetsWindow && !targetsWindow.isDestroyed()) {
+          targetsWindow.setTitle(t("targets.winTitle"));
+        }
+        if (chatPickWindow && !chatPickWindow.isDestroyed()) {
+          chatPickWindow.setTitle(t("chatPick.winTitle"));
+        }
+      } catch {
+        /* ignore */
+      }
+    } else {
+      refreshLocaleFromSettings(s);
+    }
+    if (
+      safe.remoteEnabled != null ||
+      safe.remotePort != null ||
+      safe.remoteToken != null ||
+      safe.remoteAccessMode != null
+    ) {
+      syncRemoteServer().catch((err) =>
+        log.warn("remote sync", String(err.message || err))
+      );
+    }
     broadcastStateChanged();
     return s;
+  });
+
+  ipcMain.handle("remote-status", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    return getRemoteStatusPayload();
+  });
+
+  ipcMain.handle("remote-set-enabled", async (e, enabled) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    let s = readSettings();
+    if (enabled && !s.remoteToken) {
+      s = writeSettings({ remoteToken: generateRemoteToken() });
+    }
+    s = writeSettings({ remoteEnabled: !!enabled });
+    const sync = await syncRemoteServer();
+    const status = await getRemoteStatusPayload();
+    return { ...status, sync };
+  });
+
+  ipcMain.handle("remote-rotate-token", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    writeSettings({ remoteToken: generateRemoteToken() });
+    await syncRemoteServer();
+    return getRemoteStatusPayload();
+  });
+
+  ipcMain.handle("remote-qr-data-url", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const status = await getRemoteStatusPayload();
+    const url = status.publicUrl || "";
+    if (!url) return { ok: false, error: "no_url", status };
+    try {
+      const QRCode = require("qrcode");
+      const dataUrl = await QRCode.toDataURL(url, {
+        margin: 1,
+        width: 240,
+        errorCorrectionLevel: "M",
+      });
+      return { ok: true, dataUrl, url, status };
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err.message || err),
+        url,
+        status,
+      };
+    }
+  });
+
+  ipcMain.handle("remote-diagnose", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    return diagnoseRemote();
   });
 
   ipcMain.handle("preview-settings", (_e, partial) => {
@@ -2383,20 +3434,25 @@ function setupIpc() {
     return s;
   });
 
-  ipcMain.handle("set-active-deck", (_e, id) => {
-    writeSettings({ activeDeckId: id });
-    registerShortcuts();
-    const deck = loadDeck(id);
-    broadcastStateChanged();
-    return deck;
+  ipcMain.handle("set-active-deck", (e, id) => {
+    if (!assertTrustedSender(e)) return null;
+    const result = activateDeck({ deckId: id });
+    if (!result?.ok) return null;
+    return loadDeck(result.deck.id);
   });
 
-  ipcMain.handle("save-deck", (_e, deck) => {
-    const saved = saveDeck(deck);
-    writeSettings({ activeDeckId: saved.id });
-    registerShortcuts();
-    broadcastStateChanged();
-    return saved;
+  ipcMain.handle("save-deck", (e, deck) => {
+    if (!assertTrustedSender(e)) return null;
+    try {
+      const saved = saveDeck(deck);
+      writeSettings({ activeDeckId: saved.id });
+      registerShortcuts();
+      broadcastStateChanged();
+      return saved;
+    } catch (err) {
+      log.warn("save-deck", String(err.message || err));
+      return { ok: false, error: String(err.message || err) };
+    }
   });
 
   ipcMain.handle("open-settings", () => {
@@ -2422,7 +3478,7 @@ function setupIpc() {
   ipcMain.handle("list-windows", async () => listWindows());
 
   ipcMain.handle("add-target-window", async (_e, win) => {
-    if (!win?.hwnd) return { ok: false, error: "нет окна" };
+    if (!win?.hwnd) return { ok: false, error: t("err.noWindow") };
     const result = await upsertTargetFromWindow({
       hwnd: String(win.hwnd),
       pid: win.pid,
@@ -2433,7 +3489,10 @@ function setupIpc() {
     return result;
   });
 
-  ipcMain.handle("paste-card", async (_e, cardId) => pasteCardById(cardId));
+  ipcMain.handle("paste-card", async (e, cardId) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    return pasteQueue.enqueue(() => pasteCardById(cardId));
+  });
 
   ipcMain.handle("set-ignore-mouse", (_e, ignore) => {
     setDeckIgnoreMouse(!!ignore);
@@ -2459,16 +3518,25 @@ function setupIpc() {
     return true;
   });
 
-  ipcMain.handle("start-target-pick", async (_e, mode) => {
-    const result = await startTargetPick(mode);
+  ipcMain.handle("start-target-pick", async (e, mode) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    if (!pasteQueue.beginPick()) {
+      return { ok: false, error: t("err.pickBusy") };
+    }
+    let result;
+    try {
+      result = await startTargetPick(mode);
+    } finally {
+      pasteQueue.endPick();
+    }
     edgeHoverPaused = false;
     if (result?.ok) {
       pinnedOpen = true;
       setDeckVisible(true);
       broadcastTargetsUpdated();
       const msg = result.duplicate
-        ? `Уже есть: ${result.target.name} (включено)`
-        : `Цель: ${result.target.name}`;
+        ? t("msg.alreadyHave", { name: result.target.name })
+        : t("msg.targetNamed", { name: result.target.name });
       if (deckWindow && !deckWindow.isDestroyed()) {
         deckWindow.webContents.send("toast", { type: "ok", message: msg });
       }
@@ -2480,7 +3548,7 @@ function setupIpc() {
     } else if (!result?.canceled) {
       pinnedOpen = true;
       setDeckVisible(true);
-      const errMsg = result?.error || "Не выбрано";
+      const errMsg = result?.error || t("err.notSelected");
       if (deckWindow && !deckWindow.isDestroyed()) {
         deckWindow.webContents.send("toast", { type: "error", message: errMsg });
       }
@@ -2516,8 +3584,10 @@ function setupIpc() {
         }
       }
       const hintRu = probe.open
-        ? `CDP открыт · окон ${probe.targetCount} · чатов≈${chatsTotal}`
-        : "CDP закрыт. Закройте Cursor и нажмите «Запустить Cursor для фона».";
+        ? t("msg.cdpOpen", { windows: probe.targetCount, chats: chatsTotal })
+        : running
+          ? t("settingsMsg.cursorNoDebug")
+          : t("msg.cdpClosedLaunchBtn");
       return {
         ok: probe.open,
         ...probe,
@@ -2531,6 +3601,13 @@ function setupIpc() {
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }
+  });
+
+  ipcMain.handle("cursor-install-cdp-shortcut", async (_e, opts = {}) => {
+    const settings = readSettings();
+    const port = Number(opts.cdpPort) || settings.cdpPort || DEFAULT_CDP_PORT;
+    const mode = opts.mode || "both";
+    return installCursorCdpShortcut({ mode, cdpPort: port });
   });
 
   ipcMain.handle("cursor-launch-integration", async (_e, opts = {}) => {
@@ -2552,8 +3629,8 @@ function setupIpc() {
         probe: {
           ...probe,
           hint: probe.open
-            ? "Готово: Cursor запущен для фона (CDP)"
-            : "Cursor запускается — повторите «Проверить» через пару секунд",
+            ? t("msg.cursorReadyCdp")
+            : t("msg.cursorStarting"),
         },
       };
     } catch (e) {
@@ -2566,7 +3643,7 @@ function setupIpc() {
     const cdp = getCdpClient(settings.cdpPort || DEFAULT_CDP_PORT);
     const probe = await cdp.probe();
     if (!probe.open) {
-      return { ok: false, error: "CDP закрыт — запустите Cursor для фона", windows: [] };
+      return { ok: false, error: t("err.cdpClosedLaunch"), windows: [] };
     }
     return { ok: true, windows: probe.targets || [], port: probe.port };
   });
@@ -2624,8 +3701,8 @@ function setupIpc() {
         windowName: probe.targets?.[0]?.title || "",
         targetCount: probe.targetCount || 0,
         hint: probe.open
-          ? `CDP: окон ${probe.targetCount}, чатов≈${chatsTotal}`
-          : "CDP закрыт — нужен запуск Cursor для фона",
+          ? t("msg.cdpSummary", { windows: probe.targetCount, chats: chatsTotal })
+          : t("msg.cdpClosedNeedLaunch"),
       };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
@@ -2687,10 +3764,13 @@ function setupIpc() {
     return true;
   });
 
-  ipcMain.handle("export-deck", async (_e, deckId) => {
-    const deck = loadDeck(deckId);
+  ipcMain.handle("export-deck", async (e, deckId) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const safe = trySafeId(deckId);
+    if (!safe) return { ok: false, error: t("err.badDeckId") };
+    const deck = loadDeck(safe);
     const { filePath, canceled } = await dialog.showSaveDialog(dialogParent(), {
-      title: "Экспорт колоды",
+      title: t("msg.exportDeck"),
       defaultPath: `${deck.name || deck.id}.json`,
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
@@ -2699,39 +3779,56 @@ function setupIpc() {
     return { ok: true, filePath };
   });
 
-  ipcMain.handle("import-deck", async () => {
+  ipcMain.handle("import-deck", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
     const { filePaths, canceled } = await dialog.showOpenDialog(dialogParent(), {
-      title: "Импорт колоды",
+      title: t("msg.importDeck"),
       filters: [{ name: "JSON", extensions: ["json"] }],
       properties: ["openFile"],
     });
     if (canceled || !filePaths?.[0]) return { ok: false };
     try {
-      const deck = JSON.parse(fs.readFileSync(filePaths[0], "utf8"));
-      if (!deck.id) deck.id = `imported-${Date.now()}`;
-      if (!deck.name) deck.name = "Импорт";
-      deck.cards = (deck.cards || []).slice(0, 8);
+      const st = fs.statSync(filePaths[0]);
+      if (st.size > MAX_DECK_IMPORT_BYTES) {
+        return { ok: false, error: t("err.fileTooLarge") };
+      }
+      const raw = JSON.parse(fs.readFileSync(filePaths[0], "utf8"));
+      const existing = listExistingDeckIds(decksDir());
+      const deck = normalizeDeck(raw, {
+        existingIds: existing,
+        sourceBytes: st.size,
+      });
       saveDeck(deck);
       writeSettings({ activeDeckId: deck.id });
       registerShortcuts();
       broadcastStateChanged();
       return { ok: true, deck };
-    } catch (e) {
-      return { ok: false, error: String(e) };
+    } catch (err) {
+      const msg =
+        err?.code === "too_large"
+          ? t("err.fileTooLarge")
+          : err?.code === "empty_cards"
+            ? t("err.noCardsInFile")
+            : err?.code === "invalid_id" || err?.code === "invalid_deck"
+              ? t("err.badDeckFormat")
+              : String(err.message || err);
+      log.warn("import-deck", msg);
+      return { ok: false, error: msg };
     }
   });
 
-  ipcMain.handle("new-deck", (_e, name) => {
+  ipcMain.handle("new-deck", (e, name) => {
+    if (!assertTrustedSender(e)) return null;
     const id = `deck-${Date.now()}`;
     const deck = {
       id,
-      name: name || "Новая колода",
+      name: String(name || t("msg.newDeckName")).slice(0, 80),
       cards: [
         {
           id: `card-${Date.now()}`,
-          title: "Новая",
-          description: "Описание",
-          prompt: "Текст промпта…",
+          title: t("msg.newCardTitle"),
+          description: t("msg.newCardDesc"),
+          prompt: t("msg.newCardPrompt"),
           image: "magician",
           hotkey: "F1",
         },
@@ -2744,14 +3841,21 @@ function setupIpc() {
     return deck;
   });
 
-  ipcMain.handle("delete-deck", (_e, id) => {
-    if (id === "lazy-v1" || id === "pro-v1") {
-      return { ok: false, error: "Стандартную колоду нельзя удалить" };
+  ipcMain.handle("delete-deck", (e, id) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const safe = trySafeId(id);
+    if (!safe) return { ok: false, error: t("err.badId") };
+    if (safe === "lazy-v1" || safe === "pro-v1") {
+      return { ok: false, error: t("err.cannotDeleteStock") };
     }
-    const file = path.join(decksDir(), `${id}.json`);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
+    try {
+      const file = deckFilePath(decksDir(), safe);
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
     const settings = readSettings();
-    if (settings.activeDeckId === id) {
+    if (settings.activeDeckId === safe) {
       writeSettings({ activeDeckId: "lazy-v1" });
     }
     registerShortcuts();
@@ -2762,6 +3866,84 @@ function setupIpc() {
   ipcMain.handle("open-data-folder", () => {
     ensureData();
     shell.openPath(userDataDir());
+  });
+
+  ipcMain.handle("open-logs-folder", () => {
+    ensureData();
+    const dir = log.getLogDir() || path.join(userDataDir(), "logs");
+    fs.mkdirSync(dir, { recursive: true });
+    shell.openPath(dir);
+  });
+
+  ipcMain.handle("donate-get-config", (e) => {
+    if (!assertTrustedSender(e)) return publicConfig({});
+    return publicConfig(donateConfig);
+  });
+
+  ipcMain.handle("donate-get-stats", (e) => {
+    if (!assertTrustedSender(e)) {
+      return { total: 0, percents: { unknown: 0, coffee: 0, beer: 0, cats: 0 } };
+    }
+    ensureData();
+    return computeStats(clicksPath(userDataDir()));
+  });
+
+  ipcMain.handle("donate-record-click", (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    ensureData();
+    return recordClick(clicksPath(userDataDir()), payload || {});
+  });
+
+  ipcMain.handle("donate-open-pay", async (e, method) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const m = String(method || "");
+    if (m === "crypto") {
+      const addr = String(donateConfig.cryptoAddress || "").trim();
+      if (!addr) return { ok: false, error: "unavailable" };
+      clipboard.writeText(addr);
+      return {
+        ok: true,
+        copied: true,
+        network: String(donateConfig.cryptoNetwork || "").trim(),
+        address: addr,
+      };
+    }
+    const url = resolveAllowedUrl(donateConfig, m);
+    if (!url) return { ok: false, error: "unavailable" };
+    await shell.openExternal(url);
+    return { ok: true };
+  });
+
+  ipcMain.handle("dismiss-first-run", () => {
+    writeSettings({ firstRunDone: true });
+    broadcastStateChanged();
+    return true;
+  });
+
+  ipcMain.handle("check-for-updates", async () => {
+    try {
+      const { autoUpdater } = require("electron-updater");
+      autoUpdater.autoDownload = false;
+      autoUpdater.autoInstallOnAppQuit = false;
+      const result = await autoUpdater.checkForUpdates();
+      const info = result?.updateInfo;
+      if (!info) return { ok: true, available: false };
+      const current = app.getVersion();
+      const available = info.version && info.version !== current;
+      return {
+        ok: true,
+        available: !!available,
+        version: info.version || null,
+        current,
+      };
+    } catch (err) {
+      log.warn("check-for-updates", String(err.message || err));
+      return {
+        ok: false,
+        error:
+          t("err.updatesUnavailable"),
+      };
+    }
   });
 
   ipcMain.handle("quit-app", () => {
@@ -2776,7 +3958,7 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      bypassCSP: true,
+      bypassCSP: false,
     },
   },
 ]);
@@ -2784,25 +3966,248 @@ protocol.registerSchemesAsPrivileged([
 app.whenReady().then(() => {
   if (!gotSingleInstanceLock) return;
   protocol.handle("app", (request) => {
-    const url = new URL(request.url);
-    // app://tarot/magician.jpg
-    if (url.hostname === "tarot") {
-      const name = decodeURIComponent(url.pathname.replace(/^\//, ""));
-      const filePath = path.join(appRoot(), "assets", "tarot", name);
-      if (fs.existsSync(filePath)) {
-        return net.fetch(pathToFileURL(filePath).href);
+    try {
+      const url = new URL(request.url);
+      // app://tarot/magician.jpg — only files inside assets/tarot
+      if (url.hostname === "tarot") {
+        const name = decodeURIComponent(url.pathname.replace(/^\//, ""));
+        const tarotRoot = path.join(appRoot(), "assets", "tarot");
+        const filePath = safeTarotFilePath(tarotRoot, name);
+        if (fs.existsSync(filePath)) {
+          return net.fetch(pathToFileURL(filePath).href);
+        }
       }
+    } catch {
+      /* invalid path */
     }
     return new Response("Not found", { status: 404 });
   });
 
+  i18n.setPacksRoot(appRoot());
   ensureData();
+  const bootSettings = readSettings();
+  refreshLocaleFromSettings(bootSettings);
   setupIpc();
   createDeckWindow();
   registerShortcuts();
-  pinnedOpen = false;
-  applyDock(readSettings().dock || "right", false);
+  applyDock(bootSettings.dock || "right", false);
+  if (bootSettings.remoteEnabled === true) {
+    syncRemoteServer().catch((err) =>
+      log.warn("remote boot", String(err.message || err))
+    );
+  }
+  // First run: show deck so onboarding is visible; otherwise wait for edge/F9
+  if (!bootSettings.firstRunDone) {
+    pinnedOpen = true;
+    setDeckVisible(true, { inactive: true });
+  } else {
+    pinnedOpen = false;
+  }
   // Edge hover только после deck-ui-ready из рендерера (полная загрузка)
+
+  // Automated smoke: exercise i18n + settings/targets, then quit.
+  if (process.env.KEYCODE_SMOKE_I18N === "1") {
+    (async () => {
+      try {
+        const attachConsole = (win, label) => {
+          if (!win || win.isDestroyed()) return;
+          win.webContents.on("console-message", (_e, level, message) => {
+            if (level >= 2) {
+              console.error(`[smoke-i18n] renderer-error ${label}:`, message);
+            }
+          });
+          win.webContents.on("did-fail-load", (_e, code, desc) => {
+            console.error(`[smoke-i18n] fail-load ${label}:`, code, desc);
+          });
+        };
+
+        const pack = i18nPayload(bootSettings);
+        console.log(
+          "[smoke-i18n]",
+          pack.uiLocale,
+          pack.arcanaLocale,
+          pack.messages["settings.title"] || "MISSING"
+        );
+
+        // Cycle a few locales through save-settings path
+        for (const loc of ["en", "ru", "de", "ja"]) {
+          const s = writeSettings({ uiLocale: loc, arcanaLocale: "ui" });
+          const ui = refreshLocaleFromSettings(s);
+          syncBundledDecks(ui, { onlyIfMissing: false });
+          const p = i18nPayload(s);
+          if (p.uiLocale !== loc) {
+            throw new Error(`locale cycle failed: want ${loc} got ${p.uiLocale}`);
+          }
+          if (!p.messages["settings.title"] || p.messages["settings.title"] === "settings.title") {
+            throw new Error(`messages missing for ${loc}`);
+          }
+          if (!p.tarot?.cards?.magician) {
+            throw new Error(`tarot missing for ${loc}`);
+          }
+          const deck = loadDeck("lazy-v1");
+          if (!deck?.cards?.length) throw new Error(`deck empty after ${loc}`);
+          console.log("[smoke-i18n] locale", loc, p.messages["settings.title"], deck.name);
+        }
+
+        // Restore system locale preference for the user profile
+        writeSettings({ uiLocale: "system", arcanaLocale: "en" });
+        refreshLocaleFromSettings(readSettings());
+
+        openSettingsWindow();
+        attachConsole(settingsWindow, "settings");
+        await new Promise((r) => setTimeout(r, 900));
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+          const probe = await settingsWindow.webContents.executeJavaScript(`
+            (() => {
+              if (!window.I18n) return { ok: false, error: "no I18n" };
+              const title = window.I18n.t("settings.title");
+              const magician = window.I18n.tarotName("magician");
+              const hasSelect = !!document.getElementById("set-ui-locale");
+              const opts = document.getElementById("set-ui-locale")?.options?.length || 0;
+              return { ok: true, title, magician, hasSelect, opts };
+            })()
+          `);
+          console.log("[smoke-i18n] settings-probe", JSON.stringify(probe));
+          if (!probe?.ok || !probe.hasSelect || probe.opts < 2) {
+            throw new Error("settings locale UI broken: " + JSON.stringify(probe));
+          }
+        }
+
+        openTargetsWindow();
+        attachConsole(targetsWindow, "targets");
+        attachConsole(deckWindow, "deck");
+        await new Promise((r) => setTimeout(r, 800));
+        if (targetsWindow && !targetsWindow.isDestroyed()) {
+          const probe = await targetsWindow.webContents.executeJavaScript(`
+            (() => {
+              if (!window.I18n) return { ok: false, error: "no I18n" };
+              return { ok: true, title: window.I18n.t("targets.title") };
+            })()
+          `);
+          console.log("[smoke-i18n] targets-probe", JSON.stringify(probe));
+          if (!probe?.ok) throw new Error("targets i18n broken: " + JSON.stringify(probe));
+        }
+
+        if (deckWindow && !deckWindow.isDestroyed()) {
+          const probe = await deckWindow.webContents.executeJavaScript(`
+            (() => {
+              if (!window.I18n) return { ok: false, error: "no I18n" };
+              const chats = document.querySelector(".rail-title")?.textContent || "";
+              return {
+                ok: true,
+                chats,
+                expected: window.I18n.t("deck.chats"),
+                magician: window.I18n.tarotName("magician"),
+              };
+            })()
+          `);
+          console.log("[smoke-i18n] deck-probe", JSON.stringify(probe));
+          if (!probe?.ok || probe.chats !== probe.expected) {
+            throw new Error("deck i18n broken: " + JSON.stringify(probe));
+          }
+        }
+
+        // Live switch language from settings UI
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+          await settingsWindow.webContents.executeJavaScript(`
+            (async () => {
+              const sel = document.getElementById("set-ui-locale");
+              sel.value = "ru";
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+              await new Promise((r) => setTimeout(r, 900));
+              return true;
+            })()
+          `);
+          await new Promise((r) => setTimeout(r, 500));
+          const after = await settingsWindow.webContents.executeJavaScript(`
+            (() => ({
+              title: document.querySelector("h1")?.textContent || "",
+              t: window.I18n.t("settings.title"),
+              lang: window.I18n.getUiLocale(),
+            }))()
+          `);
+          console.log("[smoke-i18n] live-switch", JSON.stringify(after));
+          if (after.lang !== "ru" || after.title !== after.t) {
+            throw new Error("live language switch failed: " + JSON.stringify(after));
+          }
+        }
+
+        // Phone remote: enable localhost server + settings UI hooks
+        process.env.KEYCODE_REMOTE_DEV = "1";
+        writeSettings({ remoteEnabled: true, remotePort: DEFAULT_REMOTE_PORT });
+        const sync = await syncRemoteServer();
+        if (!sync?.ok || !sync.running) {
+          throw new Error("remote sync failed: " + JSON.stringify(sync));
+        }
+        const status = await getRemoteStatusPayload();
+        if (!status.token || status.token.length < 16) {
+          throw new Error("remote token missing");
+        }
+        if (!status.running) throw new Error("remote not running");
+
+        const http = require("http");
+        const api = await new Promise((resolve, reject) => {
+          http
+            .get(
+              {
+                host: "127.0.0.1",
+                port: status.port,
+                path: "/api/state",
+                headers: { Authorization: `Bearer ${status.token}` },
+              },
+              (res) => {
+                let b = "";
+                res.on("data", (c) => (b += c));
+                res.on("end", () => {
+                  try {
+                    resolve({ status: res.statusCode, body: JSON.parse(b) });
+                  } catch (e) {
+                    reject(e);
+                  }
+                });
+              }
+            )
+            .on("error", reject);
+        });
+        if (api.status !== 200 || !api.body?.ok) {
+          throw new Error("remote /api/state failed: " + JSON.stringify(api));
+        }
+        if (api.body.cards?.[0]?.prompt != null) {
+          throw new Error("remote leaked card prompt");
+        }
+
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+          const remoteUi = await settingsWindow.webContents.executeJavaScript(`
+            (() => ({
+              enable: !!document.getElementById("set-remote-enabled"),
+              port: !!document.getElementById("set-remote-port"),
+              qr: !!document.getElementById("remote-qr"),
+              label: window.I18n.t("settings.remoteTitle"),
+            }))()
+          `);
+          console.log("[smoke-i18n] remote-ui", JSON.stringify(remoteUi));
+          if (!remoteUi.enable || !remoteUi.port || !remoteUi.label) {
+            throw new Error("remote settings UI missing: " + JSON.stringify(remoteUi));
+          }
+        }
+
+        writeSettings({ remoteEnabled: false });
+        await syncRemoteServer();
+        console.log("[smoke-i18n] remote ok", status.port);
+        console.log("[smoke-i18n] ok");
+        app.exit(0);
+      } catch (e) {
+        console.error("[smoke-i18n] fail", e && e.stack ? e.stack : e);
+        try {
+          writeSettings({ remoteEnabled: false });
+          await syncRemoteServer();
+        } catch {
+          /* ignore */
+        }
+        app.exit(1);
+      }
+    })();
+  }
 });
 
 app.on("will-quit", () => {
@@ -2811,6 +4216,14 @@ app.on("will-quit", () => {
   if (hideDelayTimer) clearTimeout(hideDelayTimer);
   cancelConcealAnim();
   clearShortcuts();
+  try {
+    if (remoteServer) {
+      remoteServer.stop();
+      remoteServer = null;
+    }
+  } catch {
+    /* ignore */
+  }
   try {
     getUiaClient().quit();
   } catch {
