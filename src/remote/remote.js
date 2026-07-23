@@ -4,10 +4,13 @@
   const state = {
     token: "",
     cards: [],
+    decks: [],
+    deck: null,
     targets: [],
     suggestions: [],
     targetId: "",
     busy: false,
+    deckBusy: false,
     es: null,
     stickBottom: true,
     generating: false,
@@ -57,6 +60,9 @@
       micDenied: "Microphone permission denied",
       micError: "Could not start dictation",
       micReady: "Text added — check and tap Send",
+      prevDeck: "Previous deck",
+      nextDeck: "Next deck",
+      deckPager: "Deck switcher",
     },
     ru: {
       connected: "Подключено",
@@ -93,6 +99,9 @@
       micDenied: "Нет доступа к микрофону",
       micError: "Не удалось начать диктовку",
       micReady: "Текст добавлен — проверьте и нажмите Отправить",
+      prevDeck: "Предыдущая колода",
+      nextDeck: "Следующая колода",
+      deckPager: "Переключение колоды",
     },
   };
   let audioContext = null;
@@ -666,19 +675,82 @@
     return { ok: true };
   }
 
+  function applyDeckState(body) {
+    if (!body || typeof body !== "object") return;
+    if (Array.isArray(body.cards)) state.cards = body.cards;
+    if (Array.isArray(body.decks)) state.decks = body.decks;
+    if (body.deck) state.deck = body.deck;
+    if (Array.isArray(body.suggestions)) state.suggestions = body.suggestions;
+    if (body.uiLocale) state.locale = body.uiLocale;
+    renderDeckPager();
+    renderCards();
+  }
+
+  function renderDeckPager() {
+    const nameEl = $("deck-name");
+    const prevBtn = $("btn-deck-prev");
+    const nextBtn = $("btn-deck-next");
+    const pager = $("deck-pager");
+    if (!nameEl || !prevBtn || !nextBtn) return;
+
+    const label = state.deck?.name || state.deck?.id || "—";
+    const prev = nameEl.textContent;
+    if (prev && prev !== "—" && prev !== label) {
+      nameEl.classList.add("is-swap");
+      window.setTimeout(() => {
+        nameEl.textContent = label;
+        nameEl.title = label;
+        nameEl.classList.remove("is-swap");
+      }, 90);
+    } else {
+      nameEl.textContent = label;
+      nameEl.title = label;
+      nameEl.classList.remove("is-swap");
+    }
+
+    const canPage = (state.decks || []).length > 1 && !state.deckBusy;
+    prevBtn.disabled = !canPage;
+    nextBtn.disabled = !canPage;
+    prevBtn.title = tr("prevDeck");
+    nextBtn.title = tr("nextDeck");
+    prevBtn.setAttribute("aria-label", tr("prevDeck"));
+    nextBtn.setAttribute("aria-label", tr("nextDeck"));
+    if (pager) pager.setAttribute("aria-label", tr("deckPager"));
+  }
+
+  async function cycleDeck(step) {
+    if (state.deckBusy || (state.decks || []).length < 2) return;
+    state.deckBusy = true;
+    renderDeckPager();
+    try {
+      const { body } = await api("/api/deck", {
+        method: "POST",
+        body: JSON.stringify({ step }),
+      });
+      if (!body?.ok) {
+        toast(body?.error || "Deck switch failed", "error");
+        return;
+      }
+      applyDeckState(body);
+      $("cards-label").textContent = tr("cards");
+      applyComposerLabels();
+    } catch (e) {
+      toast(String(e.message || e), "error");
+    } finally {
+      state.deckBusy = false;
+      renderDeckPager();
+    }
+  }
+
   async function loadState() {
     const { body } = await api("/api/state");
     if (!body?.ok) throw new Error(body?.error || "state_failed");
-    state.cards = body.cards || [];
-    state.suggestions = body.suggestions || [];
-    state.locale = body.uiLocale || "en";
-    $("deck-name").textContent = body.deck?.name || "—";
+    applyDeckState(body);
     $("cards-label").textContent = tr("cards");
     $("target-label").textContent = tr("chat");
     $("transcript-empty").textContent = tr("emptyChat");
     applyComposerLabels();
     renderSoundToggle();
-    renderCards();
     setStatus(tr("connected"), "ok");
     showAuthGate(false);
     await loadChats();
@@ -788,6 +860,10 @@
       notifyTaskDone();
     } else if (event === "paste-done") {
       setBusy(false);
+    } else if (event === "deck") {
+      applyDeckState(payload);
+      $("cards-label").textContent = tr("cards");
+      applyComposerLabels();
     }
   }
 
@@ -954,6 +1030,9 @@
       await loadChat();
       connectSse();
     });
+
+    $("btn-deck-prev")?.addEventListener("click", () => cycleDeck(-1));
+    $("btn-deck-next")?.addEventListener("click", () => cycleDeck(1));
 
     $("composer-input")?.addEventListener("input", () => {
       const input = $("composer-input");

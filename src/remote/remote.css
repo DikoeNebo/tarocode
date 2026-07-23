@@ -569,7 +569,6 @@ body {
 
 @media (max-width: 360px), (max-height: 620px) {
   .brand-mark,
-  .deck-name,
   .cards-head,
   .card .desc {
     display: none;
@@ -577,6 +576,14 @@ body {
 
   .brand h1 {
     font-size: 0.9rem;
+  }
+
+  .deck-pager {
+    max-width: 11rem;
+  }
+
+  .deck-name {
+    font-size: 0.7rem;
   }
 
   .card {
