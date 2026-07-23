@@ -659,3 +659,114 @@ describe("remote server HTTP (tailscale mode later)", () => {
     }
   });
 });
+
+describe("remote /api/deck", () => {
+  let srv;
+  let port;
+  let token;
+  let active = "lazy-v1";
+  const decks = [
+    { id: "lazy-v1", name: "Hobby" },
+    { id: "pro-v1", name: "Pro" },
+  ];
+
+  function statePayload() {
+    const deck = decks.find((d) => d.id === active) || decks[0];
+    return {
+      deck: { id: deck.id, name: deck.name },
+      decks: decks.map((d) => ({ id: d.id, name: d.name })),
+      cards: [{ id: `card-${deck.id}`, title: deck.name }],
+      targets: [],
+      suggestions: [],
+    };
+  }
+
+  before(async () => {
+    token = generateRemoteToken();
+    port = 19000 + Math.floor(Math.random() * 1000);
+    srv = createRemoteServer({
+      getToken: () => token,
+      getPort: () => port,
+      getAccessMode: () => "lan",
+      getRemoteState: () => statePayload(),
+      setActiveDeck: ({ deckId, step } = {}) => {
+        if (deckId) {
+          if (!decks.some((d) => d.id === deckId)) {
+            return { ok: false, error: "unknown_deck" };
+          }
+          active = deckId;
+          return { ok: true, deck: { id: active, name: active } };
+        }
+        if (step === 1 || step === -1) {
+          const idx = decks.findIndex((d) => d.id === active);
+          active = decks[(idx + step + decks.length) % decks.length].id;
+          return { ok: true, deck: { id: active, name: active } };
+        }
+        return { ok: false, error: "deck_id_or_step_required" };
+      },
+      listChats: async () => ({ ok: true, chats: [] }),
+      readChat: async () => ({ ok: true, hash: "0", messages: [] }),
+      pasteCard: async () => ({ ok: true, results: [] }),
+      staticDir: os.tmpdir(),
+      tarotDir: os.tmpdir(),
+    });
+    const started = await srv.start(port);
+    port = started.port;
+  });
+
+  after(async () => {
+    await srv.stop();
+  });
+
+  it("cycles active deck with step", async () => {
+    active = "lazy-v1";
+    const r = await req(port, "POST", "/api/deck", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ step: 1 }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.json?.ok, true);
+    assert.equal(r.json?.deck?.id, "pro-v1");
+    assert.equal(r.json?.cards?.[0]?.id, "card-pro-v1");
+    assert.equal(r.json?.decks?.length, 2);
+  });
+
+  it("sets deck by id", async () => {
+    const r = await req(port, "POST", "/api/deck", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ deckId: "lazy-v1" }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.json?.deck?.id, "lazy-v1");
+  });
+
+  it("rejects unknown deck id", async () => {
+    const r = await req(port, "POST", "/api/deck", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ deckId: "nope" }),
+    });
+    assert.equal(r.status, 404);
+    assert.equal(r.json?.error, "unknown_deck");
+  });
+
+  it("rejects empty body", async () => {
+    const r = await req(port, "POST", "/api/deck", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    assert.equal(r.status, 400);
+    assert.equal(r.json?.error, "deck_id_or_step_required");
+  });
+});

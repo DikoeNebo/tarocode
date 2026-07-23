@@ -782,18 +782,21 @@
       }
       state.es = null;
     }
-    if (!state.token || !state.targetId) return;
+    if (!state.token) return;
 
-    // EventSource cannot set Authorization headers — use fetch stream polyfill via query is forbidden.
-    // We open SSE with fetch + ReadableStream instead.
+    // EventSource cannot set Authorization headers — use fetch stream.
+    // targetId optional: without a chat we still receive deck / paste-done events.
     const ctrl = new AbortController();
     state.es = { close: () => ctrl.abort(), _ctrl: ctrl };
     (async () => {
       try {
-        const res = await fetch(
-          `/api/events?targetId=${encodeURIComponent(state.targetId)}`,
-          { headers: authHeaders(), signal: ctrl.signal }
-        );
+        const q = state.targetId
+          ? `?targetId=${encodeURIComponent(state.targetId)}`
+          : "";
+        const res = await fetch(`/api/events${q}`, {
+          headers: authHeaders(),
+          signal: ctrl.signal,
+        });
         if (res.status === 401) {
           let reason = "unauthorized";
           try {
@@ -810,7 +813,7 @@
           setStatus("Stream offline", "warn");
           return;
         }
-        setStatus("Live", "ok");
+        if (state.targetId) setStatus("Live", "ok");
         const reader = res.body.getReader();
         const dec = new TextDecoder();
         let buf = "";
