@@ -27,13 +27,27 @@ for (const code of i18n.SUPPORTED) {
   }
 }
 
+const enDeckIds = {};
 for (const code of i18n.SUPPORTED) {
   for (const id of ["lazy-v1", "pro-v1"]) {
     const p = i18n.bundledDeckPath(code, id);
     const d = JSON.parse(fs.readFileSync(p, "utf8"));
-    if (d.id !== id || !Array.isArray(d.cards) || d.cards.length < 1) {
-      console.log("deck bad", code, id);
+    if (d.id !== id || !Array.isArray(d.cards) || d.cards.length < 1 || d.cards.length > 9) {
+      console.log("deck bad", code, id, d.cards?.length);
+      continue;
     }
+    const ids = d.cards.map((c) => c.id);
+    const hotkeys = d.cards.map((c) => c.hotkey || "");
+    if (code === "en") enDeckIds[id] = { ids, hotkeys };
+    else if (enDeckIds[id]) {
+      if (JSON.stringify(ids) !== JSON.stringify(enDeckIds[id].ids)) {
+        console.log("deck ids diverge", code, id);
+      }
+      if (JSON.stringify(hotkeys) !== JSON.stringify(enDeckIds[id].hotkeys)) {
+        console.log("deck hotkeys diverge", code, id);
+      }
+    }
+    if (!ids.includes("summary")) console.log("deck missing summary", code, id);
   }
 }
 

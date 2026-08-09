@@ -10,118 +10,179 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="tarot-picker.css" />
   </head>
-  <body class="dock-right cards-only booting">
+  <body class="dock-right side-layout-table cards-only booting">
     <div id="app">
       <div class="deck-edge">
-        <div class="deck-col">
-          <header class="titlebar" data-i18n-aria="deck.controlsAria" aria-label="Controls">
-            <nav class="corner-dock" id="corner-dock">
-              <button
-                type="button"
-                class="corner-btn"
-                id="btn-corner-hide"
-                data-i18n-title="deck.hideTitle"
-                data-i18n-aria="deck.hideAria"
-                title="Hide"
-                aria-label="Hide deck"
+        <div class="deck-cluster" id="deck-cluster">
+          <div class="deck-col">
+            <header class="titlebar deck-hub" data-i18n-aria="deck.controlsAria" aria-label="Controls">
+              <nav class="corner-dock" id="corner-dock">
+                <button
+                  type="button"
+                  class="corner-btn"
+                  id="btn-corner-hide"
+                  data-i18n-title="deck.hideTitle"
+                  data-i18n-aria="deck.hideAria"
+                  title="Hide"
+                  aria-label="Hide deck"
+                >
+                  <span aria-hidden="true">👁</span>
+                </button>
+                <button
+                  type="button"
+                  class="corner-btn"
+                  id="btn-corner-settings"
+                  data-i18n-title="deck.settings"
+                  data-i18n-aria="deck.settings"
+                  title="Settings"
+                  aria-label="Settings"
+                >
+                  <span aria-hidden="true">⚙</span>
+                </button>
+                <button
+                  type="button"
+                  class="corner-btn corner-btn-cdp"
+                  id="btn-corner-cdp"
+                  data-i18n-title="deck.cdpTitle"
+                  data-i18n-aria="deck.cdpAria"
+                  title="Launch Cursor with CDP"
+                  aria-label="Cursor CDP"
+                >
+                  <span aria-hidden="true">◎</span>
+                </button>
+                <button
+                  type="button"
+                  class="corner-btn corner-btn-targets"
+                  id="btn-corner-targets"
+                  data-i18n-title="deck.targets"
+                  data-i18n-aria="deck.targetsAria"
+                  title="Chats"
+                  aria-label="Chats"
+                >
+                  <span aria-hidden="true">💬</span>
+                  <span class="target-badge hidden" id="target-badge"></span>
+                </button>
+                <button
+                  type="button"
+                  class="corner-btn corner-btn-danger"
+                  id="btn-corner-quit"
+                  data-i18n-title="deck.quit"
+                  data-i18n-aria="deck.quitAria"
+                  title="Close"
+                  aria-label="Quit"
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </nav>
+              <div
+                class="strip-deck-pager"
+                id="deck-pager"
+                role="group"
+                data-i18n-aria="deck.pagerAria"
+                aria-label="Deck switcher"
               >
-                <span aria-hidden="true">👁</span>
-              </button>
-              <button
-                type="button"
-                class="corner-btn"
-                id="btn-corner-settings"
-                data-i18n-title="deck.settings"
-                data-i18n-aria="deck.settings"
-                title="Settings"
-                aria-label="Settings"
+                <button
+                  type="button"
+                  class="deck-page-btn"
+                  id="btn-deck-prev"
+                  data-i18n-title="deck.prevDeck"
+                  data-i18n-aria="deck.prevDeck"
+                  title="Previous deck"
+                  aria-label="Previous deck"
+                >
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <span class="deck-page-name" id="deck-page-name" title="">—</span>
+                <button
+                  type="button"
+                  class="deck-page-btn"
+                  id="btn-deck-next"
+                  data-i18n-title="deck.nextDeck"
+                  data-i18n-aria="deck.nextDeck"
+                  title="Next deck"
+                  aria-label="Next deck"
+                >
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+              <div
+                class="dest-bar hidden"
+                id="dest-bar"
+                role="group"
+                data-i18n-aria="dest.barAria"
+                aria-label="Where cards go"
               >
-                <span aria-hidden="true">⚙</span>
-              </button>
-              <button
-                type="button"
-                class="corner-btn corner-btn-targets"
-                id="btn-corner-targets"
-                data-i18n-title="deck.targets"
-                data-i18n-aria="deck.targetsAria"
-                title="Where to send"
-                aria-label="Where to send"
-              >
-                <span aria-hidden="true">🎯</span>
-                <span class="target-badge hidden" id="target-badge"></span>
-              </button>
-              <button
-                type="button"
-                class="corner-btn corner-btn-danger"
-                id="btn-corner-quit"
-                data-i18n-title="deck.quit"
-                data-i18n-aria="deck.quitAria"
-                title="Close"
-                aria-label="Quit"
-              >
-                <span aria-hidden="true">✕</span>
-              </button>
-            </nav>
+                <div class="dest-bar-main">
+                  <div class="dest-presets" id="dest-presets"></div>
+                  <div class="dest-chips" id="dest-chips"></div>
+                </div>
+                <button
+                  type="button"
+                  class="dest-transcript-toggle"
+                  id="btn-transcript-toggle"
+                  data-i18n-title="deck.transcriptHide"
+                  data-i18n-aria="deck.transcriptHide"
+                  title="Hide chat"
+                  aria-label="Hide chat"
+                  aria-pressed="true"
+                >
+                  <span aria-hidden="true">▴</span>
+                </button>
+              </div>
+            </header>
             <div
-              class="strip-deck-pager"
-              id="deck-pager"
-              role="group"
-              data-i18n-aria="deck.pagerAria"
-              aria-label="Deck switcher"
+              class="deck-transcript hidden"
+              id="deck-transcript"
+              aria-live="polite"
+              data-i18n-aria="deck.transcriptAria"
+              aria-label="Chat messages"
             >
-              <button
-                type="button"
-                class="deck-page-btn"
-                id="btn-deck-prev"
-                data-i18n-title="deck.prevDeck"
-                data-i18n-aria="deck.prevDeck"
-                title="Previous deck"
-                aria-label="Previous deck"
-              >
-                <span aria-hidden="true">‹</span>
-              </button>
-              <span class="deck-page-name" id="deck-page-name" title="">—</span>
-              <button
-                type="button"
-                class="deck-page-btn"
-                id="btn-deck-next"
-                data-i18n-title="deck.nextDeck"
-                data-i18n-aria="deck.nextDeck"
-                title="Next deck"
-                aria-label="Next deck"
-              >
-                <span aria-hidden="true">›</span>
-              </button>
+              <p class="deck-transcript-empty" id="deck-transcript-empty" data-i18n="deck.transcriptPick">
+                Pick a chat above to see its messages
+              </p>
+              <div class="deck-transcript-msgs" id="deck-transcript-msgs"></div>
+              <div
+                class="deck-transcript-resize"
+                id="deck-transcript-resize"
+                role="separator"
+                aria-orientation="horizontal"
+                data-i18n-title="deck.transcriptResize"
+                title="Drag to resize"
+              ></div>
             </div>
-          </header>
-          <section class="cards-zone">
-            <div id="cards" class="cards"></div>
-          </section>
-        </div>
-        <aside class="target-rail" id="target-rail" data-i18n-aria="deck.railAria" aria-label="Send targets">
-          <div class="target-rail-head">
-            <span class="rail-title" data-i18n="deck.chats">Chats</span>
-            <div class="rail-actions">
-              <button type="button" class="rail-mini" id="btn-rail-all" data-i18n="deck.all" data-i18n-title="deck.allTitle">All</button>
-              <button type="button" class="rail-mini" id="btn-rail-none" data-i18n="deck.none" data-i18n-title="deck.noneTitle">None</button>
-              <button type="button" class="rail-mini rail-pick" id="btn-rail-pick" data-i18n="deck.addField" data-i18n-title="deck.addFieldTitle">+ field</button>
-              <button type="button" class="rail-mini rail-pick" id="btn-rail-agent" data-i18n="deck.addChat" data-i18n-title="deck.addChatTitle">+ chat</button>
-            </div>
+            <section
+              class="cards-zone"
+              id="cards-zone"
+              data-i18n-aria="deck.tableAria"
+              aria-label="Tarot cards"
+            >
+              <div id="cards" class="cards"></div>
+            </section>
           </div>
-          <div class="target-rail-list" id="target-rail-list"></div>
-        </aside>
+        </div>
       </div>
 
       <div id="toast" class="toast hidden" role="status"></div>
+      <div id="cdp-nudge" class="cdp-nudge hidden" role="status" aria-live="polite">
+        <p class="cdp-nudge-text" id="cdp-nudge-text"></p>
+        <div class="cdp-nudge-actions">
+          <button type="button" class="primary-btn" id="cdp-nudge-action" data-i18n="cdp.restartBtn">
+            Restart with CDP?
+          </button>
+          <button type="button" class="ghost-btn" id="cdp-nudge-dismiss" data-i18n="cdp.dismiss" title="Dismiss">
+            Later
+          </button>
+        </div>
+      </div>
       <div id="card-preview" class="card-preview hidden" aria-hidden="true"></div>
       <div id="onboarding" class="onboarding hidden" role="dialog" aria-labelledby="onboarding-title">
         <div class="onboarding-card">
           <h2 id="onboarding-title" data-i18n="onboarding.title">Quick start</h2>
           <ol class="onboarding-steps">
             <li data-i18n-html="onboarding.step1"><kbd>F9</kbd> — show or hide cards</li>
-            <li data-i18n-html="onboarding.step2">⚙ → “Launch Cursor for background”</li>
-            <li data-i18n-html="onboarding.step3">“+ chat” or “+ field”</li>
-            <li data-i18n-html="onboarding.step4">Enable a chip and click a card</li>
+            <li data-i18n-html="onboarding.step2">◎ → “Restart with CDP?” (or launch if Cursor is closed)</li>
+            <li data-i18n-html="onboarding.step3">💬 «Чаты» → «+ чат» or «+ поле»</li>
+            <li data-i18n-html="onboarding.step4">Enable a chat and click a card</li>
           </ol>
           <button type="button" class="primary-btn" id="onboarding-ok" data-i18n="onboarding.ok">Got it</button>
         </div>

@@ -6,7 +6,7 @@
       "id": "plan",
       "title": "Plan",
       "description": "Hiérophante : plan prêt pour merge, pas brouillon",
-      "prompt": "Établis un plan d'implémentation pour la tâche actuelle. Pas de code. Pas de remplissage.\n\nÀ partir du contexte, note (ne sur-demande pas) :\n- acceptance criteria (ce qui compte comme done) ;\n- scope : IN / OUT ;\n- risques : données, API, courses, compatibilité, régressions.\n\nExigences :\n1. Petites étapes vérifiables ; chacune avec deliverable + comment vérifier.\n2. Prends en compte tests, erreurs, cas limites, rollback.\n3. Solution simple qui marche > architecture « idéale ».\n4. Explicite : hypothèses et questions ouvertes.\n5. Plan uniquement.\n\nSortie : plan numéroté + courte liste de risques + definition of done.",
+      "prompt": "Établis un plan d'implémentation pour la tâche actuelle. Pas de code. Pas de remplissage.\n\nDu contexte : acceptance criteria ; scope IN/OUT ; risques (données, API, races, compatibilité, régressions).\n\nRègles : petites étapes vérifiables avec livrable + méthode ; tests/erreurs/edges/rollback ; simple qui marche > archi idéale ; hypothèses et questions ouvertes.\n\nSortie : plan numéroté + risques courts + definition of done.",
       "image": "hierophant",
       "hotkey": "F1"
     },
@@ -14,7 +14,7 @@
       "id": "evaluate",
       "title": "Revue",
       "description": "Justice : revue avec score de qualité du projet 0–10",
-      "prompt": "Revue stricte du plan actuel ou diff/résultat.\n\nMets le score de qualité du projet 0–10 :\n- 0–6 — blocage : ne pas continuer / pas de merge ;\n- 7–8 — acceptable avec réserves ;\n- 9–10 — barre haute.\nSous 7 = bloquant. Pour une revue normale, ≥ 7 suffit ; 10 non obligatoire.\n\nVérifie :\n1. Correctness et edge cases\n2. Régressions et fragilité\n3. Lisibilité, cohésion, complexité inutile\n4. Tests et gestion des erreurs\n5. Sécurité et données (si pertinent)\n6. Top 3 corrections pour le prochain PR\n\nFormat :\n- Score de qualité du projet : N/10\n- Verdict : blocage (<7) / acceptable (7–8) / fort (9–10)\n- Findings : Critical / Major / Minor\n- Corrections concrètes (fichiers/endroits si connus)\n\nGros refactoring sur demande uniquement. N'accepte pas « ça ira » sous 7.",
+      "prompt": "Revue stricte du plan actuel ou diff/résultat.\n\nScore 0–10 : 0–6 block ; 7–8 acceptable avec réserves ; 9–10 haut niveau. Sous 7 = blocker.\n\nVérifie : correction/edges ; régressions ; complexité ; tests/erreurs ; sécu/données si pertinent ; top 3 fixes PR.\n\nFormat :\n- Project quality score: N/10\n- Verdict : block (<7) / acceptable (7–8) / strong (9–10)\n- Findings : Critical / Major / Minor\n- Fixes concrets\n\nPas de gros refactor sans demande. Ne pas accepter sous 7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
@@ -22,7 +22,7 @@
       "id": "improve",
       "title": "Affiner",
       "description": "Tempérance : réduis le plan au minimum pour implémenter",
-      "prompt": "Améliore le plan ou design actuel au niveau prêt à implémenter.\n\nRègles :\n1. Coupe tout hors acceptance criteria.\n2. Clarifie le flou : interfaces, données, erreurs, tests.\n3. Si gonflé — propose plus simple avec trade-offs.\n4. Garde les étapes et la méthode de vérification.\n5. Pas de code tant qu'on ne le demande pas.\n\nSortie : plan mis à jour complet + changelog (3–7 items) + score attendu de préparation du plan 0–10.",
+      "prompt": "Améliore le plan ou design actuel au niveau prêt à implémenter.\n\nCoupe hors acceptance criteria ; clarifie interfaces/données/erreurs/tests ; si gonflé — plus simple avec trade-offs ; garde étapes + verify. Pas de code avant demande.\n\nSortie : plan mis à jour + changelog (3–7) + readiness 0–10.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "temperance",
       "hotkey": "F3"
     },
@@ -30,7 +30,7 @@
       "id": "work",
       "title": "Coder",
       "description": "Magicien : prochaine étape — code vérifiable sans régressions",
-      "prompt": "Implémente la prochaine étape ouverte du plan approuvé.\n\nRègles :\n1. Seulement cette étape — pas « en passant ».\n2. Pas de régressions : conserve le comportement existant.\n3. Gère les erreurs explicitement ; n'avale pas les exceptions.\n4. Peu de données — 1–3 questions précises, n'invente pas d'API.\n5. Après : ce qui a changé · comment vérifier · risques.\n\nStatut : done / partial / blocked + pourquoi.\nObjectif de l'étape — score de qualité du projet ≥ 7/10 en correctness.",
+      "prompt": "Implémente la prochaine étape ouverte du plan approuvé.\n\nCette étape seule ; pas de régressions ; erreurs explicites ; données manquantes — 1–3 questions précises, n'invente pas d'API. Après : quoi changé · comment vérifier · risques.\n\nStatut : done / partial / blocked + pourquoi. Objectif correction ≥ 7/10.",
       "image": "magician",
       "hotkey": "F4"
     },
@@ -38,7 +38,7 @@
       "id": "test",
       "title": "Tester",
       "description": "Étoile : prouve par un run vert, pas une promesse",
-      "prompt": "Vérifie ce qui vient d'être fait comme en CI, pas « ça devrait marcher ».\n\nFais :\n1. Commandes/tests/build ; montre la sortie réelle.\n2. Happy path + au moins un failure/edge (ou pourquoi impossible).\n3. Rouge — root cause + correctif minimal ou blocage.\n4. Vert — « TEST RÉUSSI » + liste des vérifications.\n5. Sur rouge, ne passe pas à l'étape suivante.\n\nRésultat : green/red + score préliminaire de qualité du projet 0–10 (sous 7 = pas prêt).",
+      "prompt": "Vérifie ce qui vient d'être fait comme en CI, pas « ça devrait marcher ».\n\nCommandes/tests/build avec sortie réelle ; happy path + un edge/fail (ou pourquoi pas). Rouge — cause + fix/blocker ; vert — \"TEST PASSED\" + checks. Ne pas avancer au rouge.\n\nRésultat : green/red + score préliminaire 0–10 (sous 7 = pas prêt).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F5"
     },
@@ -46,7 +46,7 @@
       "id": "fix",
       "title": "Fix",
       "description": "Tour : patch minimal jusqu'à score ≥ 7",
-      "prompt": "Corrige le défaut du dernier test, revue ou score de qualité du projet < 7.\n\nRègles :\n1. Fix minimal — pas de refactoring « en passant ».\n2. Symptôme → cause → blast radius.\n3. Patch → vérifie de la même façon que le bug a été trouvé.\n4. before → after → evidence.\n5. Répète jusqu'à score / test ≥ 7.\n6. Blocage — 2 options avec trade-offs.\n\nNouvelles fonctionnalités interdites tant que le défaut est ouvert.",
+      "prompt": "Corrige le défaut du dernier test, revue ou score de qualité du projet < 7.\n\nFix minimal seulement. Symptôme → cause → blast radius → patch → même vérif. Boucle jusqu'à ≥ 7. Blocker — 2 options avec trade-offs. before → after → preuve. Pas de features tant qu'ouvert.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F6"
     },
@@ -54,7 +54,7 @@
       "id": "polish",
       "title": "Peaufiner",
       "description": "Force : monte le score de qualité du projet à 9–10",
-      "prompt": "Mode peaufinage haute qualité. S'arrêter à 7–8 interdit. Objectif — score de qualité du projet 9 ou 10 sur 10.\n\nÉchelle du score de qualité du projet :\n- <7 — échec ;\n- 7–8 — « merge sous pression », insuffisant pour cette carte ;\n- 9–10 — arrêt.\n\nBoucle sans « continuer ? » :\n1. Score N/10 + findings qui le bloquent (Critical/Major).\n2. Si ≤ 8 — corrections uniquement sur ceux-ci (scope freeze, pas de nouvelles fonctionnalités).\n3. Relance les vérifications.\n4. Nouveau score.\n5. Tant que ≤ 8 — répète.\n\nArrêt seulement à 9 ou 10. Rapport :\n- Score de qualité du projet : N/10\n- Ce qui a amélioré la qualité\n- Residual risk (si présent)\n- Ce que tu n'as pas touché et pourquoi\n\nSi le plafond est <9 à cause de contraintes externes — nomme-les et le score max atteignable, mais épuise d'abord les corrections dans le scope.",
+      "prompt": "Mode peaufinage haute qualité. S'arrêter à 7–8 interdit. Objectif — score de qualité du projet 9 ou 10 sur 10.\n\nBoucle : score N/10 + Critical/Major → fixer seulement ça (scope freeze) → recheck → rescore. Tant que ≤ 8, répéter. Stop seulement à 9–10.\n\nRapport : score · ce qui a monté la qualité · risque résiduel · ce que tu n'as pas touché. Plafond externe <9 — le nommer après épuisement in-scope.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F7"
     },
@@ -62,9 +62,17 @@
       "id": "fullcycle",
       "title": "Cycle",
       "description": "Monde : end-to-end, chaque point ≥ 7 points de qualité",
-      "prompt": "Cycle complet end-to-end du plan.\n\nUn point n'est clos qu'à score de qualité du projet ≥ 7. Pour 9–10 utilise « Peaufiner ».\n\nPour chaque point :\n1. Nomme le point.\n2. Implémente.\n3. Vérifie par les faits (commandes/tests/scénario).\n4. Score 0–10.\n5. Si < 7 — corrige jusqu'à ≥ 7.\n6. Point suivant.\n\nInterdit : sauter des étapes, gonfler le scope, masquer les tests rouges.\nPas de plan — d'abord plan court (5–8 étapes) avec acceptance criteria, puis exécution.\n\nFinal :\n- score global de qualité du projet 0–10 ;\n- fait / pas fait ;\n- residual risks ;\n- quoi vérifier à la main avant merge.",
+      "prompt": "Cycle complet end-to-end du plan.\n\nFerme chaque point seulement à score ≥ 7 (Polish pour 9–10). Par point : nommer → implémenter → vérifier avec faits → score → fixer jusqu'à ≥7 → suivant. Pas de skip, inflation ni masquage de tests rouges.\n\nSans plan — court plan 5–8 avec acceptance criteria, puis exécuter.\n\nFinal : score global · done/not done · risques résiduels · checks manuels avant merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Synthèse",
+      "description": "Prêtresse: bref — tâche, fait, écarts, suite",
+      "prompt": "Lis ce chat et le contexte du dépôt. N'écris ni ne modifie pas de code.\n\nRéponds en exactement quatre courtes sections (1–3 puces chacune) :\n1. Tâche — objectif + critères d'acceptation si connus.\n2. Fait — implémenté, revu ou vérifié.\n3. Pas fait — ouverts, échecs, bloqueurs, inconnus.\n4. Prochaine étape — une seule meilleure action (nomme Plan / Review / Code / Test / Fix si évident).\n\nSans plan — dis-le et recommande Plan. Marque l'inconnu — n'invente pas. Pas de ligne KEYCODE_SCORE.",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }

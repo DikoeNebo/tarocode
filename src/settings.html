@@ -14,13 +14,22 @@
     <header class="win-header">
       <div>
         <h1 data-i18n="settings.title">Settings</h1>
-        <p class="subtitle" data-i18n="settings.subtitle">Side cards update live as you move the sliders</p>
+        <p class="subtitle" data-i18n="settings.subtitle">Choose a section to change Keycode</p>
       </div>
       <button type="button" class="primary-btn" id="btn-done" data-i18n="settings.done">Done</button>
     </header>
 
-    <main class="settings-grid">
-      <section class="panel panel-general">
+    <main class="settings-shell">
+      <nav class="settings-nav" aria-label="Settings sections">
+        <button type="button" class="settings-nav-btn active" data-settings-nav="general" aria-selected="true" data-i18n="settings.navGeneral">General</button>
+        <button type="button" class="settings-nav-btn" data-settings-nav="appearance" aria-selected="false" data-i18n="settings.navAppearance">Appearance</button>
+        <button type="button" class="settings-nav-btn" data-settings-nav="cursor" aria-selected="false" data-i18n="settings.navCursor">Cursor</button>
+        <button type="button" class="settings-nav-btn" data-settings-nav="phone" aria-selected="false" data-i18n="settings.navPhone">Phone</button>
+        <button type="button" class="settings-nav-btn" data-settings-nav="decks" aria-selected="false" data-i18n="settings.navDecks">Decks</button>
+      </nav>
+
+      <div class="panel settings-pages">
+      <section class="settings-page active" data-settings-page="general">
         <h2 data-i18n="settings.general">General</h2>
 
         <label class="field block">
@@ -35,6 +44,41 @@
           Changing the interface language also refreshes the two standard decks.
         </p>
 
+        <label class="field block">
+          <span data-i18n="settings.pauseMs">Pause between targets (ms)</span>
+          <input type="number" id="set-pause" min="100" max="2000" step="50" />
+        </label>
+        <label class="check block">
+          <input type="checkbox" id="set-preserve-focus" checked />
+          <span data-i18n="settings.preserveFocus">Do not steal focus (game stays active)</span>
+        </label>
+        <label class="check block">
+          <input type="checkbox" id="set-auto-enter" />
+          <span data-i18n="settings.autoEnter">Enter after paste</span>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.showHotkey">Pin / hide hotkey</span>
+          <select id="set-hotkey">
+            <option value="F9">F9</option>
+            <option value="F10">F10</option>
+            <option value="F12">F12</option>
+            <option value="Pause">Pause</option>
+            <option value="CommandOrControl+`">Ctrl + `</option>
+            <option value="Alt+Q">Alt + Q</option>
+            <option value="Alt+Z">Alt + Z</option>
+          </select>
+        </label>
+
+        <div class="actions-row wrap">
+          <button type="button" class="ghost-btn" id="btn-folder" data-i18n="settings.dataFolder">Data folder</button>
+          <button type="button" class="ghost-btn" id="btn-logs" data-i18n="settings.logsFolder">Logs folder</button>
+          <button type="button" class="ghost-btn" id="btn-check-updates" data-i18n="settings.checkUpdates">Check for updates</button>
+        </div>
+        <p class="hint-text muted" id="update-status"></p>
+      </section>
+
+      <section class="settings-page" data-settings-page="appearance">
+        <h2 data-i18n="settings.navAppearance">Appearance</h2>
         <div class="field block">
           <span data-i18n="settings.dockSide">Screen side for cards</span>
           <div class="dock-pad" id="dock-pad" role="group" data-i18n-aria="settings.dockEdge" aria-label="Screen edge">
@@ -45,6 +89,15 @@
             <button type="button" class="dock-btn" data-dock="bottom" data-i18n-title="settings.dockBottom" title="Bottom">▼</button>
           </div>
         </div>
+
+        <label class="field block">
+          <span data-i18n="settings.sideCardLayout">Left/right card layout</span>
+          <select id="set-side-card-layout">
+            <option value="table" data-i18n="settings.sideLayoutTable">Tarot table 3×4 (default)</option>
+            <option value="strip" data-i18n="settings.sideLayoutStrip">Classic strip</option>
+          </select>
+          <span class="hint" data-i18n="settings.sideCardLayoutHint">Only for left and right edges. Top and bottom stay a strip.</span>
+        </label>
 
         <label class="check block">
           <input type="checkbox" id="set-edge-hover" checked />
@@ -83,42 +136,81 @@
           <input type="checkbox" id="set-card-preview" checked />
           <span data-i18n="settings.cardPreview">Description on card hover</span>
         </label>
-        <label class="field block">
-          <span data-i18n="settings.pauseMs">Pause between targets (ms)</span>
-          <input type="number" id="set-pause" min="100" max="2000" step="50" />
-        </label>
-        <label class="check block">
-          <input type="checkbox" id="set-preserve-focus" checked />
-          <span data-i18n="settings.preserveFocus">Do not steal focus (game stays active)</span>
-        </label>
-        <label class="check block">
-          <input type="checkbox" id="set-auto-enter" />
-          <span data-i18n="settings.autoEnter">Enter after paste</span>
-        </label>
-        <label class="field block">
-          <span data-i18n="settings.showHotkey">Pin / hide hotkey</span>
-          <select id="set-hotkey">
-            <option value="F9">F9</option>
-            <option value="F10">F10</option>
-            <option value="F12">F12</option>
-            <option value="Pause">Pause</option>
-            <option value="CommandOrControl+`">Ctrl + `</option>
-            <option value="Alt+Q">Alt + Q</option>
-            <option value="Alt+Z">Alt + Z</option>
-          </select>
-        </label>
+      </section>
 
+      <section class="settings-page" data-settings-page="cursor">
+        <h2 data-i18n="settings.navCursor">Cursor</h2>
         <label class="field block">
           <span data-i18n="settings.cdpPort">Cursor background port</span>
           <input type="number" id="set-cdp-port" min="1024" max="65535" step="1" value="9222" />
         </label>
-
-        <div class="actions-row wrap">
-          <button type="button" class="ghost-btn" id="btn-folder" data-i18n="settings.dataFolder">Data folder</button>
-          <button type="button" class="ghost-btn" id="btn-logs" data-i18n="settings.logsFolder">Logs folder</button>
-          <button type="button" class="ghost-btn" id="btn-check-updates" data-i18n="settings.checkUpdates">Check for updates</button>
+        <div id="cursor-backend-block" class="hidden" hidden>
+        <h2 class="block-title" data-i18n="settings.cursorBackend">Cursor integration</h2>
+        <p class="hint-text" data-i18n="settings.cursorBackendHint">
+          CDP pastes into open IDE chats. Cursor API runs a separate SDK agent (not IDE tabs). Compare both, then pick one for release.
+        </p>
+        <label class="field block">
+          <span data-i18n="settings.cursorBackendMode">Backend</span>
+          <select id="set-cursor-backend">
+            <option value="cdp" data-i18n="settings.cursorBackendCdp">CDP (IDE chats)</option>
+            <option value="sdk" data-i18n="settings.cursorBackendSdk">Cursor API (SDK agent)</option>
+          </select>
+        </label>
+        <div id="sdk-settings" class="sdk-settings hidden">
+          <label class="field block">
+            <span data-i18n="settings.cursorApiKey">Cursor API key</span>
+            <input type="password" id="set-cursor-api-key" autocomplete="off" spellcheck="false" />
+          </label>
+          <p class="hint-text" data-i18n="settings.sdkProjectsHint">
+            Like Cursor: pick a project folder, then several chats inside it. On the phone: Project · Chat.
+          </p>
+          <label class="field block">
+            <span data-i18n="settings.sdkActiveProject">Active project</span>
+            <select id="set-sdk-active-project"></select>
+          </label>
+          <label class="field block">
+            <span data-i18n="settings.sdkProjectName">Project name</span>
+            <input type="text" id="set-sdk-project-name" maxlength="80" />
+          </label>
+          <label class="field block">
+            <span data-i18n="settings.cursorSdkCwd">Project folder</span>
+            <input type="text" id="set-cursor-sdk-cwd" readonly />
+          </label>
+          <label class="field block">
+            <span data-i18n="settings.sdkActiveChat">Active chat</span>
+            <select id="set-sdk-active-chat"></select>
+          </label>
+          <label class="field block">
+            <span data-i18n="settings.sdkChatName">Chat name</span>
+            <input type="text" id="set-sdk-chat-name" maxlength="80" />
+          </label>
+          <div class="actions-row wrap">
+            <button type="button" class="ghost-btn" id="btn-sdk-add-project" data-i18n="settings.sdkAddProject">
+              Add project…
+            </button>
+            <button type="button" class="ghost-btn" id="btn-sdk-pick-cwd" data-i18n="settings.cursorSdkPickCwd">
+              Change folder
+            </button>
+            <button type="button" class="ghost-btn" id="btn-sdk-remove-project" data-i18n="settings.sdkRemoveProject">
+              Remove project
+            </button>
+            <button type="button" class="ghost-btn" id="btn-sdk-add-chat" data-i18n="settings.sdkAddChat">
+              Add chat
+            </button>
+            <button type="button" class="ghost-btn" id="btn-sdk-remove-chat" data-i18n="settings.sdkRemoveChat">
+              Remove chat
+            </button>
+            <button type="button" class="ghost-btn" id="btn-sdk-probe" data-i18n="settings.cursorSdkProbe">
+              Check API key
+            </button>
+            <button type="button" class="ghost-btn" id="btn-sdk-new-agent" data-i18n="settings.cursorSdkNewAgent">
+              New SDK agent
+            </button>
+          </div>
+          <p class="hint-text muted" id="sdk-status-line"></p>
         </div>
-        <p class="hint-text muted" id="update-status"></p>
+        <p class="hint-text muted" id="backend-mode-line"></p>
+        </div>
 
         <h2 class="block-title" data-i18n="settings.cursorBg">Cursor in background</h2>
         <p class="hint-text" id="cursor-status" data-i18n="settings.cursorBgHint">
@@ -136,13 +228,15 @@
           >
             Always enable background (shortcut)
           </button>
-          <button type="button" class="ghost-btn" id="btn-cursor-launch" data-i18n="settings.cursorLaunch" data-i18n-title="settings.cursorLaunchTitle" title="Only if Cursor is closed">
+          <button type="button" class="ghost-btn" id="btn-cursor-launch" data-i18n="settings.cursorLaunch" data-i18n-title="settings.cursorLaunchTitle" title="Launch if closed, or restart with CDP if open">
             Launch Cursor for background
           </button>
           <button type="button" class="ghost-btn" id="btn-uia-diagnose" data-i18n="settings.uiaDiagnose">Detailed diagnostics</button>
         </div>
         <p class="hint-text muted" id="cursor-diag"></p>
+      </section>
 
+      <section class="settings-page" data-settings-page="phone">
         <h2 class="block-title" data-i18n="settings.remoteTitle">Phone remote</h2>
         <p class="hint-text" data-i18n="settings.remoteHint">
           Opt-in web remote for Cursor chats on the same Wi‑Fi. Anyone on that network with the link can use it — keep the secret private.
@@ -201,7 +295,7 @@
         </details>
       </section>
 
-      <section class="panel panel-decks">
+      <section class="settings-page panel-decks" data-settings-page="decks">
         <h2 data-i18n="settings.decksTitle">Decks and cards</h2>
 
         <div class="deck-toolbar">
@@ -228,7 +322,7 @@
 
         <div class="deck-editor">
           <div class="cards-list-wrap">
-            <div class="cards-list-head" data-i18n="settings.cardsUpTo8">Cards (up to 8)</div>
+            <div class="cards-list-head" data-i18n="settings.cardsUpTo8">Cards (up to 9)</div>
             <div id="cards-list" class="cards-list"></div>
           </div>
 
@@ -278,6 +372,7 @@
           </form>
         </div>
       </section>
+      </div>
     </main>
 
     <button

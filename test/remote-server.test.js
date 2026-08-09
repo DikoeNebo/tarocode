@@ -74,6 +74,8 @@ describe("remote settings whitelist", () => {
     assert.ok(SETTINGS_WHITELIST.includes("remotePort"));
     assert.ok(SETTINGS_WHITELIST.includes("remoteToken"));
     assert.ok(SETTINGS_WHITELIST.includes("remoteAccessMode"));
+    assert.ok(SETTINGS_WHITELIST.includes("cursorBackend"));
+    assert.ok(SETTINGS_WHITELIST.includes("cursorApiKey"));
     assert.equal(DEFAULT_REMOTE_PORT, 17865);
   });
 });
@@ -768,5 +770,131 @@ describe("remote /api/deck", () => {
     });
     assert.equal(r.status, 400);
     assert.equal(r.json?.error, "deck_id_or_step_required");
+  });
+});
+
+describe("remote composer endpoints", () => {
+  let srv;
+  let port;
+  let token;
+  let lastMode = null;
+  let lastModel = null;
+  let lastAnswer = null;
+
+  before(async () => {
+    token = generateRemoteToken();
+    port = 19100 + Math.floor(Math.random() * 800);
+    srv = createRemoteServer({
+      getToken: () => token,
+      getPort: () => port,
+      getAccessMode: () => "lan",
+      getRemoteState: () => ({
+        deck: { id: "lazy-v1", name: "Hobby" },
+        cards: [],
+        targets: [],
+        suggestions: [],
+      }),
+      listChats: async () => ({ ok: true, chats: [] }),
+      readChat: async () => ({
+        ok: true,
+        hash: "c1",
+        messages: [],
+        generating: false,
+        composer: {
+          mode: "agent",
+          submitKind: "send",
+          submitLabel: "Send",
+          modelLabel: "composer-2.5",
+          models: [{ id: "composer-2.5", label: "composer-2.5" }],
+        },
+        clarifications: [
+          {
+            id: "q-0",
+            prompt: "Pick one",
+            options: [{ id: "opt-0", label: "Yes" }],
+          },
+        ],
+      }),
+      setComposerMode: async (targetId, mode) => {
+        lastMode = { targetId, mode };
+        return {
+          ok: true,
+          mode,
+          composer: {
+            mode,
+            submitKind: mode === "plan" ? "build" : "send",
+            submitLabel: mode === "plan" ? "Build" : "Send",
+          },
+        };
+      },
+      setComposerModel: async (targetId, model) => {
+        lastModel = { targetId, model };
+        return { ok: true, model, composer: { modelId: model, modelLabel: model } };
+      },
+      answerClarification: async (targetId, payload) => {
+        lastAnswer = { targetId, ...payload };
+        return { ok: true, clicked: payload.text || payload.optionId };
+      },
+      pasteCard: async () => ({ ok: true, results: [] }),
+      staticDir: os.tmpdir(),
+      tarotDir: os.tmpdir(),
+    });
+    const started = await srv.start(port);
+    port = started.port;
+  });
+
+  after(async () => {
+    await srv.stop();
+  });
+
+  it("returns composer chrome on chat read", async () => {
+    const r = await req(port, "GET", "/api/chat?targetId=t1", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.json?.composer?.submitLabel, "Send");
+    assert.equal(r.json?.clarifications?.length, 1);
+  });
+
+  it("sets composer mode", async () => {
+    const r = await req(port, "POST", "/api/composer/mode", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ targetId: "t1", mode: "plan" }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(lastMode?.mode, "plan");
+    assert.equal(r.json?.composer?.submitKind, "build");
+  });
+
+  it("sets composer model", async () => {
+    const r = await req(port, "POST", "/api/composer/model", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ targetId: "t1", model: "composer-2.5" }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(lastModel?.model, "composer-2.5");
+  });
+
+  it("answers clarification", async () => {
+    const r = await req(port, "POST", "/api/composer/answer", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        targetId: "t1",
+        clarificationId: "q-0",
+        optionId: "opt-0",
+        text: "Yes",
+      }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(lastAnswer?.text, "Yes");
   });
 });

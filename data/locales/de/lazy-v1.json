@@ -6,7 +6,7 @@
       "id": "plan",
       "title": "Plan",
       "description": "Hierophant: Aufgabe in Schritte zerlegen — noch kein Code",
-      "prompt": "Erstelle einen Schritt-für-Schritt-Plan für die aktuelle Aufgabe. Schreibe keinen Code.\n\nWenn im Chat schon klar — nicht nachfragen. Sonst kurz festhalten:\n- Ergebnis in einem Satz;\n- was bereits existiert;\n- Einschränkung: einfaches Hobby-Projekt, keine unnötige Komplexität.\n\nAnforderungen:\n1. Kleine Schritte: ein Schritt = eine überprüfbare Sache.\n2. Pro Schritt: was tun · was „fertig“ bedeutet · wie prüfen.\n3. Zuerst das, ohne das man nicht weiter kann.\n4. Risiken und was vereinfacht oder verschoben werden kann.\n5. Nur Plan — keine Umsetzung.\n\nAm Ende — nummerierte Schritteliste (eine Zeile pro Schritt).",
+      "prompt": "Erstelle einen Schritt-für-Schritt-Plan für die aktuelle Aufgabe. Schreibe keinen Code.\n\nAus dem Chat (nur fragen wenn fehlt): Ergebnis in einem Satz; was schon da ist; einfaches Hobby-Projekt ohne unnötige Komplexität.\n\nRegeln:\n1. Kleine Schritte — ein Schritt = eine prüfbare Sache.\n2. Pro Schritt: was · fertig bedeutet · wie prüfen.\n3. Blocker zuerst; Risiken / was verschieben.\n\nAm Ende nummerierte Schrittliste (eine Zeile pro Schritt).",
       "image": "hierophant",
       "hotkey": "F1"
     },
@@ -14,7 +14,7 @@
       "id": "evaluate",
       "title": "Bewerten",
       "description": "Gerechtigkeit: Projektqualitäts-Score 0–10 und Urteil",
-      "prompt": "Bewerte den aktuellen Plan oder das letzte Ergebnis ehrlich — ohne Fülltext und Schmeichelei.\n\nDas ist ein Projektqualitäts-Score auf Skala 0–10 (Zahl ist Pflicht):\n- 0–6 — schwach, muss überarbeitet werden;\n- 7–8 — akzeptabel, kann weitergehen;\n- 9–10 — ausgezeichnet.\nEine 10 ist selten. Für normale Arbeit reicht ≥ 7. Unter 7 — muss überarbeitet werden.\n\nPrüfe:\n1. Ist das Ziel klar? Kann „fertig“ eindeutig gesagt werden?\n2. Lücken, Auslassungen, Unklarheiten?\n3. Unnötige Komplexität für ein Hobby?\n4. Was bricht zuerst?\n5. Top-3 Korrekturen, die den Score am meisten heben.\n\nAntwortformat:\n- Projektqualitäts-Score: N/10\n- Urteil: überarbeiten (<7) / akzeptabel (7–8) / ausgezeichnet (9–10)\n- Pluspunkte (kurz)\n- Minuspunkte und Risiken\n- Konkrete Korrekturen (Liste)\n\nNicht von vorn vorschlagen, wenn punktuelle Fixes reichen. Kein Code, bis gebeten.",
+      "prompt": "Bewerte den aktuellen Plan oder das letzte Ergebnis ehrlich — ohne Fülltext und Schmeichelei.\n\nProjektqualitäts-Score 0–10: 0–6 überarbeiten; 7–8 akzeptabel; 9–10 ausgezeichnet. Unter 7 muss überarbeitet werden; ≥7 kann weiter.\n\nPrüfe: Ziel/fertig klar? Lücken? Hobby-Überkomplexität? was bricht zuerst? Top-3 Score-Fixes.\n\nAntwort:\n- Projektqualitäts-Score: N/10\n- Urteil: überarbeiten (<7) / akzeptabel (7–8) / ausgezeichnet (9–10)\n- Plus · Minus/Risiken · konkrete Fixes\n\nKein Neustart von vorn, wenn gezielte Fixes reichen. Kein Code bis gebeten.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
@@ -22,7 +22,7 @@
       "id": "work",
       "title": "Arbeiten",
       "description": "Magier: nächsten Planschritt im Code umsetzen",
-      "prompt": "Erledige den nächsten offenen Schritt des genehmigten Plans — nur diesen, nicht alles auf einmal.\n\nRegeln:\n1. Wenn Schritt unklar — in einem Satz benennen und genau den tun.\n2. Nicht kaputtmachen, was schon funktioniert, ohne Grund.\n3. Fehlende Daten — kurz fragen, nicht erfinden.\n4. Danach: was gemacht · wo nachsehen · wie prüfen.\n\nAm Ende eine Zeile: Schrittstatus — fertig / teilweise / Blocker (und warum).",
+      "prompt": "Erledige den nächsten offenen Schritt des genehmigten Plans — nur diesen, nicht alles auf einmal.\n\nRegeln: Schritt benennen wenn unklar; laufenden Code nicht unnötig brechen; fehlende Daten kurz fragen — nichts erfinden. Danach: was · wo · wie prüfen.\n\nEnde mit einer Zeile: Status — done / partial / blocked (und warum).",
       "image": "magician",
       "hotkey": "F3"
     },
@@ -30,7 +30,7 @@
       "id": "test",
       "title": "Test",
       "description": "Stern: Ergebnis mit Fakten prüfen, nicht mit Worten",
-      "prompt": "Teste, was gerade gemacht wurde (letzter Schritt oder klar benannter Teil).\n\nTun:\n1. Relevante Prüfungen: Befehle, Build, manuelles Szenario — was passt.\n2. Fakten zeigen: Ausgabe, Fehler, was wirklich funktioniert.\n3. Bei Fehler — Ursache und minimaler Fix (oder sagen, dass „Fix“ nötig ist).\n4. Bei OK — „TEST BESTANDEN“ und Liste der Geprüften.\n5. Bei Rot nicht zum nächsten Planschritt (bis ich anders sage).\n\nErgebnis: grün / rot + ein Satz warum.\nWenn möglich vorläufiger Projektqualitäts-Score 0–10 (unter 7 = noch nicht fertig).",
+      "prompt": "Teste, was gerade gemacht wurde (letzter Schritt oder klar benannter Teil).\n\nRelevante Checks (Befehle/Build/manuell); Fakten zeigen; bei Fail — Ursache + Minimalfix; bei OK — \"TEST PASSED\" + was geprüft. Bei Rot nicht weiter im Plan.\n\nErgebnis: green / red + ein Satz warum. Vorläufiger Projektqualitäts-Score 0–10 (unter 7 = noch nicht bereit).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F4"
     },
@@ -38,7 +38,7 @@
       "id": "fix",
       "title": "Fixen",
       "description": "Turm: Defekt bis akzeptabler Score (≥7) beheben",
-      "prompt": "Behebe Probleme aus dem letzten Test, Fehler oder Projektqualitäts-Score unter 7/10.\n\nRegeln:\n1. Minimaler Fix — kein Refactoring „nebenbei“ und keine neuen Features.\n2. Zuerst: Symptom → wahrscheinliche Ursache.\n3. Nach Fix erneut prüfen und Ergebnis zeigen.\n4. Kurz: war → gemacht → wie bestätigt.\n5. Schleife „Fix → Prüfung“, bis Projektqualitäts-Score ≥ 7/10.\n6. Bei Sackgasse — Blocker und 2 Auswege.\n\nNeue Features verboten, solange der Defekt offen ist.",
+      "prompt": "Behebe Probleme aus dem letzten Test, Fehler oder Projektqualitäts-Score unter 7/10.\n\nNur Minimalfix — keine Drive-by-Refactors oder Features. Symptom → Ursache → Patch → Verify. Loop bis Score ≥ 7. Wenn stecken — Blocker + 2 Auswege. Kurz: war → tat → bestätigt.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F5"
     },
@@ -46,7 +46,7 @@
       "id": "polish",
       "title": "Verfeinern",
       "description": "Stärke: Projektqualitäts-Score auf 9–10 heben",
-      "prompt": "Modus „Verfeinern“. Nicht stoppen, bis Projektqualitäts-Score 9 oder 10 von 10 ist.\n\nSkala Projektqualitäts-Score:\n- unter 7 — inakzeptabel;\n- 7–8 — ok für normale Arbeit, aber für diese Karte zu wenig;\n- 9–10 — Ziel; Stopp erlaubt.\n\nSchleife ohne „weitermachen?“:\n1. Projektqualitäts-Score N/10 und 3 Hauptlücken nennen, die den Score halten.\n2. Bei Score ≤ 8 — nur Fixes für diese Lücken (keine neuen Features, kein Scope-Wachstum).\n3. Geändertes prüfen.\n4. Projektqualitäts-Score 0–10 erneut setzen.\n5. Solange ≤ 8 — ab Schritt 2 wiederholen.\n\nStopp nur bei 9 oder 10. Dann:\n- End-Projektqualitäts-Score: N/10\n- Was den Score gehoben hat\n- Was bewusst unangetastet blieb\n\nWichtig: 7–8 ist hier kein Ziel. Ziel ist nur 9 oder 10.",
+      "prompt": "Modus „Verfeinern“. Nicht stoppen, bis Projektqualitäts-Score 9 oder 10 von 10 ist.\n\n7–8 reicht für diese Karte nicht. Loop ohne Fragen: Score N/10 + Hauptlücken → nur die fixen → prüfen → neu scoren. Solange ≤ 8 wiederholen. Stopp nur bei 9–10.\n\nDann: Endscore · was hob · was du ließest.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F6"
     },
@@ -54,7 +54,7 @@
       "id": "backup",
       "title": "Backup",
       "description": "Eremit: Rollback-Punkt speichern",
-      "prompt": "Erstelle einen sicheren Rollback-Punkt für den aktuellen Projektstand.\n\nDer Reihe nach, soweit möglich:\n1. git status (oder Äquivalent) — was geändert.\n2. Wenn git vorhanden — sinnvoller Commit ODER fertiger Commit-Befehl. Kein force, keine gefährlichen Ops, kein --no-verify ohne Bitte.\n3. Ohne git — Kopie wichtiger Dateien/Ordner in backup mit Datum im Namen.\n4. Wie in ein bis zwei Befehlen zurückrollen.\n5. Nicht auf remote pushen ohne ausdrückliche Bitte.\n\nAm Ende: „Checkpoint gespeichert“ + wohin/wie zurückrollen.",
+      "prompt": "Erstelle einen sicheren Rollback-Punkt für den aktuellen Projektstand.\n\n1. git status (oder Äquivalent).\n2. Sinnvoller Commit oder fertiger Befehl — kein force, kein --no-verify ohne Bitte.\n3. Kein git — datierte Kopie wichtiger Dateien.\n4. Rollback in 1–2 Befehlen. Kein Push ohne Anfrage.\n\nEnde: \"Checkpoint saved\" + wo/wie zurück.",
       "image": "hermit",
       "hotkey": "F7"
     },
@@ -62,9 +62,17 @@
       "id": "fullcycle",
       "title": "Voller Zyklus",
       "description": "Welt: Plan → Arbeit → Test, jeder Schritt ≥ 7 Punkte",
-      "prompt": "Voller Zyklus durch den Plan von Anfang bis Ende — ohne Überspringen.\n\nProjektqualitäts-Score 0–10: Punkt nur bei ≥ 7 abgeschlossen. Eine 10 ist in diesem Modus nicht Pflicht (für 9–10 Karte „Verfeinern“).\n\nFür JEDEN Planpunkt:\n1. Welcher Punkt jetzt.\n2. Arbeit erledigen.\n3. Ergebnis prüfen.\n4. Projektqualitäts-Score 0–10 setzen.\n5. Bei < 7 — fixen und wiederholen, bis ≥ 7.\n6. Erst dann nächster Punkt.\n\nRegeln: nicht überspringen; Aufgabe nicht aufblasen; Fortschritt kurz und klar.\nKein Plan — zuerst kurzer Plan (5–8 Schritte) und Bestätigung, oder direkt, wenn Aufgabe schon abgestimmt.\n\nFinale:\n- Gesamtprüfung + Gesamt-Projektqualitäts-Score 0–10;\n- was fertig · was nicht · was ich manuell prüfen soll;\n- bei Gesamtscore < 7 — keinen Erfolg erklären, weiter verfeinern.",
+      "prompt": "Voller Zyklus durch den Plan von Anfang bis Ende — ohne Überspringen.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 schließen (Polish für 9–10). Pro Punkt: nennen → umsetzen → prüfen → Score → wenn <7 bis ≥7 fixen → weiter. Kein Scope-Aufblasen.\n\nKein Plan — zuerst kurzer 5–8-Schritt-Plan (oder sofort wenn schon vereinbart).\n\nFinal: Gesamtscore · done / not done · manuell prüfen. Bei Gesamt <7 keinen Erfolg erklären.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Kurzfassung",
+      "description": "Hohepriesterin: kurz — Aufgabe, erledigt, offen, weiter",
+      "prompt": "Lies diesen Chat und den Repo-Kontext. Keinen Code schreiben oder ändern.\n\nAntwort genau in vier kurzen Abschnitten (je 1–3 Punkte):\n1. Aufgabe — Ziel (ein Satz + Scope falls bekannt).\n2. Erledigt — umgesetzt oder verifiziert.\n3. Offen — offene Schritte, Fehler, Blocker, Unklarheiten.\n4. Nächster Schritt — eine beste Aktion (Plan / Arbeiten / Test / Fix nennen, falls klar).\n\nKein Plan — sag es und empfehle Plan. Unbekanntes markieren — nichts erfinden. Keine KEYCODE_SCORE-Zeile.",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }

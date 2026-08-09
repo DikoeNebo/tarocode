@@ -17,7 +17,16 @@ let state = {
   previewCardId: null,
   settingsWindowOpen: false,
   targetsWindowOpen: false,
+  transcriptHash: "",
+  transcriptStickBottom: true,
+  transcriptTargetId: "",
+  /** @type {Array<{ cardId: string, rank: 1 | 2 }>} */
+  suggestions: [],
 };
+
+/** @type {ReturnType<typeof setInterval> | null} */
+let transcriptPollTimer = null;
+let transcriptBusy = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,6 +68,32 @@ function applyDockClass(dock, horizontal, expanded) {
   document.querySelectorAll(".dock-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-dock") === state.dock);
   });
+  applySideLayoutClass();
+}
+
+function isSideDock() {
+  return state.dock === "right" || state.dock === "left";
+}
+
+/** Side tarot table (default). Classic strip when settings.sideCardLayout === "strip". */
+function isSideTable() {
+  return (
+    isSideDock() &&
+    !state.fullscreenEdit &&
+    state.settings?.sideCardLayout !== "strip"
+  );
+}
+
+function applySideLayoutClass() {
+  const table =
+    isSideDock() &&
+    !state.fullscreenEdit &&
+    state.settings?.sideCardLayout !== "strip";
+  document.body.classList.toggle("side-layout-table", table);
+  document.body.classList.toggle(
+    "side-layout-strip",
+    isSideDock() && !state.fullscreenEdit && !table
+  );
 }
 
 /** Подсказка только после окончания выезда карт — иначе налезает на полосу */
@@ -102,6 +137,7 @@ function applyFullscreenEdit(on) {
     document.body.classList.add("edit-mode", "expanded");
     document.body.classList.remove("cards-only");
     $("btn-edit-mode")?.classList.add("active");
+    applySideLayoutClass();
   } else {
     state.editMode = false;
     document.body.classList.remove("edit-mode");
@@ -137,10 +173,12 @@ function applyPanelScale(settings) {
   root.style.setProperty("--corner-gap", `${gap}px`);
   root.style.setProperty("--titlebar-h", `${btn}px`);
   root.style.setProperty("--card-gap", `${cardGap}px`);
+  root.style.setProperty("--hub-w", `${Math.round(btn + 12)}px`);
   root.style.setProperty("--rail-w", `${Math.round(148 * s)}px`);
   root.style.setProperty("--radius", `${Math.round(8 * s)}px`);
   root.style.setProperty("--radius-inner", `${Math.round(6 * s)}px`);
   root.style.setProperty("--corner-font-size", `${Math.max(11, Math.round(14 * s))}px`);
+  root.style.setProperty("--table-gap", `${Math.max(2, Math.round(4 * s))}px`);
 }
 
 function waitForCardImages(timeoutMs = 1200) {
@@ -201,90 +239,28 @@ async function refresh() {
 function renderAll() {
   renderDeckSelect();
   syncTargetsBadge();
-  renderTargetRail();
+  renderDestBar();
+  syncDeckTranscript();
   renderCards();
   document.body.classList.toggle("edit-mode", state.editMode);
 }
 
-function targetPointsOverlap(t) {
-  if (!t?.focusPoint || !t?.inputPoint) return false;
-  const dx = Number(t.focusPoint.x) - Number(t.inputPoint.x);
-  const dy = Number(t.focusPoint.y) - Number(t.inputPoint.y);
-  return dx * dx + dy * dy <= 12 * 12;
-}
-
-function targetKindLabel(t) {
-  if (t.needsCdpRebind) return window.I18n.t("driver.rebindChat");
-  if (t.needsUiaRebind && t.driver !== "cdp") return window.I18n.t("driver.rebindChatUia");
-  if (t.driver === "cdp") return window.I18n.t("driver.cdp");
-  if (t.driver === "uia-quiet") return window.I18n.t("driver.quiet");
-  if (t.driver === "uia") return window.I18n.t("driver.uiaLegacy");
-  if (targetPointsOverlap(t)) return window.I18n.t("driver.bindError");
-  if (t.inputPoint && !t.legacy) return window.I18n.t("driver.windowField");
-  if (t.legacy || !t.inputPoint) return window.I18n.t("driver.needField");
-  return window.I18n.t("driver.windowField");
-}
-
-function renderTargetRail() {
-  const list = $("target-rail-list");
-  if (!list) return;
-  const targets = state.settings?.targets || [];
-  if (!targets.length) {
-    list.innerHTML =
-      '<div class="rail-empty">' + window.I18n.t("rail.empty") + "</div>";
-    return;
+/** Count of destinations the next card paste will hit (mirrors main resolvePasteTargets). */
+function resolveDestCount(settings) {
+  const targets = settings?.targets || [];
+  if (!targets.length) return 0;
+  if (String(settings?.pasteMode || "").toLowerCase() === "solo") {
+    const id = settings?.activeTargetId;
+    return id && targets.some((t) => t.id === id) ? 1 : 0;
   }
-  list.innerHTML = targets
-    .map((t) => {
-      const kind = targetKindLabel(t);
-      const sub =
-        kind +
-        (t.fullTitle && t.fullTitle !== t.name ? ` · ${t.fullTitle}` : "");
-      const broken =
-        t.needsCdpRebind ||
-        t.needsUiaRebind ||
-        t.legacy ||
-        (t.driver !== "cdp" &&
-          t.driver !== "uia" &&
-          t.driver !== "uia-quiet" &&
-          (!t.inputPoint || targetPointsOverlap(t)));
-      return `
-      <button type="button"
-        class="rail-chip ${t.enabled ? "on" : "off"} ${
-          broken ? "needs-field" : ""
-        }"
-        data-rail-toggle="${escapeAttr(t.id)}"
-        title="${escapeAttr(t.fullTitle || t.match || t.name || "")}">
-        <span class="rail-chip-label">${escapeHtml(t.name || "?")}</span>
-        <span class="rail-chip-sub">${escapeHtml(sub)}</span>
-      </button>`;
-    })
-    .join("");
-}
-
-async function setTargetsEnabled(updater) {
-  const targets = updater(state.settings?.targets || []);
-  state.settings = await window.keycode.saveSettings({ targets });
-  syncTargetsBadge();
-  renderTargetRail();
-}
-
-async function pickTargetFromRail(mode = "field") {
-  if (mode === "cursor" || mode === "agent") {
-    toast(window.I18n.t("rail.openingChats"), "");
-    await window.keycode.openChatPick();
-    return;
+  const presetId = settings?.activePresetId;
+  const presets = settings?.targetPresets || [];
+  const preset = presetId ? presets.find((p) => p.id === presetId) : null;
+  if (preset) {
+    const ids = new Set(preset.targetIds || []);
+    return targets.filter((t) => ids.has(t.id)).length;
   }
-  toast(window.I18n.t("rail.clickField"), "");
-  const result = await window.keycode.startTargetPick("field");
-  await refresh();
-  if (result?.ok && result.duplicate) {
-    toast(window.I18n.t("rail.duplicateField"), "error");
-  } else if (result?.ok) {
-    toast(window.I18n.t("rail.addedField", { name: result.target?.name || window.I18n.t("rail.fieldFallback") }), "ok");
-  } else if (result?.canceled) {
-    /* silent */
-  } else if (result?.error) toast(result.error, "error");
+  return targets.filter((t) => t.enabled).length;
 }
 
 function renderDeckSelect() {
@@ -335,23 +311,388 @@ async function cycleDeck(step) {
 function syncTargetsBadge() {
   const badge = $("target-badge");
   const btn = $("btn-corner-targets");
-  if (!badge || !btn) return;
   const targets = state.settings?.targets || [];
-  const enabled = targets.filter((t) => t.enabled).length;
-  if (!targets.length) {
-    badge.textContent = "!";
-    badge.classList.remove("hidden");
-    badge.classList.add("warn");
-    btn.title = window.I18n.t("rail.targetsManage");
-  } else if (!enabled) {
-    badge.textContent = "0";
-    badge.classList.remove("hidden", "warn");
-    btn.title = window.I18n.t("rail.targetsNone");
-  } else {
-    badge.textContent = String(enabled);
-    badge.classList.remove("hidden", "warn");
-    btn.title = window.I18n.t("rail.targetsCount", { n: enabled });
+  const destCount = resolveDestCount(state.settings);
+  const solo = String(state.settings?.pasteMode || "").toLowerCase() === "solo";
+  if (badge && btn) {
+    if (!targets.length) {
+      badge.textContent = "!";
+      badge.classList.remove("hidden");
+      badge.classList.add("warn");
+      btn.title = window.I18n.t("rail.targetsManage");
+    } else if (!destCount) {
+      badge.textContent = "0";
+      badge.classList.remove("hidden", "warn");
+      btn.title = solo
+        ? window.I18n.t("rail.targetsPickSolo")
+        : window.I18n.t("rail.targetsNone");
+    } else {
+      badge.textContent = String(destCount);
+      badge.classList.remove("hidden", "warn");
+      btn.title = solo
+        ? window.I18n.t("rail.targetsSolo", { n: destCount })
+        : window.I18n.t("rail.targetsCount", { n: destCount });
+    }
   }
+}
+
+function shortDestLabel(name, max = 10) {
+  const s = String(name || "").trim() || "…";
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
+}
+
+function renderDestBar() {
+  const bar = $("dest-bar");
+  const presetsEl = $("dest-presets");
+  const chipsEl = $("dest-chips");
+  if (!bar || !presetsEl || !chipsEl) return;
+
+  const targets = state.settings?.targets || [];
+  if (!targets.length) {
+    bar.classList.add("hidden");
+    presetsEl.innerHTML = "";
+    chipsEl.innerHTML = "";
+    return;
+  }
+
+  bar.classList.remove("hidden");
+  const mode = String(state.settings?.pasteMode || "broadcast").toLowerCase();
+  const activePresetId = state.settings?.activePresetId || "";
+  const activeTargetId = state.settings?.activeTargetId || "";
+  const presets = state.settings?.targetPresets || [];
+
+  presetsEl.innerHTML = presets
+    .map((p) => {
+      const active = mode === "broadcast" && p.id === activePresetId;
+      return `<button type="button" class="dest-pill${active ? " active" : ""}" data-preset="${escapeAttr(
+        p.id
+      )}" title="${escapeAttr(p.name)}" aria-pressed="${active ? "true" : "false"}">${escapeHtml(
+        shortDestLabel(p.name, 8)
+      )}</button>`;
+    })
+    .join("");
+
+  chipsEl.innerHTML = targets
+    .map((t) => {
+      const active = mode === "solo" && t.id === activeTargetId;
+      return `<button type="button" class="dest-chip${active ? " active" : ""}" data-target="${escapeAttr(
+        t.id
+      )}" title="${escapeAttr(t.name)}" aria-pressed="${active ? "true" : "false"}">${escapeHtml(
+        shortDestLabel(t.name, 9)
+      )}</button>`;
+    })
+    .join("");
+}
+
+async function selectDestSolo(targetId) {
+  if (!targetId) return;
+  // Drop old chat highlights immediately (before async transcript load)
+  if (state.settings?.activeTargetId !== targetId) {
+    clearDeckSuggestions();
+    state.transcriptTargetId = "";
+    state.transcriptHash = "";
+  }
+  state.settings = await window.keycode.saveSettings({
+    pasteMode: "solo",
+    activeTargetId: targetId,
+  });
+  renderAll();
+}
+
+async function selectDestPreset(presetId) {
+  const presets = state.settings?.targetPresets || [];
+  const preset = presets.find((p) => p.id === presetId);
+  if (!preset) return;
+
+  // Toggle off → fall back to enabled checkboxes
+  if (
+    String(state.settings?.pasteMode) === "broadcast" &&
+    state.settings?.activePresetId === presetId
+  ) {
+    clearDeckSuggestions();
+    state.settings = await window.keycode.saveSettings({
+      pasteMode: "broadcast",
+      activePresetId: "",
+    });
+    renderAll();
+    return;
+  }
+
+  clearDeckSuggestions();
+  const ids = new Set(preset.targetIds || []);
+  const targets = (state.settings?.targets || []).map((t) => ({
+    ...t,
+    enabled: ids.has(t.id),
+  }));
+  state.settings = await window.keycode.saveSettings({
+    pasteMode: "broadcast",
+    activePresetId: presetId,
+    targets,
+  });
+  renderAll();
+}
+
+function soloCdpTarget() {
+  const settings = state.settings;
+  if (String(settings?.pasteMode || "").toLowerCase() !== "solo") return null;
+  const id = settings?.activeTargetId;
+  if (!id) return null;
+  const t = (settings?.targets || []).find((x) => x.id === id);
+  if (!t || t.driver !== "cdp") return null;
+  return t;
+}
+
+function prepareDeckMessages(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const out = [];
+  const seen = new Set();
+  for (const m of list) {
+    const role = m?.role === "user" ? "user" : "assistant";
+    const text = String(m?.text || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (!text) continue;
+    const flat = text.replace(/\s+/g, " ").toLowerCase();
+    const key = role + "|" + flat;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ role, text });
+  }
+  // Keep last ~24 bubbles so the pane stays light
+  return out.slice(-24);
+}
+
+function renderDeckMessages(messages) {
+  const root = $("deck-transcript-msgs");
+  const empty = $("deck-transcript-empty");
+  if (!root || !empty) return;
+  const list = prepareDeckMessages(messages);
+  root.innerHTML = "";
+  if (!list.length) {
+    empty.classList.remove("hidden");
+    empty.textContent = window.I18n.t("deck.transcriptEmpty");
+    return;
+  }
+  empty.classList.add("hidden");
+  const frag = document.createDocumentFragment();
+  for (const m of list) {
+    const wrap = document.createElement("article");
+    wrap.className = `deck-msg ${m.role === "user" ? "user" : "assistant"}`;
+    const role = document.createElement("div");
+    role.className = "deck-msg-role";
+    role.textContent =
+      m.role === "user"
+        ? window.I18n.t("deck.transcriptYou")
+        : window.I18n.t("deck.transcriptAgent");
+    const bubble = document.createElement("div");
+    bubble.className = "deck-msg-bubble";
+    bubble.textContent = m.text;
+    wrap.appendChild(role);
+    wrap.appendChild(bubble);
+    frag.appendChild(wrap);
+  }
+  root.appendChild(frag);
+  if (state.transcriptStickBottom) {
+    root.scrollTop = root.scrollHeight;
+  }
+}
+
+function stopTranscriptPoll() {
+  if (transcriptPollTimer) {
+    clearInterval(transcriptPollTimer);
+    transcriptPollTimer = null;
+  }
+}
+
+function startTranscriptPoll() {
+  stopTranscriptPoll();
+  transcriptPollTimer = setInterval(() => {
+    refreshDeckTranscript({ select: false }).catch(() => {});
+  }, 2500);
+}
+
+function clampTranscriptHeight(px) {
+  const n = Number(px);
+  if (!Number.isFinite(n)) return 168;
+  return Math.min(420, Math.max(80, Math.round(n)));
+}
+
+function applyTranscriptHeight(px) {
+  const pane = $("deck-transcript");
+  if (!pane) return;
+  const h = clampTranscriptHeight(px ?? state.settings?.deckTranscriptHeightPx);
+  pane.style.height = `${h}px`;
+}
+
+function syncTranscriptToggleBtn(open) {
+  const btn = $("btn-transcript-toggle");
+  if (!btn) return;
+  const isOpen = open !== false;
+  btn.setAttribute("aria-pressed", isOpen ? "true" : "false");
+  const titleKey = isOpen ? "deck.transcriptHide" : "deck.transcriptShow";
+  const title = window.I18n.t(titleKey);
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+  const icon = btn.querySelector("span");
+  if (icon) icon.textContent = isOpen ? "▴" : "▾";
+}
+
+async function toggleDeckTranscript() {
+  const open = state.settings?.deckTranscriptOpen !== false;
+  state.settings = await window.keycode.saveSettings({
+    deckTranscriptOpen: !open,
+  });
+  syncDeckTranscript();
+}
+
+function syncDeckTranscript() {
+  const pane = $("deck-transcript");
+  const empty = $("deck-transcript-empty");
+  const toggle = $("btn-transcript-toggle");
+  if (!pane || !empty) return;
+
+  const mode = String(state.settings?.pasteMode || "broadcast").toLowerCase();
+  const targets = state.settings?.targets || [];
+  const wantOpen = state.settings?.deckTranscriptOpen !== false;
+  applyTranscriptHeight(state.settings?.deckTranscriptHeightPx);
+  syncTranscriptToggleBtn(wantOpen);
+
+  if (!targets.length) {
+    pane.classList.add("hidden");
+    if (toggle) toggle.classList.add("hidden");
+    stopTranscriptPoll();
+    state.transcriptHash = "";
+    state.transcriptTargetId = "";
+    clearDeckSuggestions();
+    return;
+  }
+  if (toggle) toggle.classList.remove("hidden");
+
+  if (!wantOpen) {
+    pane.classList.add("hidden");
+    stopTranscriptPoll();
+    return;
+  }
+
+  // Show pane when open — hint in broadcast, live in solo
+  pane.classList.remove("hidden");
+
+  if (mode !== "solo") {
+    stopTranscriptPoll();
+    state.transcriptHash = "";
+    state.transcriptTargetId = "";
+    clearDeckSuggestions();
+    $("deck-transcript-msgs").innerHTML = "";
+    empty.classList.remove("hidden");
+    empty.textContent = window.I18n.t("deck.transcriptPick");
+    pane.classList.remove("is-generating");
+    return;
+  }
+
+  const target = soloCdpTarget();
+  if (!target) {
+    stopTranscriptPoll();
+    state.transcriptHash = "";
+    state.transcriptTargetId = "";
+    clearDeckSuggestions();
+    $("deck-transcript-msgs").innerHTML = "";
+    empty.classList.remove("hidden");
+    empty.textContent = window.I18n.t("deck.transcriptNotCdp");
+    pane.classList.remove("is-generating");
+    return;
+  }
+
+  const switched = state.transcriptTargetId !== target.id;
+  if (switched) {
+    state.transcriptTargetId = target.id;
+    state.transcriptHash = "";
+    state.transcriptStickBottom = true;
+    clearDeckSuggestions();
+    $("deck-transcript-msgs").innerHTML = "";
+    empty.classList.remove("hidden");
+    empty.textContent = window.I18n.t("deck.transcriptLoading");
+    refreshDeckTranscript({ select: true }).catch(() => {});
+  }
+  if (!transcriptPollTimer) startTranscriptPoll();
+}
+
+async function refreshDeckTranscript({ select = false } = {}) {
+  if (state.settings?.deckTranscriptOpen === false) return;
+  const target = soloCdpTarget();
+  const pane = $("deck-transcript");
+  const empty = $("deck-transcript-empty");
+  if (!target || !pane || transcriptBusy) return;
+  if (!state.revealed && !state.pinnedOpen && !state.fullscreenEdit) {
+    // Still allow first fetch after chip click while revealed briefly
+  }
+  transcriptBusy = true;
+  try {
+    const result = await window.keycode.readDeckChat({
+      targetId: target.id,
+      select: !!select,
+    });
+    if (!soloCdpTarget() || soloCdpTarget()?.id !== target.id) return;
+    if (!result?.ok) {
+      if (!state.transcriptHash) {
+        empty.classList.remove("hidden");
+        empty.textContent =
+          result?.hint === "not_cdp"
+            ? window.I18n.t("deck.transcriptNotCdp")
+            : window.I18n.t("deck.transcriptError");
+        $("deck-transcript-msgs").innerHTML = "";
+      }
+      pane.classList.remove("is-generating");
+      clearDeckSuggestions();
+      return;
+    }
+    const hash = String(result.hash || "");
+    if (hash && hash === state.transcriptHash) {
+      pane.classList.toggle("is-generating", result.generating === true);
+      // Still apply suggestions when idle (deck may have changed)
+      if (result.generating !== true && Array.isArray(result.suggestions)) {
+        applyDeckSuggestions(result.suggestions);
+      }
+      return;
+    }
+    state.transcriptHash = hash || state.transcriptHash;
+    renderDeckMessages(result.messages || []);
+    pane.classList.toggle("is-generating", result.generating === true);
+    if (result.generating === true) {
+      // Keep cleared/frozen highlights while Cursor is generating
+    } else if (Array.isArray(result.suggestions)) {
+      applyDeckSuggestions(result.suggestions);
+    } else {
+      clearDeckSuggestions();
+    }
+  } finally {
+    transcriptBusy = false;
+  }
+}
+
+function applyDeckSuggestions(list) {
+  const next = Array.isArray(list) ? list : [];
+  const prev = state.suggestions || [];
+  const same =
+    prev.length === next.length &&
+    prev.every(
+      (s, i) => s.cardId === next[i].cardId && Number(s.rank) === Number(next[i].rank)
+    );
+  state.suggestions = next;
+  if (!same) renderCards();
+}
+
+function clearDeckSuggestions() {
+  if (!(state.suggestions || []).length) {
+    // DOM may still show stale classes if a prior clear skipped render
+    const root = $("cards");
+    if (root?.classList.contains("has-suggestions")) renderCards();
+    return;
+  }
+  state.suggestions = [];
+  renderCards();
 }
 
 function shortAction(text, maxWords = 2) {
@@ -370,6 +711,7 @@ function hideCardPreview() {
   el.classList.add("hidden");
   el.setAttribute("aria-hidden", "true");
   el.style.maxHeight = "";
+  el.style.width = "";
   el.style.left = "";
   el.style.top = "";
   state.previewCardId = null;
@@ -425,12 +767,21 @@ function pointInPreview(x, y) {
   return x >= left && x <= right && y >= top && y <= bottom;
 }
 
+function deckIsActiveWindow() {
+  return document.hasFocus();
+}
+
 function updatePreviewHover(clientX, clientY) {
   if (state.settingsWindowOpen || state.targetsWindowOpen) {
     if (!$("card-preview").classList.contains("hidden")) hideCardPreview();
     return;
   }
   if (state.settings?.showCardPreview === false) {
+    if (!$("card-preview").classList.contains("hidden")) hideCardPreview();
+    return;
+  }
+  // Always-on-top: не перекрывать чужие окна, пока колода не в фокусе
+  if (!deckIsActiveWindow()) {
     if (!$("card-preview").classList.contains("hidden")) hideCardPreview();
     return;
   }
@@ -466,6 +817,7 @@ function updatePreviewHover(clientX, clientY) {
 function showCardPreview(card, anchorEl) {
   if (state.settingsWindowOpen || state.targetsWindowOpen) return;
   if (state.settings?.showCardPreview === false) return;
+  if (!deckIsActiveWindow()) return;
   if (!state.revealed || !previewAllowed) return;
   cancelPreviewHide();
   const preset = window.tarotPreset(card.image);
@@ -503,8 +855,18 @@ function showCardPreview(card, anchorEl) {
   el.style.visibility = "hidden";
   el.classList.add("visible");
   el.style.maxHeight = "";
+  el.style.width = "";
 
   const dock = state.dock || "right";
+  // Side table: preview beside the whole grid, not beside one cell (avoids overlap).
+  if (dock === "right") {
+    const lane = Math.max(120, zoneRect.left - gap - 8);
+    el.style.width = `${Math.min(280, lane)}px`;
+  } else if (dock === "left") {
+    const lane = Math.max(120, window.innerWidth - zoneRect.right - gap - 8);
+    el.style.width = `${Math.min(280, lane)}px`;
+  }
+
   // Сверху/снизу: вписать превью в полосу tipLane, иначе текст обрезается окном
   if (dock === "top") {
     const belowBar = barRect ? barRect.bottom + gap : zoneRect.bottom + gap;
@@ -520,10 +882,10 @@ function showCardPreview(card, anchorEl) {
   el.style.visibility = "";
 
   if (dock === "right") {
-    left = rect.left - tipRect.width - gap;
+    left = zoneRect.left - tipRect.width - gap;
     top = rect.top;
   } else if (dock === "left") {
-    left = rect.right + gap;
+    left = zoneRect.right + gap;
     top = rect.top;
   } else if (dock === "top") {
     // Подсказки ниже кнопок (кнопки под картами), без наложения
@@ -549,10 +911,11 @@ function showCardPreview(card, anchorEl) {
 
   top = Math.max(8, Math.min(top, window.innerHeight - tipRect.height - 8));
   if (dock === "right") {
-    left = Math.min(left, rect.left - tipRect.width - gap);
+    // Never overlap the card table
+    left = Math.min(left, zoneRect.left - tipRect.width - gap);
     left = Math.max(8, left);
   } else if (dock === "left") {
-    left = Math.max(left, rect.right + gap);
+    left = Math.max(left, zoneRect.right + gap);
     left = Math.min(left, window.innerWidth - tipRect.width - 8);
   } else {
     left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
@@ -583,20 +946,73 @@ function pointInRect(x, y, r, pad = 0) {
 
 function hitCapturesMouse(x, y) {
   // Геометрия надёжнее elementFromPoint при click-through (ignore + forward)
+  // Table: only the centered cluster (cards + hub + rail), not empty top/bottom.
+  const cluster = document.getElementById("deck-cluster");
+  if (isSideTable() && cluster) {
+    if (!pointInRect(x, y, cluster.getBoundingClientRect(), 6)) {
+      const onboarding = document.getElementById("onboarding");
+      if (
+        onboarding &&
+        !onboarding.classList.contains("hidden") &&
+        pointInRect(x, y, onboarding.getBoundingClientRect(), 0)
+      ) {
+        return true;
+      }
+      const nudge = document.getElementById("cdp-nudge");
+      if (
+        nudge &&
+        !nudge.classList.contains("hidden") &&
+        pointInRect(x, y, nudge.getBoundingClientRect(), 0)
+      ) {
+        return true;
+      }
+      const modal = document.querySelector(".modal:not(.hidden)");
+      if (modal && pointInRect(x, y, modal.getBoundingClientRect(), 0)) return true;
+      const toast = document.querySelector(".toast:not(.hidden)");
+      if (toast && pointInRect(x, y, toast.getBoundingClientRect(), 0)) return true;
+      if (pointInPreview(x, y)) return true;
+      return false;
+    }
+  }
+
   for (const card of document.querySelectorAll(".card")) {
     if (pointInRect(x, y, card.getBoundingClientRect(), 2)) return true;
   }
-  const rail = document.getElementById("target-rail");
-  if (rail && pointInRect(x, y, rail.getBoundingClientRect(), 4)) return true;
   const stripDeck = document.querySelector(".strip-deck-pager");
   if (stripDeck && pointInRect(x, y, stripDeck.getBoundingClientRect(), 4)) {
     return true;
   }
+  const destBar = document.getElementById("dest-bar");
+  if (
+    destBar &&
+    !destBar.classList.contains("hidden") &&
+    pointInRect(x, y, destBar.getBoundingClientRect(), 4)
+  ) {
+    return true;
+  }
+  const transcript = document.getElementById("deck-transcript");
+  if (
+    transcript &&
+    !transcript.classList.contains("hidden") &&
+    pointInRect(x, y, transcript.getBoundingClientRect(), 4)
+  ) {
+    return true;
+  }
+  const hub = document.querySelector(".deck-hub, .titlebar");
+  if (hub && pointInRect(x, y, hub.getBoundingClientRect(), 4)) return true;
   const onboarding = document.getElementById("onboarding");
   if (
     onboarding &&
     !onboarding.classList.contains("hidden") &&
     pointInRect(x, y, onboarding.getBoundingClientRect(), 0)
+  ) {
+    return true;
+  }
+  const nudge = document.getElementById("cdp-nudge");
+  if (
+    nudge &&
+    !nudge.classList.contains("hidden") &&
+    pointInRect(x, y, nudge.getBoundingClientRect(), 0)
   ) {
     return true;
   }
@@ -653,21 +1069,34 @@ function renderCards() {
   const root = $("cards");
   const cards = state.deck?.cards || [];
   const countEl = $("card-count");
-  if (countEl) countEl.textContent = `${cards.length}/8`;
+  if (countEl) countEl.textContent = `${cards.length}/9`;
 
   if (!cards.length) {
+    root.classList.remove("has-suggestions");
     root.innerHTML =
       '<div class="empty-targets">' + window.I18n.t("cards.empty") + "</div>";
     return;
   }
 
+  const hasSuggestions = (state.suggestions || []).some(
+    (s) => s?.cardId && (s.rank === 1 || s.rank === 2)
+  );
+  root.classList.toggle("has-suggestions", hasSuggestions);
+
   root.innerHTML = cards
-    .map((card) => {
+    .map((card, index) => {
       const preset = window.tarotPreset(card.image);
       const src = window.tarotImageUrl(card.image);
       const action = shortAction(card.title || card.description);
+      const sug = (state.suggestions || []).find((s) => s.cardId === card.id);
+      const sugClass =
+        sug?.rank === 1
+          ? " suggested-primary"
+          : sug?.rank === 2
+            ? " suggested-secondary"
+            : "";
       return `
-      <article class="card" data-id="${escapeAttr(card.id)}">
+      <article class="card${sugClass}" data-id="${escapeAttr(card.id)}" data-index="${index}">
         <button type="button" class="card-edit-btn" data-edit="${escapeAttr(
           card.id
         )}" title="${escapeAttr(window.I18n.t("cards.edit"))}" aria-label="${escapeAttr(
@@ -723,6 +1152,149 @@ async function dismissOnboarding() {
   window.keycode.setModalHold?.(false);
   await window.keycode.dismissFirstRun?.();
   state.settings = { ...state.settings, firstRunDone: true };
+  if (pendingCdpNudge) {
+    const data = pendingCdpNudge;
+    pendingCdpNudge = null;
+    showCdpNudge(data);
+  }
+}
+
+let cdpBusy = false;
+let cdpNudgeCursorRunning = false;
+let pendingCdpNudge = null;
+
+function hideCdpNudge() {
+  const el = $("cdp-nudge");
+  if (el) el.classList.add("hidden");
+  window.keycode.setModalHold?.(false);
+}
+
+function showCdpNudge(data = {}) {
+  const el = $("cdp-nudge");
+  if (!el) return;
+  const onboarding = $("onboarding");
+  if (onboarding && !onboarding.classList.contains("hidden")) {
+    pendingCdpNudge = data;
+    return;
+  }
+  cdpNudgeCursorRunning = !!data.cursorRunning;
+  const text = $("cdp-nudge-text");
+  const action = $("cdp-nudge-action");
+  if (text) {
+    text.textContent = cdpNudgeCursorRunning
+      ? window.I18n.t("cdp.nudgeRestart")
+      : window.I18n.t("cdp.nudgeLaunch");
+  }
+  if (action) {
+    action.textContent = cdpNudgeCursorRunning
+      ? window.I18n.t("cdp.restartBtn")
+      : window.I18n.t("cdp.launchBtn");
+  }
+  el.classList.remove("hidden");
+  window.keycode.setModalHold?.(true);
+  window.keycode.showDeck?.();
+}
+
+function setCdpCornerState(kind) {
+  const btn = $("btn-corner-cdp");
+  if (!btn) return;
+  const ok = kind === "ok";
+  const warn = kind === "warn" || kind === "" || kind == null;
+  btn.classList.toggle("ok", ok);
+  btn.classList.toggle("warn", warn && !ok);
+  if (window.I18n?.t) {
+    btn.title = ok
+      ? window.I18n.t("cdp.alreadyOk")
+      : window.I18n.t("deck.cdpTitle");
+  }
+}
+
+let cdpStatusTimer = null;
+let cdpStatusBusy = false;
+
+async function refreshCdpCornerState() {
+  if (cdpStatusBusy || cdpBusy) return;
+  const btn = $("btn-corner-cdp");
+  if (!btn) return;
+  cdpStatusBusy = true;
+  try {
+    const probe = await window.keycode.cursorProbe();
+    if (probe?.ok || probe?.open) {
+      setCdpCornerState("ok");
+    } else {
+      // CDP closed — dark red whether Cursor is running or not
+      setCdpCornerState("warn");
+    }
+  } catch {
+    setCdpCornerState("warn");
+  } finally {
+    cdpStatusBusy = false;
+  }
+}
+
+function startCdpStatusWatch() {
+  if (cdpStatusTimer) return;
+  refreshCdpCornerState();
+  cdpStatusTimer = setInterval(() => {
+    if (document.body.classList.contains("revealed") || state.pinnedOpen) {
+      refreshCdpCornerState();
+    }
+  }, 8000);
+}
+
+function stopCdpStatusWatch() {
+  if (!cdpStatusTimer) return;
+  clearInterval(cdpStatusTimer);
+  cdpStatusTimer = null;
+}
+
+async function launchOrRestartCdp({ fromNudge = false } = {}) {
+  if (cdpBusy) return;
+  cdpBusy = true;
+  const btn = $("btn-corner-cdp");
+  const nudgeAction = $("cdp-nudge-action");
+  if (btn) btn.disabled = true;
+  if (nudgeAction) nudgeAction.disabled = true;
+  try {
+    const probe = await window.keycode.cursorProbe();
+    if (probe?.ok || probe?.open) {
+      setCdpCornerState("ok");
+      toast(probe.hint || window.I18n.t("cdp.alreadyOk"), "ok");
+      hideCdpNudge();
+      return;
+    }
+    const running = !!probe?.cursorRunning;
+    toast(
+      running ? window.I18n.t("cdp.restarting") : window.I18n.t("cdp.launching"),
+      ""
+    );
+    const r = await window.keycode.cursorLaunchIntegration({
+      mode: "both",
+      allowRestart: true,
+    });
+    if (!r?.ok) {
+      setCdpCornerState("warn");
+      toast(r?.error || window.I18n.t("cdp.fail"), "error");
+      return;
+    }
+    const open = !!(r.probe?.open);
+    setCdpCornerState(open ? "ok" : "warn");
+    toast(
+      r.probe?.hint ||
+        (open
+          ? window.I18n.t("msg.cursorReadyCdp")
+          : window.I18n.t("msg.cursorStarting")),
+      open ? "ok" : "error"
+    );
+    if (open || fromNudge) hideCdpNudge();
+  } catch (e) {
+    setCdpCornerState("warn");
+    toast(String(e.message || e), "error");
+  } finally {
+    cdpBusy = false;
+    if (btn) btn.disabled = false;
+    if (nudgeAction) nudgeAction.disabled = false;
+  }
 }
 
 function escapeHtml(s) {
@@ -767,9 +1339,13 @@ function formatPasteToast(results) {
 
 async function onPasteCard(cardId) {
   hideCardPreview();
-  const enabled = (state.settings?.targets || []).filter((t) => t.enabled).length;
-  if (!enabled) {
-    toast(window.I18n.t("cards.pickTarget"), "error");
+  const destCount = resolveDestCount(state.settings);
+  if (!destCount) {
+    const solo = String(state.settings?.pasteMode || "").toLowerCase() === "solo";
+    toast(
+      solo ? window.I18n.t("cards.pickSoloChat") : window.I18n.t("cards.pickTarget"),
+      "error"
+    );
     return;
   }
   const el = document.querySelector(`.card[data-id="${CSS.escape(cardId)}"]`);
@@ -780,6 +1356,10 @@ async function onPasteCard(cardId) {
   if (result?.results) {
     const t = formatPasteToast(result.results);
     toast(t.message, t.type);
+  }
+  if (soloCdpTarget()) {
+    state.transcriptHash = "";
+    refreshDeckTranscript({ select: false }).catch(() => {});
   }
 }
 
@@ -843,7 +1423,7 @@ async function deleteEditingCard() {
 
 async function addCard() {
   if (!state.deck) return;
-  if (state.deck.cards.length >= 8) {
+  if (state.deck.cards.length >= 9) {
     toast(window.I18n.t("cards.max8"), "error");
     return;
   }
@@ -907,11 +1487,97 @@ function bindEvents() {
     window.keycode.openSettings();
   });
 
+  $("btn-corner-cdp")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideCardPreview();
+    launchOrRestartCdp();
+  });
+
+  $("cdp-nudge-action")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    launchOrRestartCdp({ fromNudge: true });
+  });
+
+  $("cdp-nudge-dismiss")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideCdpNudge();
+  });
+
   $("btn-corner-targets").addEventListener("click", (e) => {
     e.stopPropagation();
     hideCardPreview();
     window.keycode.openTargets();
   });
+
+  $("dest-bar")?.addEventListener("click", (e) => {
+    const toggleBtn = e.target.closest?.("#btn-transcript-toggle");
+    if (toggleBtn) {
+      e.stopPropagation();
+      toggleDeckTranscript();
+      return;
+    }
+    const presetBtn = e.target.closest?.("[data-preset]");
+    if (presetBtn) {
+      e.stopPropagation();
+      selectDestPreset(presetBtn.getAttribute("data-preset"));
+      return;
+    }
+    const chipBtn = e.target.closest?.("[data-target]");
+    if (chipBtn) {
+      e.stopPropagation();
+      selectDestSolo(chipBtn.getAttribute("data-target"));
+    }
+  });
+
+  {
+    let resizeStartY = 0;
+    let resizeStartH = 0;
+    let resizing = false;
+    const onMove = (e) => {
+      if (!resizing) return;
+      const dy = e.clientY - resizeStartY;
+      const next = clampTranscriptHeight(resizeStartH + dy);
+      applyTranscriptHeight(next);
+      if (state.settings) state.settings.deckTranscriptHeightPx = next;
+    };
+    const onUp = async () => {
+      if (!resizing) return;
+      resizing = false;
+      document.body.classList.remove("transcript-resizing");
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      const h = clampTranscriptHeight(
+        state.settings?.deckTranscriptHeightPx ?? $("deck-transcript")?.offsetHeight
+      );
+      state.settings = await window.keycode.saveSettings({
+        deckTranscriptHeightPx: h,
+      });
+      applyTranscriptHeight(h);
+    };
+    $("deck-transcript-resize")?.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pane = $("deck-transcript");
+      if (!pane || pane.classList.contains("hidden")) return;
+      resizing = true;
+      resizeStartY = e.clientY;
+      resizeStartH = pane.getBoundingClientRect().height;
+      document.body.classList.add("transcript-resizing");
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    });
+  }
+
+  $("deck-transcript-msgs")?.addEventListener(
+    "scroll",
+    () => {
+      const el = $("deck-transcript-msgs");
+      if (!el) return;
+      const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+      state.transcriptStickBottom = gap < 28;
+    },
+    { passive: true }
+  );
 
   $("btn-corner-quit").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -940,58 +1606,27 @@ function bindEvents() {
     await cycleDeck(1);
   });
 
-  $("btn-rail-all")?.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    await setTargetsEnabled((targets) =>
-      targets.map((t) => ({ ...t, enabled: true }))
-    );
-  });
-
-  $("btn-rail-none")?.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    await setTargetsEnabled((targets) =>
-      targets.map((t) => ({ ...t, enabled: false }))
-    );
-  });
-
-  $("btn-rail-pick")?.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    hideCardPreview();
-    await pickTargetFromRail("field");
-  });
-
-  $("btn-rail-agent")?.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    hideCardPreview();
-    await pickTargetFromRail("cursor");
-  });
-
-  $("target-rail-list")?.addEventListener("click", async (e) => {
-    const btn = e.target.closest("[data-rail-toggle]");
-    if (!btn) return;
-    e.stopPropagation();
-    const id = btn.getAttribute("data-rail-toggle");
-    await setTargetsEnabled((targets) =>
-      targets.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
-    );
-  });
-
-  $("card-cancel").addEventListener("click", closeCardEditor);
+$("card-cancel").addEventListener("click", closeCardEditor);
   $("card-save").addEventListener("click", saveCardEditor);
   $("card-delete").addEventListener("click", deleteEditingCard);
 
   document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    if (!$("modal-card")?.classList.contains("hidden")) {
-      closeCardEditor();
-      return;
-    }
-    if (!$("modal-quit")?.classList.contains("hidden")) {
-      closeQuitDialog();
-      return;
-    }
-    if (!$("onboarding")?.classList.contains("hidden")) {
-      dismissOnboarding();
+    if (e.key === "Escape") {
+      if (!$("modal-card")?.classList.contains("hidden")) {
+        closeCardEditor();
+        return;
+      }
+      if (!$("modal-quit")?.classList.contains("hidden")) {
+        closeQuitDialog();
+        return;
+      }
+      if (!$("onboarding")?.classList.contains("hidden")) {
+        dismissOnboarding();
+        return;
+      }
+      if (!$("cdp-nudge")?.classList.contains("hidden")) {
+        hideCdpNudge();
+      }
     }
   });
 
@@ -1002,17 +1637,17 @@ function bindEvents() {
       openCardEditor(edit.getAttribute("data-edit"));
       return;
     }
-    const send = e.target.closest("[data-send]");
-    if (send) {
-      onPasteCard(send.getAttribute("data-send"));
-      return;
-    }
     const card = e.target.closest(".card");
     if (!card) return;
-    onPasteCard(card.getAttribute("data-id"));
+    const cardId = card.getAttribute("data-id");
+    if (!cardId) return;
+    onPasteCard(cardId);
   });
 
   window.keycode.onToast((data) => toast(data.message, data.type || ""));
+  window.keycode.onCdpNudge?.((data) => {
+    showCdpNudge(data || {});
+  });
   window.keycode.onPasteDone((data) => {
     if (!document.hasFocus()) {
       const t = formatPasteToast(data.results);
@@ -1023,6 +1658,7 @@ function bindEvents() {
   window.keycode.onDeckReveal(() => {
     document.body.classList.remove("concealing", "booting");
     setPreviewAllowed(false);
+    startCdpStatusWatch();
     // Два кадра — окно успевает показаться скрытым, потом плавный выезд
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -1034,6 +1670,7 @@ function bindEvents() {
   });
   window.keycode.onDeckConceal(() => {
     setRevealed(false);
+    stopCdpStatusWatch();
   });
   window.keycode.onPanelExpanded((data) => {
     applyDockClass(state.dock, state.horizontal, !!data?.expanded);
@@ -1073,9 +1710,21 @@ function bindEvents() {
     applyOpacity(state.settings);
     applyCardFonts(state.settings);
     if (partial.panelScale != null) applyPanelScale(state.settings);
+    if (partial.sideCardLayout != null) {
+      applySideLayoutClass();
+    }
     if (partial.targets) {
       syncTargetsBadge();
-      renderTargetRail();
+      renderDestBar();
+    }
+    if (
+      partial.pasteMode != null ||
+      partial.activeTargetId != null ||
+      partial.activePresetId != null ||
+      partial.targetPresets != null
+    ) {
+      syncTargetsBadge();
+      renderDestBar();
     }
   });
 
@@ -1088,6 +1737,49 @@ function bindEvents() {
     { passive: true }
   );
 
+  window.addEventListener("blur", () => {
+    hideCardPreview();
+  });
+  window.addEventListener("focus", async () => {
+    try {
+      const p = await window.keycode.getCursorClient?.();
+      if (!p || typeof p.x !== "number") return;
+      lastIgnoreMouse = null;
+      updateMousePassthrough(p.x, p.y);
+      updatePreviewHover(p.x, p.y);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  // Колесико над картой крутит расшифровку (не только над самой панелью)
+  document.addEventListener(
+    "wheel",
+    (e) => {
+      const preview = $("card-preview");
+      if (!preview || preview.classList.contains("hidden")) return;
+      if (preview.contains(e.target)) return;
+      if (preview.scrollHeight <= preview.clientHeight + 1) return;
+
+      const cardEl = cardAtPoint(e.clientX, e.clientY);
+      if (!cardEl) return;
+      if (state.previewCardId !== cardEl.getAttribute("data-id")) return;
+
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16;
+      else if (e.deltaMode === 2) dy *= preview.clientHeight;
+
+      const atTop = preview.scrollTop <= 0;
+      const atBottom =
+        preview.scrollTop + preview.clientHeight >= preview.scrollHeight - 1;
+      if ((dy < 0 && atTop) || (dy > 0 && atBottom)) return;
+
+      e.preventDefault();
+      preview.scrollTop += dy;
+    },
+    { passive: false, capture: true }
+  );
+
   // По умолчанию клики сквозь прозрачную зону
   window.keycode.setIgnoreMouse?.(true);
   lastIgnoreMouse = true;
@@ -1096,9 +1788,17 @@ function bindEvents() {
 bindEvents();
 refresh()
   .then(() => waitForCardImages(1200))
-  .then(() => window.keycode.deckUiReady?.())
+  .then(() => {
+    window.keycode.deckUiReady?.();
+    startCdpStatusWatch();
+    // Default until first probe finishes: assume CDP down → dark red
+    setCdpCornerState("warn");
+    refreshCdpCornerState();
+  })
   .catch((e) => {
     console.error(e);
     toast(window.I18n.t("cards.loadError"), "error");
     window.keycode.deckUiReady?.();
+    setCdpCornerState("warn");
+    startCdpStatusWatch();
   });

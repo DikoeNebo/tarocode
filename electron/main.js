@@ -17,9 +17,22 @@ const { execFile } = require("child_process");
 const { promisify } = require("util");
 const { pathToFileURL } = require("url");
 const { getUiaClient } = require("./uia-client");
-const { getCdpClient, DEFAULT_PORT: DEFAULT_CDP_PORT } = require("./cdp-client");
+const {
+  getCdpClient,
+  DEFAULT_PORT: DEFAULT_CDP_PORT,
+  normalizeCreateChatRequest,
+} = require("./cdp-client");
+const { suggestNextCards } = require("./card-suggestions");
+/** Rewrite bundled hobby/pro decks from locale packs when this increases. */
+const STOCK_DECK_REV = 3;
+const {
+  getCursorSdkClient,
+  SDK_LIVE_CHAT_ID,
+  DEFAULT_MODEL_ID,
+} = require("./cursor-sdk-client");
 const {
   launchCursorForIntegration,
+  launchOrRestartCursorWithCdp,
   installCursorCdpShortcut,
   isCursorRunning,
   resolveCursorExe,
@@ -37,6 +50,17 @@ const {
   listExistingDeckIds,
   MAX_DECK_IMPORT_BYTES,
   DEFAULT_REMOTE_PORT,
+  normalizeSdkProjects,
+  migrateSdkProjects,
+  normalizeSdkProject,
+  normalizeSdkChat,
+  MAX_SDK_PROJECTS,
+  MAX_SDK_CHATS_PER_PROJECT,
+  isCursorSdkEnabled,
+  normalizePasteMode,
+  normalizeTargetPresets,
+  resolvePasteTargets,
+  migratePasteRouting,
 } = require("./data-store");
 const { PasteQueue } = require("./paste-queue");
 const {
@@ -243,9 +267,13 @@ const defaultSettings = {
   panelScale: 1,
   editMode: false,
   targets: [],
+  targetsWindowBounds: null,
+  targetsWindowMaximized: false,
   activeDeckId: "lazy-v1",
   /** @type {'top'|'bottom'|'left'|'right'} */
   dock: "right",
+  /** Side docks: "table" (default 3×4 grid) | "strip" (classic full-height column) */
+  sideCardLayout: "table",
   /** Edge hover popup */
   edgeHover: true,
   edgeThreshold: 14,
@@ -271,6 +299,26 @@ const defaultSettings = {
   remotePort: DEFAULT_REMOTE_PORT,
   remoteToken: "",
   remoteAccessMode: "lan",
+  /** Shelved A/B: "cdp" | "sdk" — sdk only when KEYCODE_ENABLE_SDK=1 */
+  cursorBackend: "cdp",
+  cursorApiKey: "",
+  cursorSdkCwd: "",
+  cursorSdkAgentId: "",
+  cursorSdkModel: DEFAULT_MODEL_ID,
+  /** @type {Array<{id:string,name:string,cwd:string,agentId:string}>} */
+  sdkProjects: [],
+  activeSdkProjectId: "",
+  /** Desktop paste routing: broadcast (preset/enabled) | solo (one chat) */
+  pasteMode: "broadcast",
+  activeTargetId: "",
+  activePresetId: "",
+  /** @type {Array<{id:string,name:string,targetIds:string[]}>} */
+  targetPresets: [],
+  /** Deck strip chat transcript pane */
+  deckTranscriptOpen: true,
+  deckTranscriptHeightPx: 168,
+  /** Last applied stock deck pack revision (see STOCK_DECK_REV). */
+  stockDeckRev: 0,
 };
 
 /** Manual pin (F9) — stays open until unpinned */
@@ -293,6 +341,8 @@ let deckUiReady = false;
 let previewHoldOpen = false;
 /** Keep deck open while quit/card modal is visible (don't edge-hide) */
 let modalHoldOpen = false;
+/** Keep deck open while cursor is over cards/buttons (ignore-mouse = false) */
+let mouseCaptureOpen = false;
 /** Keep deck visible while settings window is open */
 let settingsHeldPin = false;
 let settingsRestorePinned = false;
@@ -337,6 +387,12 @@ function ensureData() {
       s.edgeHover = true;
       changed = true;
     }
+    if (Number(s.stockDeckRev || 0) < STOCK_DECK_REV) {
+      const ui = i18n.resolveUiLocale(s.uiLocale || "system", systemLocale());
+      syncBundledDecks(ui, { onlyIfMissing: false });
+      s.stockDeckRev = STOCK_DECK_REV;
+      changed = true;
+    }
     if (changed) {
       atomicWriteJson(settingsPath(), s);
     }
@@ -353,13 +409,35 @@ function readSettings() {
     const mig = migrateTargets(merged.targets || []);
     if (mig.changed) {
       merged.targets = mig.targets;
+    } else {
+      merged.targets = mig.targets;
+    }
+    const sdkMig = migrateSdkProjects(merged);
+    merged.sdkProjects = sdkMig.projects;
+    merged.activeSdkProjectId = sdkMig.activeSdkProjectId;
+    const pasteMig = migratePasteRouting(merged);
+    merged.pasteMode = pasteMig.pasteMode;
+    merged.activeTargetId = pasteMig.activeTargetId;
+    merged.activePresetId = pasteMig.activePresetId;
+    merged.targetPresets = pasteMig.targetPresets;
+    let sdkUiOff = false;
+    if (!isCursorSdkEnabled() && merged.cursorBackend === "sdk") {
+      merged.cursorBackend = "cdp";
+      sdkUiOff = true;
+    }
+    let sideLayoutMig = false;
+    const sideRaw = String(merged.sideCardLayout || "").toLowerCase();
+    if (sideRaw !== "strip" && sideRaw !== "table") {
+      // Legacy "wheel" (and unknown) → tarot table
+      merged.sideCardLayout = "table";
+      sideLayoutMig = true;
+    }
+    if (mig.changed || sdkMig.changed || pasteMig.changed || sdkUiOff || sideLayoutMig) {
       try {
         atomicWriteJson(settingsPath(), merged);
       } catch {
         /* ignore */
       }
-    } else {
-      merged.targets = mig.targets;
     }
     return merged;
   } catch {
@@ -393,6 +471,60 @@ function writeSettings(partial) {
   if (safe.remoteAccessMode != null) {
     next.remoteAccessMode =
       String(safe.remoteAccessMode).toLowerCase() === "tailscale" ? "tailscale" : "lan";
+  }
+  if (safe.sideCardLayout != null) {
+    next.sideCardLayout =
+      String(safe.sideCardLayout).toLowerCase() === "strip" ? "strip" : "table";
+  }
+  if (safe.targetsWindowBounds != null) {
+    const b = safe.targetsWindowBounds;
+    const nums = ["x", "y", "width", "height"].map((key) => Number(b?.[key]));
+    if (nums.every(Number.isFinite)) {
+      next.targetsWindowBounds = {
+        x: Math.round(Math.min(100000, Math.max(-100000, nums[0]))),
+        y: Math.round(Math.min(100000, Math.max(-100000, nums[1]))),
+        width: Math.round(Math.min(10000, Math.max(400, nums[2]))),
+        height: Math.round(Math.min(10000, Math.max(420, nums[3]))),
+      };
+    }
+  }
+  if (safe.targetsWindowMaximized != null) {
+    next.targetsWindowMaximized = safe.targetsWindowMaximized === true;
+  }
+  if (safe.pasteMode != null) {
+    next.pasteMode = normalizePasteMode(safe.pasteMode);
+  }
+  if (safe.activeTargetId != null) {
+    next.activeTargetId = trySafeId(safe.activeTargetId) || "";
+  }
+  if (safe.activePresetId != null) {
+    next.activePresetId = trySafeId(safe.activePresetId) || "";
+  }
+  if (safe.targetPresets != null) {
+    next.targetPresets = normalizeTargetPresets(safe.targetPresets);
+  }
+  if (safe.deckTranscriptOpen != null) {
+    next.deckTranscriptOpen = safe.deckTranscriptOpen !== false;
+  }
+  if (safe.deckTranscriptHeightPx != null) {
+    const h = Number(safe.deckTranscriptHeightPx);
+    next.deckTranscriptHeightPx = Number.isFinite(h)
+      ? Math.min(420, Math.max(80, Math.round(h)))
+      : 168;
+  }
+  // Drop stale preset/active ids when targets change
+  if (
+    safe.targets != null ||
+    safe.targetPresets != null ||
+    safe.activeTargetId != null ||
+    safe.activePresetId != null ||
+    safe.pasteMode != null
+  ) {
+    const pasteMig = migratePasteRouting(next);
+    next.pasteMode = pasteMig.pasteMode;
+    next.activeTargetId = pasteMig.activeTargetId;
+    next.activePresetId = pasteMig.activePresetId;
+    next.targetPresets = pasteMig.targetPresets;
   }
   atomicWriteJson(settingsPath(), next);
   return next;
@@ -630,13 +762,65 @@ function closeChatPickWindow() {
   chatPickWindow = null;
 }
 
+function targetsWindowPlacement(settings) {
+  const fallbackWidth = 480;
+  const fallbackHeight = 560;
+  const saved = settings?.targetsWindowBounds;
+  const valid =
+    saved &&
+    ["x", "y", "width", "height"].every((key) => Number.isFinite(Number(saved[key])));
+  if (valid) {
+    const bounds = {
+      x: Math.round(Number(saved.x)),
+      y: Math.round(Number(saved.y)),
+      width: Math.min(10000, Math.max(400, Math.round(Number(saved.width)))),
+      height: Math.min(10000, Math.max(420, Math.round(Number(saved.height)))),
+    };
+    const display = screen.getAllDisplays().find(({ workArea: wa }) => {
+      const overlapWidth = Math.min(bounds.x + bounds.width, wa.x + wa.width) -
+        Math.max(bounds.x, wa.x);
+      const overlapHeight = Math.min(bounds.y + bounds.height, wa.y + wa.height) -
+        Math.max(bounds.y, wa.y);
+      return overlapWidth >= 80 && overlapHeight >= 80;
+    });
+    if (display) {
+      const wa = display.workArea;
+      const width = Math.min(bounds.width, wa.width);
+      const height = Math.min(bounds.height, wa.height);
+      return {
+        x: Math.min(wa.x + wa.width - width, Math.max(wa.x, bounds.x)),
+        y: Math.min(wa.y + wa.height - height, Math.max(wa.y, bounds.y)),
+        width,
+        height,
+      };
+    }
+  }
+  const wa = workArea();
+  const width = Math.min(fallbackWidth, wa.width);
+  const height = Math.min(fallbackHeight, wa.height);
+  return {
+    x: Math.round(wa.x + (wa.width - width) / 2),
+    y: Math.round(wa.y + (wa.height - height) / 2),
+    width,
+    height,
+  };
+}
+
+function saveTargetsWindowPlacement() {
+  if (!targetsWindow || targetsWindow.isDestroyed()) return;
+  writeSettings({
+    targetsWindowBounds: targetsWindow.getNormalBounds(),
+    targetsWindowMaximized: targetsWindow.isMaximized(),
+  });
+}
+
 function openChatPickWindow() {
   if (chatPickWindow && !chatPickWindow.isDestroyed()) {
     chatPickWindow.focus();
     return;
   }
-  const width = 440;
-  const height = 520;
+  const width = 460;
+  const height = 580;
   const wa = workArea();
   const x = Math.round(wa.x + (wa.width - width) / 2);
   const y = Math.round(wa.y + (wa.height - height) / 2);
@@ -645,8 +829,8 @@ function openChatPickWindow() {
     y,
     width,
     height,
-    minWidth: 360,
-    minHeight: 400,
+    minWidth: 380,
+    minHeight: 440,
     title: t("chatPick.winTitle"),
     backgroundColor: "#120a1c",
     autoHideMenuBar: true,
@@ -660,6 +844,12 @@ function openChatPickWindow() {
     },
   });
   chatPickWindow.setAlwaysOnTop(true, "floating");
+  // Dictation (Web Speech) needs media permission in this window.
+  chatPickWindow.webContents.session.setPermissionRequestHandler(
+    (_wc, permission, callback) => {
+      callback(permission === "media" || permission === "microphone");
+    }
+  );
   chatPickWindow.once("ready-to-show", () => {
     if (!chatPickWindow || chatPickWindow.isDestroyed()) return;
     // Prefer inactive show so a game does not lose focus when adding chats mid-play.
@@ -679,6 +869,8 @@ function openChatPickWindow() {
 
 function openTargetsWindow() {
   if (targetsWindow && !targetsWindow.isDestroyed()) {
+    if (targetsWindow.isMinimized()) targetsWindow.restore();
+    if (!targetsWindow.isVisible()) targetsWindow.show();
     targetsWindow.focus();
     return;
   }
@@ -694,17 +886,11 @@ function openTargetsWindow() {
     deckWindow.webContents.send("targets-open");
   }
 
-  const width = 480;
-  const height = 560;
-  const wa = workArea();
-  const x = Math.round(wa.x + (wa.width - width) / 2);
-  const y = Math.round(wa.y + (wa.height - height) / 2);
+  const settings = readSettings();
+  const bounds = targetsWindowPlacement(settings);
 
   targetsWindow = new BrowserWindow({
-    x,
-    y,
-    width,
-    height,
+    ...bounds,
     minWidth: 400,
     minHeight: 420,
     title: t("targets.winTitle"),
@@ -712,6 +898,13 @@ function openTargetsWindow() {
     autoHideMenuBar: true,
     show: false,
     alwaysOnTop: false,
+    frame: true,
+    thickFrame: true,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    closable: true,
+    fullscreenable: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -723,11 +916,13 @@ function openTargetsWindow() {
   targetsWindow.once("ready-to-show", () => {
     if (targetsWindow && !targetsWindow.isDestroyed()) {
       targetsWindow.show();
+      if (settings.targetsWindowMaximized === true) targetsWindow.maximize();
       targetsWindow.focus();
     }
   });
 
   targetsWindow.loadFile(path.join(appRoot(), "src", "targets.html"));
+  targetsWindow.on("close", saveTargetsWindowPlacement);
 
   targetsWindow.on("closed", () => {
     targetsWindow = null;
@@ -746,12 +941,13 @@ function openTargetsWindow() {
   });
 }
 
-/** Base: 4×24px buttons + 3×2px gap; card height 2:3 */
+/** Base: 5×24px corner buttons + 4×2px gaps; card height 2:3 */
 function stripMetrics(scale) {
   const s = Math.min(1.5, Math.max(0.75, Number(scale) || 1));
   const btn = Math.round(24 * s);
   const gap = Math.max(1, Math.round(2 * s));
-  const strip = 4 * btn + 3 * gap;
+  // Must match src/styles.css --deck-strip-w (5 corner buttons)
+  const strip = 5 * btn + 4 * gap;
   const cardH = Math.round((strip * 3) / 2);
   const titlebarH = Math.max(btn, Math.round(28 * s));
   const cardGap = Math.max(1, Math.round(2 * s));
@@ -762,17 +958,11 @@ function currentStrip() {
   return stripMetrics(readSettings().panelScale);
 }
 
-function railWidth(scale) {
-  const s = Math.min(1.5, Math.max(0.75, Number(scale) || 1));
-  return Math.round(148 * s);
-}
-
 function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
   const wa = workArea();
   const metrics =
     scaleOverride != null ? stripMetrics(scaleOverride) : currentStrip();
   const { strip: cardStrip, cardH, titlebarH, scale } = metrics;
-  const rail = expanded ? 0 : railWidth(scale);
   const previewLane = expanded ? 0 : 300;
   const chrome = expanded ? 240 : 0;
   const pad = 6;
@@ -805,7 +995,15 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
       };
     }
     case "left": {
-      const w = cardStrip + rail + 6 + previewLane + pad + chrome;
+      const sideLayout =
+        String(readSettings().sideCardLayout || "table").toLowerCase() === "strip"
+          ? "strip"
+          : "table";
+      const tableGap = Math.max(2, Math.round(4 * scale));
+      const tableCard = Math.round(cardStrip * 0.85);
+      const tableW =
+        sideLayout === "table" ? tableCard * 3 + tableGap * 2 : cardStrip;
+      const w = tableW + previewLane + pad + chrome;
       return {
         x: wa.x,
         y: wa.y,
@@ -817,7 +1015,15 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
     }
     case "right":
     default: {
-      const w = cardStrip + rail + 6 + previewLane + pad + chrome;
+      const sideLayout =
+        String(readSettings().sideCardLayout || "table").toLowerCase() === "strip"
+          ? "strip"
+          : "table";
+      const tableGap = Math.max(2, Math.round(4 * scale));
+      const tableCard = Math.round(cardStrip * 0.85);
+      const tableW =
+        sideLayout === "table" ? tableCard * 3 + tableGap * 2 : cardStrip;
+      const w = tableW + previewLane + pad + chrome;
       return {
         x: wa.x + wa.width - w,
         y: wa.y,
@@ -890,17 +1096,42 @@ function deckKeepOpenBounds() {
   if (!deckWindow || deckWindow.isDestroyed()) return null;
   const b = deckWindow.getBounds();
   if (expandedMode || fullscreenEditMode) return b;
-  // Полоса карт + боковой список чатов (не вся зона превью)
-  const dock = readSettings().dock || "right";
+  // Полоса/стол карт (не вся зона превью)
+  const settings = readSettings();
+  const dock = settings.dock || "right";
+  const sideTable =
+    String(settings.sideCardLayout || "table").toLowerCase() !== "strip";
   const m = currentStrip();
-  const rail = railWidth(m.scale);
-  const strip = m.strip + rail + 14;
+  const tableGap = Math.max(2, Math.round(4 * m.scale));
+  const tableCard = Math.round(m.strip * 0.85);
+  const tableW = sideTable ? tableCard * 3 + tableGap * 2 : m.strip;
+  const strip = tableW + 12;
   const barH = m.titlebarH + m.cardH + 10;
+  // Table stack: controls + card grid (centered vertically).
+  const tableH = Math.round(tableCard * 1.5 * 4 + tableGap * 3);
+  // Hub: corner buttons row + deck pager + padding (must cover hover on ⚙/◎/💬)
+  const controlsH = Math.round(96 * m.scale);
+  const clusterH = Math.min(b.height, tableH + controlsH + 24);
+  const clusterY = b.y + Math.round((b.height - clusterH) / 2);
   switch (dock) {
     case "left":
-      return { x: b.x, y: b.y, width: strip, height: b.height };
+      return sideTable
+        ? { x: b.x, y: clusterY, width: strip, height: clusterH }
+        : { x: b.x, y: b.y, width: strip, height: b.height };
     case "right":
-      return { x: b.x + b.width - strip, y: b.y, width: strip, height: b.height };
+      return sideTable
+        ? {
+            x: b.x + b.width - strip,
+            y: clusterY,
+            width: strip,
+            height: clusterH,
+          }
+        : {
+            x: b.x + b.width - strip,
+            y: b.y,
+            width: strip,
+            height: b.height,
+          };
     case "top":
       return { x: b.x, y: b.y, width: b.width, height: barH };
     case "bottom":
@@ -943,7 +1174,7 @@ function tickEdgeHover() {
     overPanel = pointInBounds(point, keepBounds);
   }
 
-  if (near || overPanel || previewHoldOpen || modalHoldOpen) {
+  if (near || overPanel || previewHoldOpen || modalHoldOpen || mouseCaptureOpen) {
     if (hideDelayTimer) {
       clearTimeout(hideDelayTimer);
       hideDelayTimer = null;
@@ -957,7 +1188,13 @@ function tickEdgeHover() {
   if (deckWindow && deckWindow.isVisible() && !hideDelayTimer) {
     hideDelayTimer = setTimeout(() => {
       hideDelayTimer = null;
-      if (pinnedOpen || edgeHoverPaused || previewHoldOpen || modalHoldOpen)
+      if (
+        pinnedOpen ||
+        edgeHoverPaused ||
+        previewHoldOpen ||
+        modalHoldOpen ||
+        mouseCaptureOpen
+      )
         return;
       const p = screen.getCursorScreenPoint();
       const s = readSettings();
@@ -1049,6 +1286,32 @@ function markDeckUiReady() {
   if (deckUiReady) return;
   deckUiReady = true;
   startEdgeHoverWatch();
+  scheduleCdpStartupNudge();
+}
+
+/** Once per process: if CDP closed, ask the deck UI to offer launch/restart. */
+let cdpStartupNudgeSent = false;
+function scheduleCdpStartupNudge() {
+  if (cdpStartupNudgeSent) return;
+  cdpStartupNudgeSent = true;
+  setTimeout(async () => {
+    try {
+      const settings = readSettings();
+      const port = settings.cdpPort || DEFAULT_CDP_PORT;
+      const cdp = getCdpClient(port);
+      const probe = await cdp.probe();
+      if (probe.open) return;
+      const running = await isCursorRunning();
+      if (deckWindow && !deckWindow.isDestroyed()) {
+        deckWindow.webContents.send("cdp-nudge", {
+          cursorRunning: running,
+          port,
+        });
+      }
+    } catch (err) {
+      log.warn("cdp-startup-nudge", String(err.message || err));
+    }
+  }, 1800);
 }
 
 function cancelConcealAnim() {
@@ -2022,6 +2285,7 @@ function upsertTargetFromCdp({
   chatId,
   chatTitle,
   port,
+  projectName,
 }) {
   const settings = readSettings();
   const portN = Number(port) || settings.cdpPort || DEFAULT_CDP_PORT;
@@ -2043,6 +2307,10 @@ function upsertTargetFromCdp({
             cdpTargetId,
             chatId,
             chatTitle: chatTitle || t.chatTitle,
+            projectName:
+              projectName != null && projectName !== ""
+                ? String(projectName)
+                : t.projectName || "",
             fullTitle: windowTitle || t.fullTitle,
             match: windowTitle || t.match,
             name: t.name,
@@ -2056,9 +2324,11 @@ function upsertTargetFromCdp({
       target: targets.find((t) => t.id === existing.id),
     };
   }
-  const base =
-    (chatTitle || "").trim().slice(0, 40) ||
-    t("err.cursorChat");
+  const project = String(projectName || "").trim();
+  const baseTitle = (chatTitle || "").trim().slice(0, 40) || t("err.cursorChat");
+  const base = project
+    ? `${project.slice(0, 24)} · ${baseTitle}`.slice(0, 48)
+    : baseTitle;
   const name = uniqueTargetName(base, settings.targets || []);
   const target = {
     id: `tgt-${Date.now()}`,
@@ -2071,6 +2341,7 @@ function upsertTargetFromCdp({
     cdpTargetId: String(cdpTargetId || ""),
     chatId: String(chatId || ""),
     chatTitle: chatTitle || "",
+    projectName: project,
     fullTitle: windowTitle || "Cursor",
     match: windowTitle || "Cursor",
     processName: "Cursor",
@@ -2079,13 +2350,167 @@ function upsertTargetFromCdp({
   return { ok: true, duplicate: false, target };
 }
 
+function cursorBackendOf(settings) {
+  // Product UI uses CDP only until SDK is finished; keep code paths behind the flag.
+  if (!isCursorSdkEnabled()) return "cdp";
+  return settings?.cursorBackend === "sdk" ? "sdk" : "cdp";
+}
+
+function encodeSdkChatRef(projectId, chatId) {
+  return `sdk|${encodeURIComponent(String(projectId || ""))}|${encodeURIComponent(
+    String(chatId || "")
+  )}`;
+}
+
+/** @deprecated Prefer encodeSdkChatRef; kept for one-part legacy ids. */
+function encodeSdkProjectRef(projectId) {
+  return `sdk|${encodeURIComponent(String(projectId || ""))}`;
+}
+
+/**
+ * Parse phone/desktop SDK ref: sdk|projectId|chatId or legacy sdk|projectId.
+ * @returns {{ projectId: string, chatId: string } | null}
+ */
+function parseSdkChatRef(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (s === SDK_LIVE_CHAT_ID || s === "sdk|default" || s === "sdk") {
+    return { projectId: "", chatId: "" };
+  }
+  if (!s.startsWith("sdk|")) return null;
+  const parts = s.split("|");
+  const decode = (x) => {
+    try {
+      return decodeURIComponent(x || "");
+    } catch {
+      return String(x || "");
+    }
+  };
+  if (parts.length >= 3) {
+    return { projectId: decode(parts[1]), chatId: decode(parts[2]) };
+  }
+  if (parts.length === 2) {
+    return { projectId: decode(parts[1]), chatId: "" };
+  }
+  return { projectId: "", chatId: "" };
+}
+
+function parseSdkProjectId(raw) {
+  const ref = parseSdkChatRef(raw);
+  return ref ? ref.projectId : null;
+}
+
+function findSdkProject(settings, projectId) {
+  const projects = normalizeSdkProjects(settings?.sdkProjects);
+  if (!projects.length) return null;
+  const want = trySafeId(projectId) || String(projectId || "").trim();
+  if (want) {
+    const hit = projects.find((p) => p.id === want);
+    if (hit) return hit;
+  }
+  const active = trySafeId(settings?.activeSdkProjectId) || "";
+  return projects.find((p) => p.id === active) || projects[0] || null;
+}
+
+function findSdkChat(project, chatId) {
+  const chats = Array.isArray(project?.chats) ? project.chats : [];
+  if (!chats.length) return null;
+  const want = trySafeId(chatId) || String(chatId || "").trim();
+  if (want) {
+    const hit = chats.find((c) => c.id === want);
+    if (hit) return hit;
+  }
+  const active = trySafeId(project?.activeChatId) || "";
+  return chats.find((c) => c.id === active) || chats[0] || null;
+}
+
+function sdkOptsFromSettings(settings, projectId, chatId) {
+  const project = findSdkProject(settings, projectId);
+  const chat = findSdkChat(project, chatId);
+  return {
+    apiKey: String(settings?.cursorApiKey || ""),
+    cwd: String(project?.cwd || settings?.cursorSdkCwd || ""),
+    agentId: String(
+      chat?.agentId ||
+        project?.agentId ||
+        (!project ? settings?.cursorSdkAgentId : "") ||
+        ""
+    ),
+    modelId: String(settings?.cursorSdkModel || DEFAULT_MODEL_ID) || DEFAULT_MODEL_ID,
+    projectId: project?.id || "",
+    chatId: chat?.id || "",
+  };
+}
+
+function persistSdkAgentId(projectId, chatId, agentId) {
+  const settings = readSettings();
+  const id = String(agentId || "").trim();
+  if (!id) return settings;
+  const projects = normalizeSdkProjects(settings.sdkProjects).map((p) => {
+    if (p.id !== projectId) return p;
+    const chats = (p.chats || []).map((c) =>
+      c.id === chatId || (!chatId && c.id === p.activeChatId)
+        ? { ...c, agentId: id }
+        : c
+    );
+    const activeChatId = chatId || p.activeChatId || chats[0]?.id || "";
+    return {
+      ...p,
+      chats,
+      activeChatId,
+      agentId: chats.find((c) => c.id === activeChatId)?.agentId || id,
+    };
+  });
+  const patch = { sdkProjects: projects, cursorSdkAgentId: id };
+  if (projectId) {
+    const p = projects.find((x) => x.id === projectId);
+    if (p?.cwd) patch.cursorSdkCwd = p.cwd;
+  }
+  return writeSettings(patch);
+}
+
+function mapSdkError(codeOrMsg) {
+  const s = String(codeOrMsg || "");
+  if (s === "sdk_need_key") return t("err.sdkNeedKey");
+  if (s === "sdk_need_cwd" || s === "sdk_bad_cwd") return t("err.sdkNeedCwd");
+  if (s === "busy") return t("err.sdkBusy");
+  return s || t("err.sdkSendFailed");
+}
+
+async function pasteViaSdk(text, projectId, chatId) {
+  const settings = readSettings();
+  const sdk = getCursorSdkClient();
+  const opts = sdkOptsFromSettings(settings, projectId, chatId);
+  const r = await sdk.send(text, opts);
+  if (r.agentId && r.agentId !== opts.agentId) {
+    persistSdkAgentId(opts.projectId, opts.chatId, r.agentId);
+  }
+  if (!r.ok) {
+    return {
+      ok: false,
+      error: mapSdkError(r.error || r.hint),
+      hint: r.hint || r.error,
+    };
+  }
+  return {
+    ok: true,
+    agentId: r.agentId,
+    projectId: opts.projectId,
+    chatId: opts.chatId,
+  };
+}
+
 async function pasteViaCdp(target, text, autoEnter, cdpPort) {
   const port = Number(target.port) || Number(cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
   try {
     const r = await cdp.sendToChat(
       target.cdpTargetId,
-      { id: target.chatId, title: target.chatTitle },
+      {
+        id: target.chatId,
+        title: target.chatTitle,
+        project: target.projectName || "",
+      },
       text,
       { submit: autoEnter === true }
     );
@@ -2160,12 +2585,17 @@ async function pasteCardById(cardId) {
   const card = (deck.cards || []).find((c) => c.id === cardId);
   if (!card) return { ok: false, error: t("err.cardMissing") };
 
-  const enabled = (settings.targets || []).filter((t) => t.enabled);
-  if (!enabled.length) {
+  const resolved = resolvePasteTargets(settings);
+  const enabled = resolved.targets;
+  const useSdk = cursorBackendOf(settings) === "sdk";
+  if (!enabled.length && !useSdk) {
+    let message = t("toast.noTargets");
+    if (resolved.reason === "no_active_target") message = t("toast.pickSoloChat");
+    else if (resolved.reason === "empty_preset") message = t("toast.emptyPreset");
     if (deckWindow && !deckWindow.isDestroyed()) {
       deckWindow.webContents.send("toast", {
         type: "error",
-        message: t("toast.noTargets"),
+        message,
       });
     }
     return { ok: false, error: "no targets" };
@@ -2194,7 +2624,28 @@ async function pasteCardById(cardId) {
   let legacyWarned = false;
 
   try {
+    const useSdkLoop = cursorBackendOf(settings) === "sdk";
+    if (useSdkLoop) {
+      const project = findSdkProject(settings, settings.activeSdkProjectId);
+      const chat = findSdkChat(project, project?.activeChatId);
+      const r = await pasteViaSdk(
+        card.prompt || "",
+        project?.id || settings.activeSdkProjectId,
+        chat?.id
+      );
+      const label = project
+        ? `${project.name}${chat?.name ? ` · ${chat.name}` : ""}`
+        : t("remote.sdkAgent");
+      results.push({
+        target: label,
+        ...r,
+      });
+    }
+
     for (const target of enabled) {
+      // SDK mode replaces CDP targets; still paste quiet/focus fields.
+      if (useSdkLoop && target.driver === "cdp") continue;
+
       if (target.needsCdpRebind || (preserveFocus && target.driver !== "cdp" && target.driver !== "uia-quiet")) {
         if (target.needsCdpRebind || (isCursorLikeTarget(target) && target.driver !== "cdp")) {
           results.push({
@@ -2378,19 +2829,21 @@ async function pasteCardById(cardId) {
   return { ok: results.some((r) => r.ok), results };
 }
 
-/** Ephemeral phone-remote chat id: live|{cdpTargetId}|{chatId}|{chatTitle} (URI-encoded parts). */
-function encodeLiveChatRef({ cdpTargetId, chatId, chatTitle }) {
-  return [
+/** Ephemeral phone-remote chat id: live|{cdpTargetId}|{chatId}|{chatTitle}|{project?} */
+function encodeLiveChatRef({ cdpTargetId, chatId, chatTitle, project }) {
+  const parts = [
     "live",
     encodeURIComponent(String(cdpTargetId || "")),
     encodeURIComponent(String(chatId || "")),
     encodeURIComponent(String(chatTitle || "")),
-  ].join("|");
+  ];
+  if (project) parts.push(encodeURIComponent(String(project)));
+  return parts.join("|");
 }
 
 /**
- * Resolve phone remote chat id: live CDP ref or legacy saved settings target.
- * @returns {{ kind:'live'|'saved', cdpTargetId:string, chatId:string, chatTitle:string, name:string, port:number, needsCdpRebind?:boolean } | null}
+ * Resolve phone remote chat id: live CDP ref, SDK synthetic, or legacy saved settings target.
+ * @returns {{ kind:'live'|'saved'|'sdk', cdpTargetId:string, chatId:string, chatTitle:string, projectName?:string, name:string, port:number, needsCdpRebind?:boolean } | null}
  */
 function resolveRemoteChatRef(id) {
   const raw = String(id || "").trim();
@@ -2398,19 +2851,43 @@ function resolveRemoteChatRef(id) {
   const settings = readSettings();
   const port = Number(settings.cdpPort) || DEFAULT_CDP_PORT;
 
+  if (raw === SDK_LIVE_CHAT_ID || raw.startsWith("sdk|")) {
+    const parsed = parseSdkChatRef(raw) || { projectId: "", chatId: "" };
+    const project = findSdkProject(settings, parsed.projectId);
+    const chat = findSdkChat(project, parsed.chatId);
+    const name = project
+      ? `${project.name}${chat?.name ? ` · ${chat.name}` : ""}`
+      : t("remote.sdkAgent");
+    return {
+      kind: "sdk",
+      projectId: project?.id || "",
+      sdkChatId: chat?.id || "",
+      cdpTargetId: "",
+      chatId: chat?.id || project?.id || "default",
+      chatTitle: name,
+      name,
+      port: 0,
+    };
+  }
+
   if (raw.startsWith("live|")) {
     const parts = raw.split("|");
     if (parts.length < 3) return null;
     const cdpTargetId = decodeURIComponent(parts[1] || "");
     const chatId = decodeURIComponent(parts[2] || "");
     const chatTitle = decodeURIComponent(parts[3] || "");
+    const projectName = decodeURIComponent(parts[4] || "");
     if (!cdpTargetId || !chatId) return null;
+    const name = projectName
+      ? `${projectName} · ${chatTitle || chatId}`
+      : chatTitle || chatId;
     return {
       kind: "live",
       cdpTargetId,
       chatId,
       chatTitle,
-      name: chatTitle || chatId,
+      projectName,
+      name,
       port,
     };
   }
@@ -2424,15 +2901,57 @@ function resolveRemoteChatRef(id) {
     cdpTargetId: String(target.cdpTargetId || ""),
     chatId: String(target.chatId || ""),
     chatTitle: String(target.chatTitle || ""),
+    projectName: String(target.projectName || ""),
     name: target.name || target.chatTitle || target.id,
     port: Number(target.port) || port,
     needsCdpRebind: !!target.needsCdpRebind,
   };
 }
 
-/** Live open Cursor chats from CDP (not limited to saved Keycode targets). */
+/** Live open Cursor chats from CDP (not limited to saved Keycode targets), or synthetic SDK chat. */
 async function listRemoteLiveChats() {
   const settings = readSettings();
+  if (cursorBackendOf(settings) === "sdk") {
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    if (!projects.length) {
+      return {
+        ok: false,
+        error: "sdk_need_cwd",
+        hint: "sdk_need_cwd",
+        chats: [],
+        port: 0,
+        backend: "sdk",
+      };
+    }
+    const chats = [];
+    for (const p of projects) {
+      const list = Array.isArray(p.chats) && p.chats.length
+        ? p.chats
+        : [{ id: "main", name: "Chat", agentId: p.agentId || "" }];
+      for (const c of list) {
+        chats.push({
+          id: encodeSdkChatRef(p.id, c.id),
+          name: `${p.name || path.basename(p.cwd) || t("remote.sdkAgent")} · ${
+            c.name || "Chat"
+          }`,
+          cdpTargetId: "",
+          chatId: c.id,
+          chatTitle: c.name || "Chat",
+          windowTitle: p.cwd,
+          backend: "sdk",
+          projectId: p.id,
+          sdkChatId: c.id,
+        });
+      }
+    }
+    return {
+      ok: true,
+      chats,
+      port: 0,
+      backend: "sdk",
+    };
+  }
+
   const port = Number(settings.cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
   let probe;
@@ -2464,30 +2983,33 @@ async function listRemoteLiveChats() {
     for (const c of list.chats || []) {
       const chatId = String(c.id || "");
       const chatTitle = String(c.title || "");
+      const project = String(c.project || "");
       if (!chatId && !chatTitle) continue;
       const id = encodeLiveChatRef({
         cdpTargetId: win.id,
         chatId: chatId || chatTitle,
         chatTitle,
+        project,
       });
       if (seen.has(id)) continue;
       seen.add(id);
       chats.push({
         id,
-        name: chatTitle || chatId,
+        name: project ? `${project} · ${chatTitle || chatId}` : chatTitle || chatId,
         cdpTargetId: win.id,
         chatId: chatId || chatTitle,
         chatTitle,
+        projectName: project,
         windowTitle: String(win.title || ""),
       });
-      if (chats.length >= 80) break;
+      if (chats.length >= 200) break;
     }
-    if (chats.length >= 80) break;
+    if (chats.length >= 200) break;
   }
   return { ok: true, chats, port };
 }
 
-/** Phone remote: paste text into a single Cursor chat (live or saved). Never logs text. */
+/** Phone remote: paste text into a single Cursor chat (live or saved) or SDK agent. Never logs text. */
 async function pasteTextToTarget(text, targetId, notify = { kind: "text", cardId: null }) {
   const settings = readSettings();
   const kind = notify.kind || "text";
@@ -2496,9 +3018,48 @@ async function pasteTextToTarget(text, targetId, notify = { kind: "text", cardId
     kind === "text" || kind === "card" || notify.submit === true
       ? true
       : settings.autoEnter === true;
+
+  if (cursorBackendOf(settings) === "sdk") {
+    const ref = resolveRemoteChatRef(targetId) || {
+      projectId: settings.activeSdkProjectId || "",
+      sdkChatId: "",
+      name: t("remote.sdkAgent"),
+    };
+    const r = await pasteViaSdk(
+      String(text || ""),
+      ref.projectId,
+      ref.sdkChatId || ref.chatId
+    );
+    const results = [{ target: ref.name || t("remote.sdkAgent"), ...r }];
+    if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.webContents.send("paste-done", {
+        cardId: notify.cardId ?? null,
+        kind,
+        results,
+      });
+    }
+    return { ok: !!r.ok, results };
+  }
+
   const ref = resolveRemoteChatRef(targetId);
   if (!ref) {
     return { ok: false, error: t("remote.errUnknownTarget"), hint: "unknown_target" };
+  }
+  if (ref.kind === "sdk") {
+    const r = await pasteViaSdk(
+      String(text || ""),
+      ref.projectId,
+      ref.sdkChatId || ref.chatId
+    );
+    const results = [{ target: ref.name, ...r }];
+    if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.webContents.send("paste-done", {
+        cardId: notify.cardId ?? null,
+        kind,
+        results,
+      });
+    }
+    return { ok: !!r.ok, results };
   }
   if (ref.needsCdpRebind) {
     return { ok: false, error: t("err.rebindCdp") };
@@ -2509,6 +3070,7 @@ async function pasteTextToTarget(text, targetId, notify = { kind: "text", cardId
       cdpTargetId: ref.cdpTargetId,
       chatId: ref.chatId,
       chatTitle: ref.chatTitle,
+      projectName: ref.projectName || "",
       port: ref.port,
       name: ref.name,
     },
@@ -2558,11 +3120,15 @@ function getRemoteStatePayload() {
     deck: { id: deck.id, name: deck.name || deck.id },
     decks,
     cards,
-    // Chat list comes from GET /api/chats (live CDP); kept empty for backward compat.
+    // Chat list comes from GET /api/chats (live CDP or SDK); kept empty for backward compat.
     targets: [],
     autoEnter: settings.autoEnter === true,
     uiLocale: i18n.getActiveUiLocale() || "en",
-    suggestions: [], // reserved for future AI highlights
+    cursorBackend: cursorBackendOf(settings),
+    /** Future: KEYCODE_ENABLE_SDK=1 re-shows API backend in Settings */
+    sdkBackendEnabled: isCursorSdkEnabled(),
+    // Rule-based highlights ride on chat payloads; deck state keeps [].
+    suggestions: [],
   };
 }
 
@@ -2605,9 +3171,30 @@ function notifyRemoteDeckChanged() {
 
 async function readRemoteChat(targetId, { select = true } = {}) {
   const settings = readSettings();
+  if (cursorBackendOf(settings) === "sdk") {
+    const ref = resolveRemoteChatRef(targetId);
+    const sdk = getCursorSdkClient();
+    const opts = sdkOptsFromSettings(
+      settings,
+      ref?.projectId,
+      ref?.sdkChatId || ref?.chatId
+    );
+    await sdk.listModels(opts).catch(() => {});
+    return sdk.readTranscript(opts);
+  }
   const ref = resolveRemoteChatRef(targetId);
   if (!ref) {
     return { ok: false, error: "unknown_target", hint: "unknown_target" };
+  }
+  if (ref.kind === "sdk") {
+    const sdk = getCursorSdkClient();
+    const opts = sdkOptsFromSettings(
+      settings,
+      ref.projectId,
+      ref.sdkChatId || ref.chatId
+    );
+    await sdk.listModels(opts).catch(() => {});
+    return sdk.readTranscript(opts);
   }
   if (ref.needsCdpRebind) {
     return { ok: false, error: t("err.rebindCdp"), hint: "rebind" };
@@ -2619,9 +3206,116 @@ async function readRemoteChat(targetId, { select = true } = {}) {
     {
       id: ref.chatId,
       title: ref.chatTitle,
+      project: ref.projectName || "",
     },
     { select: select !== false }
   );
+}
+
+/** Attach rule-based next-card suggestions for the active deck. */
+function attachChatSuggestions(result) {
+  if (!result?.ok) return result;
+  try {
+    const settings = readSettings();
+    const deck = loadDeck(settings.activeDeckId);
+    const suggestions = suggestNextCards({
+      messages: result.messages || [],
+      cards: deck.cards || [],
+    });
+    return { ...result, suggestions };
+  } catch (e) {
+    log.warn("attachChatSuggestions", String(e.message || e));
+    return { ...result, suggestions: [] };
+  }
+}
+
+async function readRemoteChatWithSuggestions(targetId, opts) {
+  const result = await readRemoteChat(targetId, opts);
+  return attachChatSuggestions(result);
+}
+
+async function setRemoteComposerMode(targetId, mode) {
+  const settings = readSettings();
+  const want = String(mode || "").toLowerCase() === "plan" ? "plan" : "agent";
+  if (cursorBackendOf(settings) === "sdk") {
+    const sdk = getCursorSdkClient();
+    return { ok: true, mode: want, ...sdk.setMode(want) };
+  }
+  const ref = resolveRemoteChatRef(targetId);
+  if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
+  if (ref.kind === "sdk") {
+    const sdk = getCursorSdkClient();
+    return { ok: true, mode: want, ...sdk.setMode(want) };
+  }
+  const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  await cdp.selectChat(ref.cdpTargetId, {
+    id: ref.chatId,
+    title: ref.chatTitle,
+    project: ref.projectName || "",
+  });
+  return cdp.setComposerMode(ref.cdpTargetId, want);
+}
+
+async function setRemoteComposerModel(targetId, model) {
+  const settings = readSettings();
+  const want = String(model || "").trim();
+  if (!want) return { ok: false, error: "model_required", hint: "model_required" };
+  if (cursorBackendOf(settings) === "sdk") {
+    const sdk = getCursorSdkClient();
+    const r = sdk.setModel(want);
+    if (r.ok) writeSettings({ cursorSdkModel: want });
+    return r;
+  }
+  const ref = resolveRemoteChatRef(targetId);
+  if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
+  if (ref.kind === "sdk") {
+    const sdk = getCursorSdkClient();
+    const r = sdk.setModel(want);
+    if (r.ok) writeSettings({ cursorSdkModel: want });
+    return r;
+  }
+  const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  await cdp.selectChat(ref.cdpTargetId, {
+    id: ref.chatId,
+    title: ref.chatTitle,
+    project: ref.projectName || "",
+  });
+  return cdp.setComposerModel(ref.cdpTargetId, want);
+}
+
+async function answerRemoteClarification(targetId, payload = {}) {
+  const settings = readSettings();
+  if (cursorBackendOf(settings) === "sdk") {
+    // SDK has no DOM widgets — treat as free-text send.
+    const text =
+      String(payload.text || "").trim() ||
+      String(payload.optionId || "").trim();
+    if (!text) {
+      return { ok: false, error: "text_required", hint: "sdk_no_clarifications" };
+    }
+    return pasteTextToTarget(text, targetId, { kind: "text", cardId: null });
+  }
+  const ref = resolveRemoteChatRef(targetId);
+  if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
+  if (ref.kind === "sdk") {
+    const text =
+      String(payload.text || "").trim() ||
+      String(payload.optionId || "").trim();
+    if (!text) {
+      return { ok: false, error: "text_required", hint: "sdk_no_clarifications" };
+    }
+    return pasteTextToTarget(text, targetId, { kind: "text", cardId: null });
+  }
+  const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  await cdp.selectChat(ref.cdpTargetId, {
+    id: ref.chatId,
+    title: ref.chatTitle,
+    project: ref.projectName || "",
+  });
+  return cdp.answerClarification(ref.cdpTargetId, payload);
 }
 
 function ensureRemoteToken(settings, { persist = true } = {}) {
@@ -2783,7 +3477,13 @@ async function syncRemoteServer() {
       getRemoteState: getRemoteStatePayload,
       setActiveDeck: (opts) => activateDeck(opts || {}),
       listChats: listRemoteLiveChats,
-      readChat: readRemoteChat,
+      readChat: readRemoteChatWithSuggestions,
+      setComposerMode: (targetId, mode) =>
+        pasteQueue.enqueue(() => setRemoteComposerMode(targetId, mode)),
+      setComposerModel: (targetId, model) =>
+        pasteQueue.enqueue(() => setRemoteComposerModel(targetId, model)),
+      answerClarification: (targetId, payload) =>
+        pasteQueue.enqueue(() => answerRemoteClarification(targetId, payload)),
       pasteCard: (cardId, targetId) =>
         pasteQueue.enqueue(() => pasteCardToTarget(cardId, targetId)),
       pasteText: (text, targetId) =>
@@ -2875,8 +3575,8 @@ async function getRemoteStatusPayload() {
     serveCommand: ts.command || `tailscale serve --bg ${port}`,
     tailscale: { ...ts, url: tailscaleUrl, later: true },
     firewallHint: t("settingsMsg.remoteFirewallHint"),
-    // Future AI hook placeholder (empty)
-    suggestionsSupported: false,
+    cursorBackend: cursorBackendOf(settings),
+    suggestionsSupported: true,
   };
 }
 
@@ -3303,6 +4003,7 @@ function setupIpc() {
       pinnedOpen,
       tarotBase: "app://tarot/",
       i18n: i18nPayload(settings),
+      sdkBackendEnabled: isCursorSdkEnabled(),
     };
   });
 
@@ -3316,8 +4017,43 @@ function setupIpc() {
       };
     }
     const before = readSettings();
+    if (safe.cursorBackend != null) {
+      const wantSdk =
+        isCursorSdkEnabled() && safe.cursorBackend === "sdk";
+      safe = {
+        ...safe,
+        cursorBackend: wantSdk ? "sdk" : "cdp",
+      };
+    }
+    if (safe.cursorApiKey != null) {
+      safe = { ...safe, cursorApiKey: String(safe.cursorApiKey) };
+    }
+    if (safe.cursorSdkCwd != null) {
+      safe = { ...safe, cursorSdkCwd: String(safe.cursorSdkCwd) };
+    }
+    if (safe.cursorSdkAgentId != null) {
+      safe = { ...safe, cursorSdkAgentId: String(safe.cursorSdkAgentId) };
+    }
+    if (safe.cursorSdkModel != null) {
+      safe = {
+        ...safe,
+        cursorSdkModel: String(safe.cursorSdkModel || DEFAULT_MODEL_ID),
+      };
+    }
+    if (safe.sdkProjects != null) {
+      safe = {
+        ...safe,
+        sdkProjects: normalizeSdkProjects(safe.sdkProjects),
+      };
+    }
+    if (safe.activeSdkProjectId != null) {
+      safe = {
+        ...safe,
+        activeSdkProjectId: trySafeId(safe.activeSdkProjectId) || "",
+      };
+    }
     const s = writeSettings(safe);
-    if (safe.dock || safe.panelScale != null) {
+    if (safe.dock || safe.panelScale != null || safe.sideCardLayout != null) {
       applyDock(s.dock || "right");
     }
     if (safe.showHotkey != null || safe.activeDeckId != null || safe.targets) {
@@ -3328,6 +4064,7 @@ function setupIpc() {
       const ui = refreshLocaleFromSettings(s);
       if (safe.uiLocale != null && safe.uiLocale !== before.uiLocale) {
         syncBundledDecks(ui, { onlyIfMissing: false });
+        writeSettings({ stockDeckRev: STOCK_DECK_REV });
       }
       try {
         if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -3354,6 +4091,12 @@ function setupIpc() {
       syncRemoteServer().catch((err) =>
         log.warn("remote sync", String(err.message || err))
       );
+    }
+    if (
+      safe.cursorBackend != null &&
+      safe.cursorBackend !== before.cursorBackend
+    ) {
+      notifyRemoteDeckChanged();
     }
     broadcastStateChanged();
     return s;
@@ -3494,8 +4237,59 @@ function setupIpc() {
     return pasteQueue.enqueue(() => pasteCardById(cardId));
   });
 
+  /** Deck strip transcript for solo Cursor chat (same CDP path as phone remote). */
+  ipcMain.handle("deck-read-chat", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const targetId = String(payload?.targetId || settings.activeTargetId || "").trim();
+    if (!targetId) {
+      return { ok: false, error: "no_target", hint: "pick_chat" };
+    }
+    const target = (settings.targets || []).find((t) => t.id === targetId);
+    if (!target) {
+      return { ok: false, error: "unknown_target", hint: "unknown_target" };
+    }
+    if (target.driver !== "cdp") {
+      return { ok: false, error: "not_cdp", hint: "not_cdp" };
+    }
+    const select = payload?.select !== false;
+    try {
+      const result = await readRemoteChat(targetId, { select });
+      if (!result?.ok) {
+        return {
+          ok: false,
+          error: result?.error || "read_failed",
+          hint: result?.hint || "",
+          targetId,
+        };
+      }
+      const withSuggest = attachChatSuggestions(result);
+      return {
+        ok: true,
+        targetId,
+        hash: withSuggest.hash || "",
+        messages: withSuggest.messages || [],
+        generating: withSuggest.generating === true,
+        suggestions: withSuggest.suggestions || [],
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err.message || err),
+        hint: "read_failed",
+        targetId,
+      };
+    }
+  });
+
   ipcMain.handle("set-ignore-mouse", (_e, ignore) => {
-    setDeckIgnoreMouse(!!ignore);
+    const next = !!ignore;
+    setDeckIgnoreMouse(next);
+    mouseCaptureOpen = !next;
+    if (mouseCaptureOpen && hideDelayTimer) {
+      clearTimeout(hideDelayTimer);
+      hideDelayTimer = null;
+    }
     return true;
   });
 
@@ -3603,6 +4397,339 @@ function setupIpc() {
     }
   });
 
+  ipcMain.handle("sdk-probe", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const r = await getCursorSdkClient().probe(sdkOptsFromSettings(settings));
+    if (!r.ok) {
+      return {
+        ...r,
+        error: mapSdkError(r.error || r.hint),
+      };
+    }
+    return {
+      ok: true,
+      hasKey: true,
+      apiKeyName: r.apiKeyName || "",
+      modelCount: r.modelCount || 0,
+      hint: t("settingsMsg.sdkOk", {
+        name: r.apiKeyName ? ` (${r.apiKeyName})` : "",
+      }),
+    };
+  });
+
+  ipcMain.handle("sdk-pick-cwd", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const { filePaths, canceled } = await dialog.showOpenDialog(dialogParent(), {
+      properties: ["openDirectory"],
+    });
+    if (canceled || !filePaths?.[0]) return { ok: false, canceled: true };
+    const cwd = filePaths[0];
+    const settings = readSettings();
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    const activeId = settings.activeSdkProjectId;
+    let next;
+    if (activeId && projects.some((p) => p.id === activeId)) {
+      next = projects.map((p) =>
+        p.id === activeId ? { ...p, cwd, name: p.name || path.basename(cwd) } : p
+      );
+    } else {
+      const added = normalizeSdkProject({
+        name: path.basename(cwd),
+        cwd,
+      });
+      next = [...projects, added].slice(0, MAX_SDK_PROJECTS);
+      writeSettings({
+        sdkProjects: next,
+        activeSdkProjectId: added.id,
+        cursorSdkCwd: cwd,
+      });
+      broadcastStateChanged();
+      notifyRemoteDeckChanged();
+      return {
+        ok: true,
+        cwd,
+        sdkProjects: next,
+        activeSdkProjectId: added.id,
+      };
+    }
+    const s = writeSettings({
+      sdkProjects: next,
+      cursorSdkCwd: cwd,
+      activeSdkProjectId: activeId,
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return {
+      ok: true,
+      cwd: s.cursorSdkCwd,
+      sdkProjects: s.sdkProjects,
+      activeSdkProjectId: s.activeSdkProjectId,
+    };
+  });
+
+  ipcMain.handle("sdk-add-project", async (e, opts = {}) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    let cwd = String(opts.cwd || "").trim();
+    if (!cwd) {
+      const { filePaths, canceled } = await dialog.showOpenDialog(dialogParent(), {
+        properties: ["openDirectory"],
+      });
+      if (canceled || !filePaths?.[0]) return { ok: false, canceled: true };
+      cwd = filePaths[0];
+    }
+    const settings = readSettings();
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    if (projects.length >= MAX_SDK_PROJECTS) {
+      return { ok: false, error: t("err.sdkProjectsMax") };
+    }
+    const name =
+      String(opts.name || "").trim() || path.basename(cwd) || "Project";
+    const added = normalizeSdkProject({ name, cwd });
+    const next = [...projects, added];
+    const s = writeSettings({
+      sdkProjects: next,
+      activeSdkProjectId: added.id,
+      cursorSdkCwd: cwd,
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return {
+      ok: true,
+      project: added,
+      sdkProjects: s.sdkProjects,
+      activeSdkProjectId: s.activeSdkProjectId,
+    };
+  });
+
+  ipcMain.handle("sdk-remove-project", async (e, projectId) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const id = trySafeId(projectId);
+    if (!id) return { ok: false, error: "invalid_id" };
+    const settings = readSettings();
+    const next = normalizeSdkProjects(settings.sdkProjects).filter(
+      (p) => p.id !== id
+    );
+    let active = settings.activeSdkProjectId;
+    if (active === id) active = next[0]?.id || "";
+    const s = writeSettings({
+      sdkProjects: next,
+      activeSdkProjectId: active,
+      cursorSdkCwd: next.find((p) => p.id === active)?.cwd || "",
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return {
+      ok: true,
+      sdkProjects: s.sdkProjects,
+      activeSdkProjectId: s.activeSdkProjectId,
+    };
+  });
+
+  ipcMain.handle("sdk-set-active-project", async (e, projectId) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const project = findSdkProject(settings, projectId);
+    if (!project) return { ok: false, error: "unknown_project" };
+    const chat = findSdkChat(project, project.activeChatId);
+    const s = writeSettings({
+      activeSdkProjectId: project.id,
+      cursorSdkCwd: project.cwd,
+      cursorSdkAgentId: chat?.agentId || project.agentId || "",
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return {
+      ok: true,
+      activeSdkProjectId: s.activeSdkProjectId,
+      cwd: project.cwd,
+      sdkProjects: s.sdkProjects,
+    };
+  });
+
+  ipcMain.handle("sdk-rename-project", async (e, payload = {}) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const id = trySafeId(payload.projectId || payload.id);
+    const name = String(payload.name || "").trim().slice(0, 80);
+    if (!id || !name) return { ok: false, error: "invalid" };
+    const settings = readSettings();
+    const next = normalizeSdkProjects(settings.sdkProjects).map((p) =>
+      p.id === id ? { ...p, name } : p
+    );
+    const s = writeSettings({ sdkProjects: next });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return { ok: true, sdkProjects: s.sdkProjects };
+  });
+
+  ipcMain.handle("sdk-add-chat", async (e, payload = {}) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const projectId =
+      trySafeId(payload.projectId) ||
+      trySafeId(settings.activeSdkProjectId) ||
+      "";
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return { ok: false, error: "unknown_project" };
+    if ((project.chats || []).length >= MAX_SDK_CHATS_PER_PROJECT) {
+      return { ok: false, error: t("err.sdkChatsMax") };
+    }
+    const n = (project.chats || []).length + 1;
+    const added = normalizeSdkChat({
+      name: String(payload.name || "").trim() || `Chat ${n}`,
+      agentId: "",
+    });
+    const next = projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            chats: [...(p.chats || []), added],
+            activeChatId: added.id,
+            agentId: "",
+          }
+        : p
+    );
+    const s = writeSettings({
+      sdkProjects: next,
+      cursorSdkAgentId: "",
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return {
+      ok: true,
+      chat: added,
+      sdkProjects: s.sdkProjects,
+      activeSdkProjectId: s.activeSdkProjectId,
+    };
+  });
+
+  ipcMain.handle("sdk-remove-chat", async (e, payload = {}) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const projectId =
+      trySafeId(payload.projectId) ||
+      trySafeId(settings.activeSdkProjectId) ||
+      "";
+    const chatId = trySafeId(payload.chatId || payload.id);
+    if (!projectId || !chatId) return { ok: false, error: "invalid" };
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return { ok: false, error: "unknown_project" };
+    if ((project.chats || []).length <= 1) {
+      return { ok: false, error: t("err.sdkChatLast") };
+    }
+    const chats = (project.chats || []).filter((c) => c.id !== chatId);
+    let activeChatId = project.activeChatId;
+    if (activeChatId === chatId) activeChatId = chats[0]?.id || "";
+    const next = projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            chats,
+            activeChatId,
+            agentId: chats.find((c) => c.id === activeChatId)?.agentId || "",
+          }
+        : p
+    );
+    const s = writeSettings({
+      sdkProjects: next,
+      cursorSdkAgentId:
+        next.find((p) => p.id === projectId)?.agentId || "",
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return { ok: true, sdkProjects: s.sdkProjects };
+  });
+
+  ipcMain.handle("sdk-set-active-chat", async (e, payload = {}) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const projectId =
+      trySafeId(payload.projectId) ||
+      trySafeId(settings.activeSdkProjectId) ||
+      "";
+    const chatId = trySafeId(payload.chatId || payload.id);
+    if (!projectId || !chatId) return { ok: false, error: "invalid" };
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return { ok: false, error: "unknown_project" };
+    const chat = findSdkChat(project, chatId);
+    if (!chat) return { ok: false, error: "unknown_chat" };
+    const next = projects.map((p) =>
+      p.id === projectId
+        ? { ...p, activeChatId: chat.id, agentId: chat.agentId || "" }
+        : p
+    );
+    const s = writeSettings({
+      sdkProjects: next,
+      activeSdkProjectId: projectId,
+      cursorSdkCwd: project.cwd,
+      cursorSdkAgentId: chat.agentId || "",
+    });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return {
+      ok: true,
+      sdkProjects: s.sdkProjects,
+      activeSdkProjectId: s.activeSdkProjectId,
+      activeChatId: chat.id,
+    };
+  });
+
+  ipcMain.handle("sdk-rename-chat", async (e, payload = {}) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    const projectId =
+      trySafeId(payload.projectId) ||
+      trySafeId(settings.activeSdkProjectId) ||
+      "";
+    const chatId = trySafeId(payload.chatId || payload.id);
+    const name = String(payload.name || "").trim().slice(0, 80);
+    if (!projectId || !chatId || !name) return { ok: false, error: "invalid" };
+    const projects = normalizeSdkProjects(settings.sdkProjects);
+    const next = projects.map((p) => {
+      if (p.id !== projectId) return p;
+      return {
+        ...p,
+        chats: (p.chats || []).map((c) =>
+          c.id === chatId ? { ...c, name } : c
+        ),
+      };
+    });
+    const s = writeSettings({ sdkProjects: next });
+    broadcastStateChanged();
+    notifyRemoteDeckChanged();
+    return { ok: true, sdkProjects: s.sdkProjects };
+  });
+
+  ipcMain.handle("sdk-new-agent", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const settings = readSettings();
+    try {
+      const project = findSdkProject(settings, settings.activeSdkProjectId);
+      const chat = findSdkChat(project, project?.activeChatId);
+      const opts = sdkOptsFromSettings(
+        settings,
+        project?.id,
+        chat?.id
+      );
+      const r = await getCursorSdkClient().resetAgent(opts);
+      const s = persistSdkAgentId(opts.projectId, opts.chatId, r.agentId || "");
+      broadcastStateChanged();
+      notifyRemoteDeckChanged();
+      return {
+        ok: true,
+        agentId: r.agentId,
+        sdkProjects: s.sdkProjects,
+        hint: t("settingsMsg.sdkAgentReset"),
+      };
+    } catch (err) {
+      const code = err?.code || "";
+      return { ok: false, error: mapSdkError(code || err.message || err) };
+    }
+  });
+
   ipcMain.handle("cursor-install-cdp-shortcut", async (_e, opts = {}) => {
     const settings = readSettings();
     const port = Number(opts.cdpPort) || settings.cdpPort || DEFAULT_CDP_PORT;
@@ -3614,7 +4741,11 @@ function setupIpc() {
     const settings = readSettings();
     const port = Number(opts.cdpPort) || settings.cdpPort || DEFAULT_CDP_PORT;
     const mode = opts.mode || "both";
-    const result = await launchCursorForIntegration({ mode, cdpPort: port });
+    const allowRestart =
+      opts.allowRestart === true || opts.restart === true;
+    const result = allowRestart
+      ? await launchOrRestartCursorWithCdp({ mode, cdpPort: port, allowRestart: true })
+      : await launchCursorForIntegration({ mode, cdpPort: port });
     if (!result.ok) return result;
     await new Promise((r) => setTimeout(r, 2800));
     try {
@@ -3629,7 +4760,9 @@ function setupIpc() {
         probe: {
           ...probe,
           hint: probe.open
-            ? t("msg.cursorReadyCdp")
+            ? result.restarted
+              ? t("msg.cursorReadyCdpRestart")
+              : t("msg.cursorReadyCdp")
             : t("msg.cursorStarting"),
         },
       };
@@ -3648,10 +4781,16 @@ function setupIpc() {
     return { ok: true, windows: probe.targets || [], port: probe.port };
   });
 
-  ipcMain.handle("cdp-list-chats", async (_e, cdpTargetId) => {
+  ipcMain.handle("cdp-list-chats", async (_e, arg, maybeOpts) => {
     const settings = readSettings();
     const cdp = getCdpClient(settings.cdpPort || DEFAULT_CDP_PORT);
-    const list = await cdp.listChats(cdpTargetId);
+    const cdpTargetId =
+      typeof arg === "string" ? arg : arg?.cdpTargetId || arg?.id;
+    const opts =
+      typeof arg === "string" ? maybeOpts || {} : arg && typeof arg === "object" ? arg : {};
+    const list = await cdp.listChats(cdpTargetId, {
+      revealAll: opts.revealAll === true,
+    });
     return list;
   });
 
@@ -3662,10 +4801,62 @@ function setupIpc() {
       windowTitle: payload?.windowTitle,
       chatId: payload?.chatId || payload?.id,
       chatTitle: payload?.chatTitle || payload?.title,
+      projectName: payload?.projectName || payload?.project || "",
       port: settings.cdpPort || DEFAULT_CDP_PORT,
     });
     if (result.ok) broadcastTargetsUpdated();
     return result;
+  });
+
+  ipcMain.handle("cdp-create-chat", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const req = normalizeCreateChatRequest(payload);
+    if (!req.ok) return req;
+    const settings = readSettings();
+    const port = settings.cdpPort || DEFAULT_CDP_PORT;
+    const cdp = getCdpClient(port);
+    const created = await cdp.createChatInProject(req.cdpTargetId, req.projectName);
+    if (!created?.ok || !created.chat) {
+      return {
+        ok: false,
+        error: created?.error || "create_chat_failed",
+        hint: created?.hint || created?.error || "create_chat_failed",
+      };
+    }
+    const winTitle =
+      String(payload?.windowTitle || "").trim() ||
+      "Cursor";
+    const result = upsertTargetFromCdp({
+      cdpTargetId: req.cdpTargetId,
+      windowTitle: winTitle,
+      chatId: created.chat.id,
+      chatTitle: created.chat.title,
+      projectName: created.chat.project || req.projectName,
+      port,
+    });
+    if (result.ok) broadcastTargetsUpdated();
+    return {
+      ...result,
+      chat: created.chat,
+    };
+  });
+
+  ipcMain.handle("paste-text-to-target", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const targetId = String(payload?.targetId || "").trim();
+    const text = String(payload?.text ?? "");
+    if (!targetId) {
+      return { ok: false, error: "target_required", hint: "target_required" };
+    }
+    if (!text.trim()) {
+      return { ok: false, error: "empty_text", hint: "empty_text" };
+    }
+    if (text.length > 100_000) {
+      return { ok: false, error: "text_too_long", hint: "text_too_long" };
+    }
+    return pasteQueue.enqueue(() =>
+      pasteTextToTarget(text, targetId, { kind: "text", cardId: null })
+    );
   });
 
   ipcMain.handle("open-chat-pick", () => {
@@ -4086,23 +5277,25 @@ app.whenReady().then(() => {
           `);
           console.log("[smoke-i18n] targets-probe", JSON.stringify(probe));
           if (!probe?.ok) throw new Error("targets i18n broken: " + JSON.stringify(probe));
+          closeTargetsWindow();
         }
 
         if (deckWindow && !deckWindow.isDestroyed()) {
           const probe = await deckWindow.webContents.executeJavaScript(`
             (() => {
               if (!window.I18n) return { ok: false, error: "no I18n" };
-              const chats = document.querySelector(".rail-title")?.textContent || "";
+              const hasCorner = !!document.getElementById("btn-corner-targets");
+              const hasRail = !!document.getElementById("target-rail");
               return {
                 ok: true,
-                chats,
-                expected: window.I18n.t("deck.chats"),
+                hasCorner,
+                hasRail,
                 magician: window.I18n.tarotName("magician"),
               };
             })()
           `);
           console.log("[smoke-i18n] deck-probe", JSON.stringify(probe));
-          if (!probe?.ok || probe.chats !== probe.expected) {
+          if (!probe?.ok || !probe.hasCorner || probe.hasRail) {
             throw new Error("deck i18n broken: " + JSON.stringify(probe));
           }
         }

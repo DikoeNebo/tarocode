@@ -34,7 +34,7 @@ for (const file of decks) {
     fail(`invalid deck content: ${file}`);
     continue;
   }
-  if (deck.cards.length > 8) fail(`too many cards in ${file}`);
+  if (deck.cards.length > 9) fail(`too many cards in ${file}`);
   for (const card of deck.cards) {
     const img = `${card.image || "magician"}.jpg`;
     const p = path.join(tarotDir, img);

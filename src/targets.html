@@ -6,31 +6,38 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
     />
-    <title>Lazy Coder — Where to send</title>
+    <title>Keycode — Chats</title>
     <link rel="stylesheet" href="targets.css" />
   </head>
   <body>
     <header class="win-header">
       <div>
-        <h1 data-i18n="targets.title">Where to send</h1>
+        <h1 data-i18n="targets.title">Chats</h1>
         <p class="subtitle" data-i18n="targets.subtitle">
-          Cursor chat from the list or a normal field. On/off — on the card strip
+          Add destinations, choose where cards are sent, and set Enter after paste.
         </p>
       </div>
-      <button type="button" class="primary-btn" id="btn-done" data-i18n="targets.done">Done</button>
     </header>
 
     <main class="targets-main">
       <div class="targets-toolbar">
-        <button type="button" class="pick-btn" id="btn-pick" data-i18n-title="targets.fieldTitle" title="Add a normal input field">
-          <span class="pick-icon" aria-hidden="true">⊕</span>
-          <span class="pick-label" data-i18n="targets.field">Field</span>
-        </button>
-        <button type="button" class="pick-btn" id="btn-pick-agent" data-i18n-title="targets.chatTitle" title="Cursor chat list">
+        <button type="button" class="pick-btn primary-action" id="btn-pick-agent" data-i18n-title="targets.chatTitle" title="Add Cursor chat">
           <span class="pick-icon" aria-hidden="true">⇄</span>
-          <span class="pick-label" data-i18n="targets.chat">Cursor chat</span>
+          <span class="pick-label" data-i18n="targets.addChat">Add Cursor chat</span>
+        </button>
+        <button type="button" class="pick-btn secondary-action" id="btn-pick" data-i18n-title="targets.fieldTitle" title="Add a normal input field">
+          <span class="pick-icon" aria-hidden="true">⊕</span>
+          <span class="pick-label" data-i18n="targets.addField">Add field</span>
+        </button>
+        <button type="button" class="pick-btn cdp-action" id="btn-cdp-launch" data-i18n-title="targets.cdpTitle" title="Launch or restart Cursor with CDP">
+          <span class="pick-icon" aria-hidden="true">◎</span>
+          <span class="pick-label" data-i18n="targets.cdpLaunch">Cursor CDP</span>
         </button>
         <button type="button" class="link-btn" id="btn-uia-diag" data-i18n="targets.diag" data-i18n-title="targets.diagTitle" title="Check Cursor connection">Diagnostics</button>
+      </div>
+
+      <div class="targets-list-head">
+        <h2 data-i18n="targets.saved">Saved destinations</h2>
         <div class="bulk-actions">
           <button type="button" class="link-btn" id="btn-all" data-i18n="targets.all">All</button>
           <span class="sep">·</span>
@@ -39,6 +46,19 @@
       </div>
 
       <div id="targets-list" class="targets-list"></div>
+
+      <section class="presets-block" id="presets-block" aria-labelledby="presets-heading">
+        <div class="targets-list-head">
+          <h2 id="presets-heading" data-i18n="targets.presetsTitle">Sets</h2>
+          <button type="button" class="link-btn" id="btn-save-preset" data-i18n="targets.presetsSave">
+            Save selection as set
+          </button>
+        </div>
+        <p class="presets-hint" data-i18n="targets.presetsHint">
+          Up to 4 sets. Apply a set to send cards to those chats together.
+        </p>
+        <div id="presets-list" class="presets-list"></div>
+      </section>
 
       <footer class="targets-footer">
         <label class="check">

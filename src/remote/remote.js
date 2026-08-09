@@ -16,6 +16,9 @@
     generating: false,
     completedAt: 0,
     locale: "en",
+    cursorBackend: "cdp",
+    composer: null,
+    clarifications: [],
     soundEnabled: localStorage.getItem("keycode.remote.sound") !== "off",
     listening: false,
     dictationBase: "",
@@ -63,6 +66,19 @@
       prevDeck: "Previous deck",
       nextDeck: "Next deck",
       deckPager: "Deck switcher",
+      backendCdp: "Mode: CDP",
+      backendSdk: "Mode: API",
+      sdkAgent: "SDK project",
+      noSdkChats: "No SDK projects — add a project folder in Settings",
+      emptySdkChat: "SDK agent conversation appears here after you send a message.",
+      mode: "Mode",
+      model: "Model",
+      build: "Build",
+      answering: "Answering…",
+      answered: "Answered",
+      modeFailed: "Could not switch mode",
+      modelFailed: "Could not switch model",
+      noModel: "Model picker unavailable",
     },
     ru: {
       connected: "Подключено",
@@ -102,6 +118,19 @@
       prevDeck: "Предыдущая колода",
       nextDeck: "Следующая колода",
       deckPager: "Переключение колоды",
+      backendCdp: "Режим: CDP",
+      backendSdk: "Режим: API",
+      sdkAgent: "Проект SDK",
+      noSdkChats: "Нет проектов SDK — добавьте папку проекта в Настройках",
+      emptySdkChat: "Диалог SDK-агента появится здесь после отправки сообщения.",
+      mode: "Режим",
+      model: "Модель",
+      build: "Build",
+      answering: "Ответ…",
+      answered: "Ответ отправлен",
+      modeFailed: "Не удалось сменить режим",
+      modelFailed: "Не удалось сменить модель",
+      noModel: "Выбор модели недоступен",
     },
   };
   let audioContext = null;
@@ -256,6 +285,18 @@
     return String(s ?? "");
   }
 
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/'/g, "&#39;");
+  }
+
   /** Extra client-side dedupe + keep paragraph breaks readable. */
   function prepareMessages(messages) {
     const list = Array.isArray(messages) ? messages : [];
@@ -329,23 +370,30 @@
     }
   }
 
-  function suggestedSet() {
-    const ids = new Set();
+  function suggestedRankMap() {
+    const map = new Map();
     for (const s of state.suggestions || []) {
-      if (s?.cardId) ids.add(s.cardId);
-      if (s?.origin === "deck" && s?.id) ids.add(s.id);
+      const id = s?.cardId || (s?.origin === "deck" ? s.id : "");
+      const rank = Number(s?.rank) === 1 ? 1 : 2;
+      if (!id) continue;
+      // Keep brightest (rank 1) if duplicated
+      if (!map.has(id) || rank < map.get(id)) map.set(id, rank);
     }
-    return ids;
+    return map;
   }
 
   function renderCards() {
     const root = $("cards");
     root.replaceChildren();
-    const highlight = suggestedSet();
+    const ranks = suggestedRankMap();
+    root.classList.toggle("has-suggestions", ranks.size > 0);
     for (const card of state.cards) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "card" + (highlight.has(card.id) ? " suggested" : "");
+      const rank = ranks.get(card.id);
+      btn.className =
+        "card" +
+        (rank === 1 ? " suggested-primary" : rank === 2 ? " suggested-secondary" : "");
       btn.disabled = state.busy || !currentTargetId();
       btn.dataset.id = card.id;
 
@@ -433,14 +481,12 @@
     const btn = $("btn-send");
     const mic = $("btn-mic");
     if (!input || !btn) return;
-    // Only lock while a send is in flight. Never gate on targetId / text —
-    // mobile IME often skips `input` events, which left Send stuck disabled.
     const lock = !!state.busy;
     input.disabled = lock;
     input.readOnly = lock;
     btn.disabled = lock;
     btn.setAttribute("aria-disabled", lock ? "true" : "false");
-    btn.textContent = tr("send");
+    applySubmitButtonLabel();
     if (mic) {
       mic.disabled = lock;
       mic.classList.toggle("listening", !!state.listening);
@@ -448,23 +494,142 @@
       mic.title = state.listening ? tr("micListening") : tr("mic");
       mic.setAttribute("aria-label", mic.title);
     }
+    const modeEl = $("composer-mode");
+    const modelEl = $("composer-model");
+    if (modeEl) modeEl.disabled = lock;
+    if (modelEl) modelEl.disabled = lock || modelEl.options.length <= 1;
+  }
+
+  function applySubmitButtonLabel() {
+    const btn = $("btn-send");
+    if (!btn) return;
+    const kind = state.composer?.submitKind === "build" ? "build" : "send";
+    const label =
+      state.composer?.submitLabel ||
+      (kind === "build" ? tr("build") : tr("send"));
+    btn.dataset.kind = kind;
+    btn.textContent = label;
   }
 
   function applyComposerLabels() {
     const label = $("composer-label");
     const input = $("composer-input");
-    const btn = $("btn-send");
     const hint = $("composer-hint");
     const mic = $("btn-mic");
     if (label) label.textContent = tr("message");
     if (input) input.placeholder = tr("placeholder");
-    if (btn) btn.textContent = tr("send");
     if (hint) hint.textContent = tr("composerHint");
     if (mic) {
       mic.title = tr("mic");
       mic.setAttribute("aria-label", tr("mic"));
     }
+    const modeLabel = $("mode-label");
+    const modelLabel = $("model-label");
+    if (modeLabel) modeLabel.textContent = tr("mode");
+    if (modelLabel) modelLabel.textContent = tr("model");
+    applySubmitButtonLabel();
     syncComposer();
+  }
+
+  function renderComposerChrome(composer) {
+    if (composer && typeof composer === "object") {
+      state.composer = composer;
+    }
+    const c = state.composer || {};
+    const modeEl = $("composer-mode");
+    const modelEl = $("composer-model");
+    if (modeEl) {
+      const modes = Array.isArray(c.modes) && c.modes.length
+        ? c.modes
+        : [
+            { id: "agent", label: "Agent" },
+            { id: "plan", label: "Plan" },
+          ];
+      const cur = c.mode === "plan" ? "plan" : "agent";
+      modeEl.innerHTML = modes
+        .map(
+          (m) =>
+            `<option value="${escapeAttr(m.id)}"${m.id === cur ? " selected" : ""}>${escapeHtml(
+              m.label || m.id
+            )}</option>`
+        )
+        .join("");
+      modeEl.value = cur;
+    }
+    if (modelEl) {
+      const models = Array.isArray(c.models) ? c.models : [];
+      const curModel = String(c.modelId || c.modelLabel || "");
+      if (!models.length) {
+        modelEl.innerHTML = `<option value="">${escapeHtml(
+          c.modelLabel || tr("noModel")
+        )}</option>`;
+        modelEl.disabled = true;
+      } else {
+        modelEl.innerHTML = models
+          .map(
+            (m) =>
+              `<option value="${escapeAttr(m.id)}"${
+                m.id === curModel || m.label === curModel ? " selected" : ""
+              }>${escapeHtml(m.label || m.id)}</option>`
+          )
+          .join("");
+        modelEl.disabled = !!state.busy;
+        if (curModel) modelEl.value = curModel;
+      }
+    }
+    applySubmitButtonLabel();
+    syncComposer();
+  }
+
+  function renderClarifications(list) {
+    state.clarifications = Array.isArray(list) ? list : [];
+    const box = $("clarifications");
+    if (!box) return;
+    if (!state.clarifications.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML = state.clarifications
+      .map((q) => {
+        const opts = (q.options || [])
+          .map(
+            (o) =>
+              `<button type="button" class="clarify-opt" data-qid="${escapeAttr(
+                q.id
+              )}" data-oid="${escapeAttr(o.id)}" data-label="${escapeAttr(
+                o.label
+              )}">${escapeHtml(o.label)}</button>`
+          )
+          .join("");
+        return `<div class="clarify-card" data-qid="${escapeAttr(q.id)}">
+          <p class="clarify-prompt">${escapeHtml(q.prompt)}</p>
+          <div class="clarify-options">${opts || ""}</div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function applyChatPayload(body) {
+    if (!body) return;
+    renderMessages(body.messages || []);
+    setActivity(body.generating === true);
+    if (body.composer) renderComposerChrome(body.composer);
+    renderClarifications(body.clarifications || []);
+    // Freeze highlights while generating; apply when idle
+    if (body.generating !== true && Array.isArray(body.suggestions)) {
+      const next = body.suggestions;
+      const prev = state.suggestions || [];
+      const same =
+        prev.length === next.length &&
+        prev.every(
+          (s, i) =>
+            s.cardId === next[i].cardId && Number(s.rank) === Number(next[i].rank)
+        );
+      state.suggestions = next;
+      if (!same) renderCards();
+    }
   }
 
   function speechLang() {
@@ -660,6 +825,8 @@
       const hint = body?.hint || body?.error || "";
       if (hint === "cdp_closed" || res.status === 502) {
         setStatus(tr("cdpClosed"), "warn");
+      } else if (state.cursorBackend === "sdk") {
+        setStatus(hint || tr("noSdkChats"), "warn");
       } else {
         setStatus(hint || tr("noChats"), "warn");
       }
@@ -670,9 +837,23 @@
     renderCards();
     syncComposer();
     if (!state.targets.length) {
-      setStatus(tr("noChats"), "warn");
+      setStatus(
+        state.cursorBackend === "sdk" ? tr("noSdkChats") : tr("noChats"),
+        "warn"
+      );
     }
     return { ok: true };
+  }
+
+  function renderBackendBadge() {
+    const el = $("backend-badge");
+    if (!el) return;
+    // SDK shelved: hide badge while only CDP is active.
+    const sdk = state.cursorBackend === "sdk";
+    el.hidden = !sdk;
+    if (!sdk) return;
+    el.textContent = tr("backendSdk");
+    el.dataset.backend = "sdk";
   }
 
   function applyDeckState(body) {
@@ -680,10 +861,22 @@
     if (Array.isArray(body.cards)) state.cards = body.cards;
     if (Array.isArray(body.decks)) state.decks = body.decks;
     if (body.deck) state.deck = body.deck;
-    if (Array.isArray(body.suggestions)) state.suggestions = body.suggestions;
+    // Suggestions come from chat payloads; ignore empty deck placeholder.
+    if (Array.isArray(body.suggestions) && body.suggestions.length) {
+      state.suggestions = body.suggestions;
+    }
     if (body.uiLocale) state.locale = body.uiLocale;
+    if (body.cursorBackend === "sdk" || body.cursorBackend === "cdp") {
+      state.cursorBackend = body.cursorBackend;
+    }
+    renderBackendBadge();
     renderDeckPager();
     renderCards();
+    const empty = $("transcript-empty");
+    if (empty) {
+      empty.textContent =
+        state.cursorBackend === "sdk" ? tr("emptySdkChat") : tr("emptyChat");
+    }
   }
 
   function renderDeckPager() {
@@ -759,6 +952,7 @@
   async function loadChat() {
     if (!state.targetId) {
       renderMessages([]);
+      renderClarifications([]);
       return;
     }
     const { body } = await api(
@@ -767,10 +961,10 @@
     if (!body?.ok) {
       setStatus(body?.hint || body?.error || "Chat error", "warn");
       renderMessages([]);
+      renderClarifications([]);
       return;
     }
-    renderMessages(body.messages || []);
-    setActivity(body.generating === true);
+    applyChatPayload(body);
   }
 
   function connectSse() {
@@ -853,8 +1047,7 @@
       return;
     }
     if (event === "chat" && payload.targetId === state.targetId) {
-      renderMessages(payload.messages || []);
-      setActivity(payload.generating === true);
+      applyChatPayload(payload);
     } else if (event === "chat-error" && payload.targetId === state.targetId) {
       setStatus(payload.hint || payload.error || "Chat error", "warn");
     } else if (event === "activity" && payload.targetId === state.targetId) {
@@ -1028,6 +1221,7 @@
 
     $("target-select").addEventListener("change", async (e) => {
       state.targetId = e.target.value || "";
+      state.suggestions = [];
       renderCards();
       syncComposer();
       await loadChat();
@@ -1077,6 +1271,88 @@
     $("btn-mic")?.addEventListener("click", (e) => {
       e.preventDefault();
       startDictation();
+    });
+
+    $("composer-mode")?.addEventListener("change", async (e) => {
+      const targetId = currentTargetId();
+      const mode = e.target.value === "plan" ? "plan" : "agent";
+      if (!targetId || state.busy) return;
+      setBusy(true);
+      try {
+        const { body } = await api("/api/composer/mode", {
+          method: "POST",
+          body: JSON.stringify({ targetId, mode }),
+        });
+        if (!body?.ok) {
+          toast(body?.error || tr("modeFailed"), "error");
+          renderComposerChrome(state.composer);
+          return;
+        }
+        if (body.composer) renderComposerChrome(body.composer);
+        else renderComposerChrome({ ...(state.composer || {}), mode });
+      } catch (err) {
+        toast(String(err.message || err), "error");
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    $("composer-model")?.addEventListener("change", async (e) => {
+      const targetId = currentTargetId();
+      const model = String(e.target.value || "").trim();
+      if (!targetId || !model || state.busy) return;
+      setBusy(true);
+      try {
+        const { body } = await api("/api/composer/model", {
+          method: "POST",
+          body: JSON.stringify({ targetId, model }),
+        });
+        if (!body?.ok) {
+          toast(body?.hint || body?.error || tr("modelFailed"), "error");
+          renderComposerChrome(state.composer);
+          return;
+        }
+        if (body.composer) renderComposerChrome(body.composer);
+      } catch (err) {
+        toast(String(err.message || err), "error");
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    $("clarifications")?.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".clarify-opt");
+      if (!btn || state.busy) return;
+      const targetId = currentTargetId();
+      if (!targetId) {
+        toast(tr("pickChat"), "error");
+        return;
+      }
+      setBusy(true);
+      setStatus(tr("answering"), "warn");
+      try {
+        const { body } = await api("/api/composer/answer", {
+          method: "POST",
+          body: JSON.stringify({
+            targetId,
+            clarificationId: btn.getAttribute("data-qid") || "",
+            optionId: btn.getAttribute("data-oid") || "",
+            text: btn.getAttribute("data-label") || "",
+          }),
+        });
+        if (!body?.ok) {
+          toast(body?.error || tr("sendFailed"), "error");
+          setStatus(tr("sendFailed"), "err");
+          return;
+        }
+        toast(tr("answered"), "ok");
+        await loadChat();
+        setStatus(tr("live"), "ok");
+      } catch (err) {
+        toast(String(err.message || err), "error");
+      } finally {
+        setBusy(false);
+      }
     });
 
     $("btn-refresh").addEventListener("click", async () => {

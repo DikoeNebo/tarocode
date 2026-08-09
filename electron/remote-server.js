@@ -107,6 +107,9 @@ function safeJoin(root, urlPath) {
  * @param {(targetId: string, opts?: object) => Promise<object>} opts.readChat
  * @param {(cardId: string, targetId: string) => Promise<object>} opts.pasteCard
  * @param {(text: string, targetId: string) => Promise<object>} [opts.pasteText]
+ * @param {(targetId: string, mode: string) => Promise<object>} [opts.setComposerMode]
+ * @param {(targetId: string, model: string) => Promise<object>} [opts.setComposerModel]
+ * @param {(targetId: string, payload: object) => Promise<object>} [opts.answerClarification]
  * @param {string} opts.staticDir
  * @param {string} opts.tarotDir
  * @param {(level: string, msg: string, meta?: object) => void} [opts.log]
@@ -289,13 +292,24 @@ function createRemoteServer(opts) {
           broadcastToClient(client, "task-done", { targetId });
         }
         const prev = lastHashByTarget.get(targetId);
-        if (prev !== result.hash) {
-          lastHashByTarget.set(targetId, result.hash);
+        const chromeKey = JSON.stringify({
+          c: result.composer || null,
+          q: (result.clarifications || []).map((x) => x.id),
+        });
+        const sugKey = (result.suggestions || [])
+          .map((s) => `${s.rank}:${s.cardId}`)
+          .join(",");
+        const nextKey = `${result.hash || ""}|${chromeKey}|${sugKey}`;
+        if (prev !== nextKey) {
+          lastHashByTarget.set(targetId, nextKey);
           broadcastToClient(client, "chat", {
             targetId,
             hash: result.hash,
             messages: result.messages || [],
             generating: result.generating === true,
+            composer: result.composer || null,
+            clarifications: result.clarifications || [],
+            suggestions: result.suggestions || [],
           });
         }
       } catch (e) {
@@ -398,7 +412,164 @@ function createRemoteServer(opts) {
         hash: result.hash,
         messages: result.messages || [],
         generating: result.generating === true,
+        composer: result.composer || null,
+        clarifications: result.clarifications || [],
+        suggestions: result.suggestions || [],
       });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/composer/mode") {
+      if (typeof opts.setComposerMode !== "function") {
+        sendJson(res, 501, { ok: false, error: "composer_mode_unavailable" });
+        return;
+      }
+      const ct = String(req.headers["content-type"] || "");
+      if (!ct.includes("application/json")) {
+        sendJson(res, 415, { ok: false, error: "json_required" });
+        return;
+      }
+      let body;
+      try {
+        const raw = await readBody(req);
+        body = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        if (e?.code === "body_too_large") {
+          sendJson(res, 413, { ok: false, error: "body_too_large" });
+          return;
+        }
+        sendJson(res, 400, { ok: false, error: "bad_json" });
+        return;
+      }
+      const targetId = String(body.targetId || "").trim();
+      const mode = String(body.mode || "").trim();
+      if (!targetId || !mode) {
+        sendJson(res, 400, { ok: false, error: "target_and_mode_required" });
+        return;
+      }
+      try {
+        const result = await opts.setComposerMode(targetId, mode);
+        if (!result?.ok) {
+          sendJson(res, 502, {
+            ok: false,
+            error: result?.error || "mode_failed",
+            hint: result?.hint || "",
+          });
+          return;
+        }
+        sendJson(res, 200, {
+          ok: true,
+          composer: result.composer || null,
+          mode: result.mode || mode,
+        });
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: "mode_failed" });
+        log("WARN", "remote composer mode failed", { err: String(e.message || e) });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/composer/model") {
+      if (typeof opts.setComposerModel !== "function") {
+        sendJson(res, 501, { ok: false, error: "composer_model_unavailable" });
+        return;
+      }
+      const ct = String(req.headers["content-type"] || "");
+      if (!ct.includes("application/json")) {
+        sendJson(res, 415, { ok: false, error: "json_required" });
+        return;
+      }
+      let body;
+      try {
+        const raw = await readBody(req);
+        body = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        if (e?.code === "body_too_large") {
+          sendJson(res, 413, { ok: false, error: "body_too_large" });
+          return;
+        }
+        sendJson(res, 400, { ok: false, error: "bad_json" });
+        return;
+      }
+      const targetId = String(body.targetId || "").trim();
+      const model = String(body.model || body.modelId || "").trim();
+      if (!targetId || !model) {
+        sendJson(res, 400, { ok: false, error: "target_and_model_required" });
+        return;
+      }
+      try {
+        const result = await opts.setComposerModel(targetId, model);
+        if (!result?.ok) {
+          sendJson(res, 502, {
+            ok: false,
+            error: result?.error || "model_failed",
+            hint: result?.hint || "",
+          });
+          return;
+        }
+        sendJson(res, 200, {
+          ok: true,
+          composer: result.composer || null,
+          model: result.model || model,
+        });
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: "model_failed" });
+        log("WARN", "remote composer model failed", { err: String(e.message || e) });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/composer/answer") {
+      if (typeof opts.answerClarification !== "function") {
+        sendJson(res, 501, { ok: false, error: "composer_answer_unavailable" });
+        return;
+      }
+      const ct = String(req.headers["content-type"] || "");
+      if (!ct.includes("application/json")) {
+        sendJson(res, 415, { ok: false, error: "json_required" });
+        return;
+      }
+      let body;
+      try {
+        const raw = await readBody(req);
+        body = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        if (e?.code === "body_too_large") {
+          sendJson(res, 413, { ok: false, error: "body_too_large" });
+          return;
+        }
+        sendJson(res, 400, { ok: false, error: "bad_json" });
+        return;
+      }
+      const targetId = String(body.targetId || "").trim();
+      if (!targetId) {
+        sendJson(res, 400, { ok: false, error: "target_required" });
+        return;
+      }
+      try {
+        const result = await opts.answerClarification(targetId, {
+          clarificationId: String(body.clarificationId || "").trim(),
+          optionId: String(body.optionId || "").trim(),
+          text: String(body.text || "").trim(),
+        });
+        if (result?.busy) {
+          sendJson(res, 409, { ok: false, error: "busy", busy: true });
+          return;
+        }
+        if (!result?.ok) {
+          sendJson(res, 502, {
+            ok: false,
+            error: result?.error || "answer_failed",
+            hint: result?.hint || "",
+          });
+          return;
+        }
+        sendJson(res, 200, { ok: true, clicked: result.clicked || "" });
+        broadcastSse("paste-done", { targetId, ok: true, kind: "answer" });
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: "answer_failed" });
+        log("WARN", "remote composer answer failed", { err: String(e.message || e) });
+      }
       return;
     }
 
@@ -423,7 +594,15 @@ function createRemoteServer(opts) {
           // First snapshot: select the chat once, then polls use select:false
           const result = await opts.readChat(targetId, { select: true });
           if (result?.ok) {
-            lastHashByTarget.set(targetId, result.hash);
+            lastHashByTarget.set(
+              targetId,
+              `${result.hash || ""}|${JSON.stringify({
+                c: result.composer || null,
+                q: (result.clarifications || []).map((x) => x.id),
+              })}|${(result.suggestions || [])
+                .map((s) => `${s.rank}:${s.cardId}`)
+                .join(",")}`
+            );
             res._keycodeGenerating =
               typeof result.generating === "boolean" ? result.generating : undefined;
             broadcastToClient(res, "chat", {
@@ -431,6 +610,9 @@ function createRemoteServer(opts) {
               hash: result.hash,
               messages: result.messages || [],
               generating: result.generating === true,
+              composer: result.composer || null,
+              clarifications: result.clarifications || [],
+              suggestions: result.suggestions || [],
             });
           } else {
             broadcastToClient(res, "chat-error", {

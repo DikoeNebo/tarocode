@@ -6,7 +6,7 @@
       "id": "plan",
       "title": "Plan",
       "description": "Hierophant: break the task into steps — no code yet",
-      "prompt": "Create a step-by-step plan for the current task. Do not write code.\n\nIf the chat already makes it clear — do not re-ask. Otherwise briefly note:\n- the outcome in one sentence;\n- what already exists;\n- constraint: simple hobby project, no unnecessary complexity.\n\nRequirements:\n1. Small steps: one step = one verifiable thing.\n2. For each step: what to do · what \"done\" means · how to verify.\n3. Start with what must come before anything else.\n4. Risks and what can be simplified or deferred.\n5. Plan only — no implementation.\n\nEnd with a numbered list of steps (one line per step).",
+      "prompt": "Create a step-by-step plan for the current task. Do not write code.\n\nFrom chat context (ask only if missing): outcome in one sentence; what already exists; keep it a simple hobby project.\n\nRules:\n1. Small steps — one step = one verifiable thing.\n2. Per step: what · done means · how to verify.\n3. Blockers first; note risks / what to defer.\n\nEnd with a numbered list of steps (one line each).",
       "image": "hierophant",
       "hotkey": "F1"
     },
@@ -14,7 +14,7 @@
       "id": "evaluate",
       "title": "Evaluate",
       "description": "Justice: project quality score 0–10 and verdict",
-      "prompt": "Evaluate the current plan or latest result honestly — no filler, no flattery.\n\nThis is a project quality score on a 0–10 scale (you must give a number):\n- 0–6 — weak, needs redoing;\n- 7–8 — acceptable, can continue;\n- 9–10 — excellent.\nA perfect 10 is rare. For normal work, ≥ 7 is enough. Below 7 — must redo.\n\nCheck:\n1. Is the goal clear? Can \"done\" be stated unambiguously?\n2. Gaps, omissions, vagueness?\n3. Unnecessary complexity for a hobby project?\n4. What will break first?\n5. Top 3 fixes that would most raise the score.\n\nResponse format:\n- Project quality score: N/10\n- Verdict: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Pros (brief)\n- Cons and risks\n- Specific fixes (list)\n\nDo not suggest starting from scratch if targeted fixes suffice. Do not start coding until asked.",
+      "prompt": "Evaluate the current plan or latest result honestly — no filler, no flattery.\n\nProject quality score 0–10: 0–6 redo; 7–8 acceptable; 9–10 excellent. Below 7 must redo; ≥7 can continue.\n\nCheck: clear goal/done? gaps? hobby overcomplexity? what breaks first? top 3 score-raising fixes.\n\nReply:\n- Project quality score: N/10\n- Verdict: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Pros · cons/risks · specific fixes\n\nNo rewrite-from-scratch if targeted fixes work. No code until asked.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
@@ -22,7 +22,7 @@
       "id": "work",
       "title": "Work",
       "description": "Magician: implement the next plan step in code",
-      "prompt": "Do the next open step of the approved plan — only that step, not everything at once.\n\nRules:\n1. If the step is unclear — name it in one sentence and do exactly that.\n2. Do not break what already works without good reason.\n3. Missing data — ask briefly, do not invent.\n4. After work: what you did · where to look · how to verify.\n\nEnd with one line: step status — done / partial / blocked (and why).",
+      "prompt": "Do the next open step of the approved plan — only that step, not everything at once.\n\nRules: name the step if unclear; don't break working code; ask briefly if data missing — don't invent. After: what · where · how to verify.\n\nEnd with one line: step status — done / partial / blocked (and why).",
       "image": "magician",
       "hotkey": "F3"
     },
@@ -30,7 +30,7 @@
       "id": "test",
       "title": "Test",
       "description": "Star: verify the result with facts, not words",
-      "prompt": "Test what was just done (the last step or a clearly named part).\n\nDo:\n1. Relevant checks: commands, build, manual scenario — whatever fits.\n2. Show facts: output, errors, what actually works.\n3. If it failed — cause and minimal fix (or say that \"Fix\" is needed).\n4. If OK — \"TEST PASSED\" and list what was verified.\n5. Do not move to the next plan step on red (unless I say otherwise).\n\nResult: green / red + one sentence why.\nIf possible, add a preliminary project quality score 0–10 (below 7 = not ready yet).",
+      "prompt": "Test what was just done (the last step or a clearly named part).\n\nDo: relevant checks (commands/build/manual); show facts; on fail — cause + minimal fix; on OK — \"TEST PASSED\" + what was verified. Do not advance the plan on red.\n\nResult: green / red + one sentence why. Add preliminary project quality score 0–10 (below 7 = not ready).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F4"
     },
@@ -38,7 +38,7 @@
       "id": "fix",
       "title": "Fix",
       "description": "Tower: fix the breakage until acceptable score (≥7)",
-      "prompt": "Fix issues from the last test, error, or project quality score below 7/10.\n\nRules:\n1. Minimal fix — no \"while we're at it\" refactoring and no new features.\n2. First: symptom → likely cause.\n3. After the fix, verify again and show the result.\n4. Briefly: was → did → how you confirmed.\n5. Loop \"fix → verify\" until project quality score is ≥ 7/10.\n6. If stuck — blocker and 2 ways out.\n\nNew features forbidden while the breakage is open.",
+      "prompt": "Fix issues from the last test, error, or project quality score below 7/10.\n\nMinimal fix only — no drive-by refactors or new features. Symptom → cause → patch → verify. Loop until score ≥ 7. If stuck — blocker + 2 exits. Brief: was → did → confirmed.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F5"
     },
@@ -46,7 +46,7 @@
       "id": "polish",
       "title": "Polish",
       "description": "Strength: raise project quality score to 9–10",
-      "prompt": "\"Polish\" mode. Do not stop until the project quality score is 9 or 10 out of 10.\n\nProject quality score scale:\n- below 7 — unacceptable;\n- 7–8 — fine for normal work, but not enough for this card;\n- 9–10 — goal; you may stop.\n\nLoop without asking \"continue?\":\n1. Set project quality score N/10 and name the 3 main gaps holding the score.\n2. If score ≤ 8 — fixes only for those gaps (no new features, no scope expansion).\n3. Verify what you changed.\n4. Set project quality score 0–10 again.\n5. While ≤ 8 — repeat from step 2.\n\nStop only at 9 or 10. Then:\n- Final project quality score: N/10\n- What raised the score\n- What you deliberately left untouched\n\nImportant: 7–8 is not the finish here. Finish is only 9 or 10.",
+      "prompt": "\"Polish\" mode. Do not stop until the project quality score is 9 or 10 out of 10.\n\n7–8 is not enough for this card. Loop without asking: score N/10 + top gaps → fix only those → verify → rescore. While ≤ 8, repeat. Stop only at 9–10.\n\nThen: final score · what raised it · what you left alone.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F6"
     },
@@ -54,7 +54,7 @@
       "id": "backup",
       "title": "Backup",
       "description": "Hermit: save a rollback point",
-      "prompt": "Create a safe rollback point for the current project state.\n\nIn order, as far as possible:\n1. git status (or equivalent) — what changed.\n2. If git exists — a meaningful commit OR a ready commit command. No force, no dangerous ops, no --no-verify unless asked.\n3. If no git — copy key files/folder to backup with date in the name.\n4. How to roll back in one or two commands.\n5. Do not push to remote without explicit request.\n\nEnd with: \"Checkpoint saved\" + where/how to roll back.",
+      "prompt": "Create a safe rollback point for the current project state.\n\n1. git status (or equivalent).\n2. Meaningful commit or ready commit command — no force, no --no-verify unless asked.\n3. No git — dated backup copy of key files.\n4. Rollback in 1–2 commands. No push without request.\n\nEnd with: \"Checkpoint saved\" + where/how to roll back.",
       "image": "hermit",
       "hotkey": "F7"
     },
@@ -62,9 +62,17 @@
       "id": "fullcycle",
       "title": "Full Cycle",
       "description": "World: plan → work → test, each step ≥ 7 points",
-      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nProject quality score 0–10: an item is closed only at ≥ 7. A perfect 10 is not required in this mode (use \"Polish\" for 9–10).\n\nFor EACH plan item:\n1. Which item now.\n2. Do the work.\n3. Verify the result.\n4. Set project quality score 0–10.\n5. If < 7 — fix and repeat until ≥ 7.\n6. Only then the next item.\n\nRules: do not skip steps; do not inflate the task; report progress briefly and clearly.\nIf no plan — first a short plan (5–8 steps) and confirmation, or proceed if the task is already agreed.\n\nFinal:\n- overall check + overall project quality score 0–10;\n- what's done · what's not done · what I should verify manually;\n- if overall score < 7 — do not declare success, keep polishing.",
+      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nClose each item only at project quality score ≥ 7 (use Polish for 9–10). Per item: name → implement → verify → score → if <7 fix until ≥7 → next. No scope inflation.\n\nNo plan — short 5–8 step plan first (or proceed if already agreed).\n\nFinal: overall score · done / not done · what to verify manually. Don't declare success if overall <7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Recap",
+      "description": "High Priestess: short chat/task status — done vs not done",
+      "prompt": "Read this chat and the repo context. Do not write or change code.\n\nReply in exactly four short sections (1–3 bullets each):\n1. Task — what we aim for (one sentence + scope if known).\n2. Done — implemented or verified.\n3. Not done — open steps, failures, blockers, unknowns.\n4. Next step — single best action (name Plan / Work / Test / Fix if obvious).\n\nIf there is no plan, say so and recommend Plan. Mark unknowns explicitly — do not invent. No KEYCODE_SCORE line.",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }

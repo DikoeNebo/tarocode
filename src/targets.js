@@ -53,33 +53,35 @@ function render() {
   if (!targets.length) {
     list.innerHTML = `
       <div class="empty-state">
-        <span class="empty-icon" aria-hidden="true">🎯</span>
+        <span class="empty-icon" aria-hidden="true">◌</span>
         <div>${window.I18n.t("targets.emptyHintChat")}</div>
-        <div style="font-size:12px">${window.I18n.t("targets.emptyHintField")}</div>
+        <div class="empty-state-detail">${window.I18n.t("targets.emptyHintField")}</div>
       </div>`;
-    return;
-  }
-
-  list.innerHTML = targets
-    .map((t) => {
-      const kind = t.needsCdpRebind
-        ? window.I18n.t("driver.rebindChatTargets")
-        : t.driver === "cdp"
-          ? window.I18n.t("driver.cdp")
-          : t.driver === "uia-quiet"
-            ? window.I18n.t("driver.quiet")
-            : t.driver === "uia"
-              ? window.I18n.t("driver.uiaLegacy")
-              : pointsOverlap(t)
-                ? window.I18n.t("driver.bindError")
-                : t.inputPoint && !t.legacy
-                  ? window.I18n.t("driver.windowField")
-                  : window.I18n.t("driver.needRebindField");
-      const match = [kind, t.fullTitle || t.match || ""]
-        .filter(Boolean)
-        .join(" · ");
-      return `
-      <label class="target-row ${t.needsUiaRebind ? "needs-rebind" : ""}" data-id="${escapeAttr(t.id)}">
+  } else {
+    list.innerHTML = targets
+      .map((t) => {
+        const kind = t.needsCdpRebind
+          ? window.I18n.t("driver.rebindChatTargets")
+          : t.driver === "cdp"
+            ? window.I18n.t("driver.cdp")
+            : t.driver === "uia-quiet"
+              ? window.I18n.t("driver.quiet")
+              : t.driver === "uia"
+                ? window.I18n.t("driver.uiaLegacy")
+                : pointsOverlap(t)
+                  ? window.I18n.t("driver.bindError")
+                  : t.inputPoint && !t.legacy
+                    ? window.I18n.t("driver.windowField")
+                    : window.I18n.t("driver.needRebindField");
+        const match = [
+          kind,
+          window.I18n.t(t.enabled ? "targets.enabled" : "targets.disabled"),
+          t.fullTitle || t.match || "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return `
+      <label class="target-row ${t.needsUiaRebind || t.needsCdpRebind ? "needs-rebind" : ""}" data-id="${escapeAttr(t.id)}">
         <input type="checkbox" ${t.enabled ? "checked" : ""} data-toggle="${escapeAttr(t.id)}" />
         <div class="target-info">
           <div class="target-name">${escapeHtml(t.name)}</div>
@@ -89,8 +91,133 @@ function render() {
           t.id
         )}" title="${escapeAttr(window.I18n.t("targets.remove"))}">×</button>
       </label>`;
+      })
+      .join("");
+  }
+
+  renderPresets();
+}
+
+const MAX_PRESETS = 4;
+
+function renderPresets() {
+  const list = $("presets-list");
+  if (!list) return;
+  const presets = settings?.targetPresets || [];
+  const mode = String(settings?.pasteMode || "broadcast").toLowerCase();
+  const activeId = settings?.activePresetId || "";
+
+  if (!presets.length) {
+    list.innerHTML = `<div class="presets-empty">${escapeHtml(
+      window.I18n.t("targets.presetsEmpty")
+    )}</div>`;
+    return;
+  }
+
+  list.innerHTML = presets
+    .map((p) => {
+      const active = mode === "broadcast" && p.id === activeId;
+      const n = (p.targetIds || []).length;
+      return `
+      <div class="preset-row${active ? " active" : ""}" data-preset-id="${escapeAttr(p.id)}">
+        <div class="preset-info">
+          <div class="preset-name">${escapeHtml(p.name)}</div>
+          <div class="preset-meta">${escapeHtml(
+            window.I18n.t("targets.presetsCount", { n })
+          )}</div>
+        </div>
+        <button type="button" class="link-btn" data-preset-apply="${escapeAttr(
+          p.id
+        )}">${escapeHtml(window.I18n.t("targets.presetsApply"))}</button>
+        <button type="button" class="link-btn" data-preset-rename="${escapeAttr(
+          p.id
+        )}">${escapeHtml(window.I18n.t("targets.presetsRename"))}</button>
+        <button type="button" class="target-remove" data-preset-delete="${escapeAttr(
+          p.id
+        )}" title="${escapeAttr(window.I18n.t("common.delete"))}">×</button>
+      </div>`;
     })
     .join("");
+}
+
+async function savePresetFromSelection() {
+  const targets = settings?.targets || [];
+  const selected = targets.filter((t) => t.enabled).map((t) => t.id);
+  if (!selected.length) {
+    toast(window.I18n.t("targets.presetsNeedSelection"), "error");
+    return;
+  }
+  const presets = [...(settings?.targetPresets || [])];
+  if (presets.length >= MAX_PRESETS) {
+    toast(window.I18n.t("targets.presetsMax"), "error");
+    return;
+  }
+  const name = window.prompt(
+    window.I18n.t("targets.presetsNamePrompt"),
+    window.I18n.t("targets.presetsDefaultName", { n: presets.length + 1 })
+  );
+  if (name == null) return;
+  const trimmed = String(name).trim().slice(0, 80);
+  if (!trimmed) {
+    toast(window.I18n.t("targets.presetsNeedName"), "error");
+    return;
+  }
+  presets.push({
+    id: `preset-${Date.now().toString(36)}`,
+    name: trimmed,
+    targetIds: selected,
+  });
+  settings = await window.keycode.saveSettings({
+    targetPresets: presets,
+    pasteMode: "broadcast",
+    activePresetId: presets[presets.length - 1].id,
+    targets: targets.map((t) => ({ ...t, enabled: selected.includes(t.id) })),
+  });
+  render();
+  toast(window.I18n.t("targets.presetsSaved"), "ok");
+}
+
+async function applyPreset(presetId) {
+  const presets = settings?.targetPresets || [];
+  const preset = presets.find((p) => p.id === presetId);
+  if (!preset) return;
+  const ids = new Set(preset.targetIds || []);
+  const targets = (settings?.targets || []).map((t) => ({
+    ...t,
+    enabled: ids.has(t.id),
+  }));
+  settings = await window.keycode.saveSettings({
+    pasteMode: "broadcast",
+    activePresetId: presetId,
+    targets,
+  });
+  render();
+}
+
+async function renamePreset(presetId) {
+  const presets = [...(settings?.targetPresets || [])];
+  const idx = presets.findIndex((p) => p.id === presetId);
+  if (idx < 0) return;
+  const name = window.prompt(window.I18n.t("targets.presetsNamePrompt"), presets[idx].name);
+  if (name == null) return;
+  const trimmed = String(name).trim().slice(0, 80);
+  if (!trimmed) {
+    toast(window.I18n.t("targets.presetsNeedName"), "error");
+    return;
+  }
+  presets[idx] = { ...presets[idx], name: trimmed };
+  settings = await window.keycode.saveSettings({ targetPresets: presets });
+  render();
+}
+
+async function deletePreset(presetId) {
+  const presets = (settings?.targetPresets || []).filter((p) => p.id !== presetId);
+  const patch = { targetPresets: presets };
+  if (settings?.activePresetId === presetId) {
+    patch.activePresetId = "";
+  }
+  settings = await window.keycode.saveSettings(patch);
+  render();
 }
 
 async function saveTargets(targets) {
@@ -119,11 +246,109 @@ async function pickTarget(mode = "field") {
   else if (result?.error) toast(result.error, "error");
 }
 
-function bindEvents() {
-  $("btn-done").addEventListener("click", () => window.keycode.closeTargets());
+async function launchOrRestartCdp() {
+  const btn = $("btn-cdp-launch");
+  const label = btn?.querySelector(".pick-label");
+  if (btn) btn.disabled = true;
+  try {
+    const probe = await window.keycode.cursorProbe();
+    if (probe?.ok || probe?.open) {
+      toast(probe.hint || window.I18n.t("cdp.alreadyOk"), "ok");
+      if (label) label.textContent = window.I18n.t("targets.cdpOk");
+      if (btn) {
+        btn.classList.add("ok");
+        btn.classList.remove("warn");
+      }
+      return;
+    }
+    const running = !!probe?.cursorRunning;
+    if (label) {
+      label.textContent = running
+        ? window.I18n.t("cdp.restartBtn")
+        : window.I18n.t("cdp.launchBtn");
+    }
+    if (btn) {
+      btn.classList.remove("ok");
+      btn.classList.add("warn");
+    }
+    toast(
+      running ? window.I18n.t("cdp.restarting") : window.I18n.t("cdp.launching"),
+      ""
+    );
+    const r = await window.keycode.cursorLaunchIntegration({
+      mode: "both",
+      allowRestart: true,
+    });
+    if (!r?.ok) {
+      toast(r?.error || window.I18n.t("cdp.fail"), "error");
+      if (btn) {
+        btn.classList.remove("ok");
+        btn.classList.add("warn");
+      }
+      return;
+    }
+    const open = !!(r.probe?.open);
+    toast(
+      r.probe?.hint ||
+        (open
+          ? window.I18n.t("msg.cursorReadyCdp")
+          : window.I18n.t("msg.cursorStarting")),
+      open ? "ok" : "error"
+    );
+    if (label) {
+      label.textContent = open
+        ? window.I18n.t("targets.cdpOk")
+        : window.I18n.t("targets.cdpLaunch");
+    }
+    if (btn) {
+      btn.classList.toggle("ok", open);
+      btn.classList.toggle("warn", !open);
+    }
+  } catch (e) {
+    toast(String(e.message || e), "error");
+    if (btn) {
+      btn.classList.remove("ok");
+      btn.classList.add("warn");
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 
+async function refreshCdpButtonLabel() {
+  const btn = $("btn-cdp-launch");
+  const label = btn?.querySelector(".pick-label");
+  if (!label) return;
+  try {
+    const probe = await window.keycode.cursorProbe();
+    if (probe?.ok || probe?.open) {
+      label.textContent = window.I18n.t("targets.cdpOk");
+      if (btn) {
+        btn.classList.add("ok");
+        btn.classList.remove("warn");
+      }
+      return;
+    }
+    label.textContent = probe?.cursorRunning
+      ? window.I18n.t("cdp.restartBtn")
+      : window.I18n.t("targets.cdpLaunch");
+    if (btn) {
+      btn.classList.remove("ok");
+      btn.classList.add("warn");
+    }
+  } catch {
+    label.textContent = window.I18n.t("targets.cdpLaunch");
+    if (btn) {
+      btn.classList.remove("ok");
+      btn.classList.add("warn");
+    }
+  }
+}
+
+function bindEvents() {
   $("btn-pick").addEventListener("click", () => pickTarget("field"));
   $("btn-pick-agent").addEventListener("click", () => pickTarget("cursor"));
+  $("btn-cdp-launch")?.addEventListener("click", () => launchOrRestartCdp());
   $("btn-uia-diag")?.addEventListener("click", async () => {
     toast(window.I18n.t("targetsMsg.diag"), "");
     const r = await window.keycode.uiaDiagnose();
@@ -139,6 +364,23 @@ function bindEvents() {
   $("btn-none").addEventListener("click", async () => {
     const targets = (settings?.targets || []).map((t) => ({ ...t, enabled: false }));
     await saveTargets(targets);
+  });
+
+  $("btn-save-preset")?.addEventListener("click", () => savePresetFromSelection());
+
+  $("presets-list")?.addEventListener("click", async (e) => {
+    const t = e.target;
+    if (t.matches("[data-preset-apply]")) {
+      await applyPreset(t.getAttribute("data-preset-apply"));
+      return;
+    }
+    if (t.matches("[data-preset-rename]")) {
+      await renamePreset(t.getAttribute("data-preset-rename"));
+      return;
+    }
+    if (t.matches("[data-preset-delete]")) {
+      await deletePreset(t.getAttribute("data-preset-delete"));
+    }
   });
 
   $("auto-enter").addEventListener("change", async (e) => {
@@ -173,7 +415,9 @@ function bindEvents() {
 }
 
 bindEvents();
-refresh().catch((e) => {
-  console.error(e);
-  toast(window.I18n.t("targetsMsg.loadError"), "error");
-});
+refresh()
+  .then(() => refreshCdpButtonLabel())
+  .catch((e) => {
+    console.error(e);
+    toast(window.I18n.t("targetsMsg.loadError"), "error");
+  });

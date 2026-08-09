@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("keycode", {
   listWindows: () => ipcRenderer.invoke("list-windows"),
   addTargetWindow: (win) => ipcRenderer.invoke("add-target-window", win),
   pasteCard: (cardId) => ipcRenderer.invoke("paste-card", cardId),
+  readDeckChat: (payload) => ipcRenderer.invoke("deck-read-chat", payload || {}),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke("set-ignore-mouse", ignore),
   getCursorClient: () => ipcRenderer.invoke("get-cursor-client"),
   setPreviewHold: (on) => ipcRenderer.invoke("set-preview-hold", on),
@@ -18,15 +19,41 @@ contextBridge.exposeInMainWorld("keycode", {
   startTargetPick: (mode = "field") =>
     ipcRenderer.invoke("start-target-pick", mode),
   cursorProbe: () => ipcRenderer.invoke("cursor-probe"),
+  sdkProbe: () => ipcRenderer.invoke("sdk-probe"),
+  sdkPickCwd: () => ipcRenderer.invoke("sdk-pick-cwd"),
+  sdkAddProject: (opts) => ipcRenderer.invoke("sdk-add-project", opts || {}),
+  sdkRemoveProject: (id) => ipcRenderer.invoke("sdk-remove-project", id),
+  sdkSetActiveProject: (id) => ipcRenderer.invoke("sdk-set-active-project", id),
+  sdkRenameProject: (payload) =>
+    ipcRenderer.invoke("sdk-rename-project", payload || {}),
+  sdkAddChat: (payload) => ipcRenderer.invoke("sdk-add-chat", payload || {}),
+  sdkRemoveChat: (payload) =>
+    ipcRenderer.invoke("sdk-remove-chat", payload || {}),
+  sdkSetActiveChat: (payload) =>
+    ipcRenderer.invoke("sdk-set-active-chat", payload || {}),
+  sdkRenameChat: (payload) =>
+    ipcRenderer.invoke("sdk-rename-chat", payload || {}),
+  sdkNewAgent: () => ipcRenderer.invoke("sdk-new-agent"),
   cursorLaunchIntegration: (opts) =>
     ipcRenderer.invoke("cursor-launch-integration", opts || {}),
   cursorInstallCdpShortcut: (opts) =>
     ipcRenderer.invoke("cursor-install-cdp-shortcut", opts || {}),
+  onCdpNudge: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("cdp-nudge", handler);
+    return () => ipcRenderer.removeListener("cdp-nudge", handler);
+  },
   uiaDiagnose: () => ipcRenderer.invoke("uia-diagnose"),
   cdpListWindows: () => ipcRenderer.invoke("cdp-list-windows"),
-  cdpListChats: (cdpTargetId) =>
-    ipcRenderer.invoke("cdp-list-chats", cdpTargetId),
+  cdpListChats: (cdpTargetId, opts) =>
+    ipcRenderer.invoke("cdp-list-chats", {
+      cdpTargetId,
+      ...(opts && typeof opts === "object" ? opts : {}),
+    }),
   cdpAddChat: (payload) => ipcRenderer.invoke("cdp-add-chat", payload),
+  cdpCreateChat: (payload) => ipcRenderer.invoke("cdp-create-chat", payload),
+  pasteTextToTarget: (payload) =>
+    ipcRenderer.invoke("paste-text-to-target", payload || {}),
   openChatPick: () => ipcRenderer.invoke("open-chat-pick"),
   closeChatPick: () => ipcRenderer.invoke("close-chat-pick"),
   toggleDeck: () => ipcRenderer.invoke("toggle-deck"),

@@ -7,3 +7,8 @@ dist2/
 .DS_Store
 data/*.bak
 *.tmp
+tarot
+tmp-*.png
+tmp-*.jpg
+tmp-*.jpeg
+*.local.md

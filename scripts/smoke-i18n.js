@@ -51,13 +51,35 @@ for (const code of i18n.SUPPORTED) {
     }
     const d = JSON.parse(fs.readFileSync(p, "utf8"));
     if (d.id !== id) fail(`deck id ${code}/${id} got ${d.id}`);
-    if (!Array.isArray(d.cards) || d.cards.length < 1 || d.cards.length > 8) {
+    if (!Array.isArray(d.cards) || d.cards.length < 1 || d.cards.length > 9) {
       fail(`deck cards ${code}/${id} len=${d.cards?.length}`);
+    }
+    const ids = (d.cards || []).map((c) => c.id);
+    const hotkeys = (d.cards || []).map((c) => c.hotkey || "");
+    if (code === "en") {
+      // baseline for cross-locale parity
+      globalThis.__KEYCODE_DECK_BASE__ = globalThis.__KEYCODE_DECK_BASE__ || {};
+      globalThis.__KEYCODE_DECK_BASE__[id] = { ids, hotkeys };
+    } else {
+      const base = globalThis.__KEYCODE_DECK_BASE__?.[id];
+      if (base) {
+        if (JSON.stringify(ids) !== JSON.stringify(base.ids)) {
+          fail(`deck card ids diverge ${code}/${id}`);
+        }
+        if (JSON.stringify(hotkeys) !== JSON.stringify(base.hotkeys)) {
+          fail(`deck hotkeys diverge ${code}/${id}`);
+        }
+      }
     }
     for (const c of d.cards || []) {
       if (!c.id || !c.title || !c.prompt || !c.image) {
         fail(`card incomplete ${code}/${id}/${c?.id}`);
       }
+    }
+    if (!ids.includes("summary")) fail(`deck missing summary ${code}/${id}`);
+    const summary = (d.cards || []).find((c) => c.id === "summary");
+    if (summary && summary.hotkey) {
+      fail(`summary must be click-only ${code}/${id}`);
     }
   }
 }

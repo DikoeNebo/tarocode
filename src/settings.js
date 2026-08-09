@@ -6,6 +6,8 @@ let state = {
   decks: [],
   deck: /** @type {Deck | null} */ (null),
   editingCardId: null,
+  /** Future: KEYCODE_ENABLE_SDK=1 */
+  sdkBackendEnabled: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -83,6 +85,7 @@ async function refresh() {
   state.decks = data.decks;
   state.deck = data.deck;
   state._i18n = data.i18n;
+  state.sdkBackendEnabled = data.sdkBackendEnabled === true;
   applyI18nPack(data.i18n);
   fillSettingsForm();
   renderDeckSelect();
@@ -99,6 +102,15 @@ function fillSettingsForm() {
   if ($("set-cdp-port")) {
     $("set-cdp-port").value = String(state.settings?.cdpPort ?? 9222);
   }
+  if ($("set-cursor-backend")) {
+    $("set-cursor-backend").value =
+      state.settings?.cursorBackend === "sdk" ? "sdk" : "cdp";
+  }
+  if ($("set-cursor-api-key")) {
+    $("set-cursor-api-key").value = String(state.settings?.cursorApiKey || "");
+  }
+  renderSdkProjectsForm();
+  syncSdkSettingsVisibility();
   if ($("set-remote-enabled")) {
     $("set-remote-enabled").checked = state.settings?.remoteEnabled === true;
   }
@@ -108,6 +120,10 @@ function fillSettingsForm() {
   $("set-edge-hover").checked = state.settings?.edgeHover !== false;
   $("set-edge-threshold").value = String(state.settings?.edgeThreshold ?? 14);
   $("set-card-preview").checked = state.settings?.showCardPreview !== false;
+  if ($("set-side-card-layout")) {
+    $("set-side-card-layout").value =
+      state.settings?.sideCardLayout === "strip" ? "strip" : "table";
+  }
   const scalePct = Math.round((state.settings?.panelScale ?? 1) * 100);
   const uiPct = Math.round((state.settings?.uiOpacity ?? 0.8) * 100);
   const titlePct = Math.round((state.settings?.titleOpacity ?? 1) * 100);
@@ -131,6 +147,137 @@ function syncDockButtons(dock) {
   document.querySelectorAll("#dock-pad .dock-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-dock") === active);
   });
+}
+
+function showSettingsPage(page) {
+  const selected = page || "general";
+  document.querySelectorAll("[data-settings-nav]").forEach((btn) => {
+    const active = btn.getAttribute("data-settings-nav") === selected;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.querySelectorAll("[data-settings-page]").forEach((section) => {
+    section.classList.toggle(
+      "active",
+      section.getAttribute("data-settings-page") === selected
+    );
+  });
+  document.querySelector(".settings-pages")?.scrollTo({ top: 0 });
+}
+
+function bindSettingsNavigation() {
+  const buttons = [...document.querySelectorAll("[data-settings-nav]")];
+  buttons.forEach((btn, index) => {
+    btn.addEventListener("click", () => {
+      showSettingsPage(btn.getAttribute("data-settings-nav"));
+    });
+    btn.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowRight" &&
+          e.key !== "ArrowUp" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1;
+      const next = buttons[(index + step + buttons.length) % buttons.length];
+      next?.focus();
+      next?.click();
+    });
+  });
+  showSettingsPage("general");
+}
+
+function syncSdkSettingsVisibility() {
+  const enabled = state.sdkBackendEnabled === true;
+  const block = $("cursor-backend-block");
+  if (block) {
+    block.classList.toggle("hidden", !enabled);
+    block.hidden = !enabled;
+  }
+  if (!enabled) {
+    if ($("set-cursor-backend")) $("set-cursor-backend").value = "cdp";
+    const box = $("sdk-settings");
+    if (box) box.classList.add("hidden");
+    const line = $("backend-mode-line");
+    if (line) line.textContent = "";
+    return;
+  }
+  const backend = $("set-cursor-backend")?.value === "sdk" ? "sdk" : "cdp";
+  const box = $("sdk-settings");
+  if (box) box.classList.toggle("hidden", backend !== "sdk");
+  const line = $("backend-mode-line");
+  if (line) {
+    line.textContent =
+      backend === "sdk"
+        ? window.I18n.t("settingsMsg.backendSdk")
+        : window.I18n.t("settingsMsg.backendCdp");
+  }
+}
+
+function sdkProjectsList() {
+  return Array.isArray(state.settings?.sdkProjects)
+    ? state.settings.sdkProjects
+    : [];
+}
+
+function activeSdkProject() {
+  const list = sdkProjectsList();
+  const id = state.settings?.activeSdkProjectId;
+  return list.find((p) => p.id === id) || list[0] || null;
+}
+
+function activeSdkChat() {
+  const project = activeSdkProject();
+  const chats = Array.isArray(project?.chats) ? project.chats : [];
+  if (!chats.length) return null;
+  const id = project?.activeChatId;
+  return chats.find((c) => c.id === id) || chats[0] || null;
+}
+
+function renderSdkProjectsForm() {
+  const sel = $("set-sdk-active-project");
+  const nameEl = $("set-sdk-project-name");
+  const cwdEl = $("set-cursor-sdk-cwd");
+  const chatSel = $("set-sdk-active-chat");
+  const chatNameEl = $("set-sdk-chat-name");
+  const list = sdkProjectsList();
+  const active = activeSdkProject();
+  const activeChat = activeSdkChat();
+  if (sel) {
+    if (!list.length) {
+      sel.innerHTML = `<option value="">${window.I18n.t("settings.sdkNoProjects")}</option>`;
+    } else {
+      sel.innerHTML = list
+        .map(
+          (p) =>
+            `<option value="${escapeAttr(p.id)}"${
+              active && p.id === active.id ? " selected" : ""
+            }>${escapeHtml(p.name || p.cwd || p.id)}</option>`
+        )
+        .join("");
+    }
+  }
+  if (nameEl) nameEl.value = active?.name || "";
+  if (cwdEl) cwdEl.value = active?.cwd || state.settings?.cursorSdkCwd || "";
+  const chats = Array.isArray(active?.chats) ? active.chats : [];
+  if (chatSel) {
+    if (!chats.length) {
+      chatSel.innerHTML = `<option value="">${window.I18n.t("settings.sdkNoChats")}</option>`;
+    } else {
+      chatSel.innerHTML = chats
+        .map(
+          (c) =>
+            `<option value="${escapeAttr(c.id)}"${
+              activeChat && c.id === activeChat.id ? " selected" : ""
+            }>${escapeHtml(c.name || c.id)}</option>`
+        )
+        .join("");
+    }
+  }
+  if (chatNameEl) chatNameEl.value = activeChat?.name || "";
+  const removeBtn = $("btn-sdk-remove-project");
+  if (removeBtn) removeBtn.disabled = !active;
+  const removeChatBtn = $("btn-sdk-remove-chat");
+  if (removeChatBtn) removeChatBtn.disabled = !activeChat || chats.length <= 1;
+  const addChatBtn = $("btn-sdk-add-chat");
+  if (addChatBtn) addChatBtn.disabled = !active;
 }
 
 function renderDeckSelect() {
@@ -212,12 +359,23 @@ async function saveGeneralSettings() {
   const edgeHover = $("set-edge-hover").checked;
   const edgeThreshold = Number($("set-edge-threshold").value) || 14;
   const showCardPreview = $("set-card-preview").checked;
+  const sideCardLayout =
+    $("set-side-card-layout")?.value === "strip" ? "strip" : "table";
   const panelScale = (Number($("set-panel-scale").value) || 100) / 100;
   const uiOpacity = (Number($("set-ui-opacity").value) || 80) / 100;
   const titleOpacity = (Number($("set-title-opacity").value) || 100) / 100;
   const cardTarotFontPx = Number($("set-tarot-font").value) || 16;
   const cardActionFontPx = Number($("set-action-font").value) || 13;
   const cdpPort = Number($("set-cdp-port")?.value) || 9222;
+  const cursorBackend =
+    state.sdkBackendEnabled === true &&
+    $("set-cursor-backend")?.value === "sdk"
+      ? "sdk"
+      : "cdp";
+  const cursorApiKey =
+    state.sdkBackendEnabled === true
+      ? $("set-cursor-api-key")?.value ?? ""
+      : state.settings?.cursorApiKey ?? "";
   state.settings = await window.keycode.saveSettings({
     pauseMs,
     preserveFocus,
@@ -226,12 +384,15 @@ async function saveGeneralSettings() {
     edgeHover,
     edgeThreshold,
     showCardPreview,
+    sideCardLayout,
     panelScale,
     uiOpacity,
     titleOpacity,
     cardTarotFontPx,
     cardActionFontPx,
     cdpPort,
+    cursorBackend,
+    ...(state.sdkBackendEnabled === true ? { cursorApiKey } : {}),
   });
 }
 
@@ -284,7 +445,7 @@ async function deleteCard() {
 
 async function addCard() {
   if (!state.deck) return;
-  if (state.deck.cards.length >= 8) {
+  if (state.deck.cards.length >= 9) {
     toast(window.I18n.t("cards.max8Long"), "error");
     return;
   }
@@ -375,6 +536,11 @@ function bindLiveGeneralSettings() {
   });
   $("set-card-preview").addEventListener("change", (e) => {
     persist({ showCardPreview: e.target.checked });
+  });
+  $("set-side-card-layout")?.addEventListener("change", (e) => {
+    const sideCardLayout = e.target.value === "strip" ? "strip" : "table";
+    preview({ sideCardLayout });
+    persist({ sideCardLayout });
   });
   $("set-pause").addEventListener("change", (e) => {
     persist({ pauseMs: Number(e.target.value) || 350 });
@@ -543,6 +709,7 @@ function bindDonateUi() {
 
 function bindEvents() {
   $("btn-done").addEventListener("click", closeWindow);
+  bindSettingsNavigation();
   bindLiveGeneralSettings();
   bindDonateUi();
 
@@ -636,6 +803,227 @@ function bindEvents() {
     state.settings = await window.keycode.saveSettings({ cdpPort });
   });
 
+  $("set-cursor-backend")?.addEventListener("change", async (e) => {
+    const cursorBackend = e.target.value === "sdk" ? "sdk" : "cdp";
+    state.settings = await window.keycode.saveSettings({ cursorBackend });
+    syncSdkSettingsVisibility();
+    toast(
+      cursorBackend === "sdk"
+        ? window.I18n.t("settingsMsg.backendSdk")
+        : window.I18n.t("settingsMsg.backendCdp"),
+      "ok"
+    );
+  });
+
+  $("set-cursor-api-key")?.addEventListener("change", async (e) => {
+    state.settings = await window.keycode.saveSettings({
+      cursorApiKey: String(e.target.value || ""),
+    });
+  });
+
+  $("btn-sdk-pick-cwd")?.addEventListener("click", async () => {
+    if (!window.keycode.sdkPickCwd) return;
+    const r = await window.keycode.sdkPickCwd();
+    if (!r?.ok) return;
+    state.settings = {
+      ...state.settings,
+      cursorSdkCwd: r.cwd || "",
+      sdkProjects: r.sdkProjects || state.settings.sdkProjects,
+      activeSdkProjectId:
+        r.activeSdkProjectId || state.settings.activeSdkProjectId,
+    };
+    renderSdkProjectsForm();
+    toast(window.I18n.t("settingsMsg.sdkCwdSet"), "ok");
+  });
+
+  $("btn-sdk-add-project")?.addEventListener("click", async () => {
+    if (!window.keycode.sdkAddProject) return;
+    const r = await window.keycode.sdkAddProject({});
+    if (!r?.ok) {
+      if (!r?.canceled) toast(r?.error || "SDK", "error");
+      return;
+    }
+    state.settings = {
+      ...state.settings,
+      sdkProjects: r.sdkProjects,
+      activeSdkProjectId: r.activeSdkProjectId,
+      cursorSdkCwd: r.project?.cwd || "",
+    };
+    renderSdkProjectsForm();
+    toast(window.I18n.t("settingsMsg.sdkProjectAdded"), "ok");
+  });
+
+  $("btn-sdk-remove-project")?.addEventListener("click", async () => {
+    const active = activeSdkProject();
+    if (!active || !window.keycode.sdkRemoveProject) return;
+    const r = await window.keycode.sdkRemoveProject(active.id);
+    if (!r?.ok) {
+      toast(r?.error || "SDK", "error");
+      return;
+    }
+    state.settings = {
+      ...state.settings,
+      sdkProjects: r.sdkProjects,
+      activeSdkProjectId: r.activeSdkProjectId,
+    };
+    renderSdkProjectsForm();
+    toast(window.I18n.t("settingsMsg.sdkProjectRemoved"), "ok");
+  });
+
+  $("set-sdk-active-project")?.addEventListener("change", async (e) => {
+    const id = e.target.value;
+    if (!id || !window.keycode.sdkSetActiveProject) return;
+    const r = await window.keycode.sdkSetActiveProject(id);
+    if (!r?.ok) {
+      toast(r?.error || "SDK", "error");
+      return;
+    }
+    state.settings = {
+      ...state.settings,
+      activeSdkProjectId: r.activeSdkProjectId,
+      cursorSdkCwd: r.cwd || "",
+      sdkProjects: r.sdkProjects || state.settings.sdkProjects,
+    };
+    renderSdkProjectsForm();
+  });
+
+  let renameTimer = null;
+  $("set-sdk-project-name")?.addEventListener("change", async (e) => {
+    const active = activeSdkProject();
+    const name = String(e.target.value || "").trim();
+    if (!active || !name || !window.keycode.sdkRenameProject) return;
+    const r = await window.keycode.sdkRenameProject({
+      projectId: active.id,
+      name,
+    });
+    if (!r?.ok) return;
+    state.settings = { ...state.settings, sdkProjects: r.sdkProjects };
+    renderSdkProjectsForm();
+  });
+  $("set-sdk-project-name")?.addEventListener("input", () => {
+    clearTimeout(renameTimer);
+    renameTimer = setTimeout(() => {
+      $("set-sdk-project-name")?.dispatchEvent(new Event("change"));
+    }, 600);
+  });
+
+  $("set-sdk-active-chat")?.addEventListener("change", async (e) => {
+    const active = activeSdkProject();
+    const chatId = e.target.value;
+    if (!active || !chatId || !window.keycode.sdkSetActiveChat) return;
+    const r = await window.keycode.sdkSetActiveChat({
+      projectId: active.id,
+      chatId,
+    });
+    if (!r?.ok) {
+      toast(r?.error || "SDK", "error");
+      return;
+    }
+    state.settings = {
+      ...state.settings,
+      sdkProjects: r.sdkProjects,
+      activeSdkProjectId: r.activeSdkProjectId,
+    };
+    renderSdkProjectsForm();
+  });
+
+  let chatRenameTimer = null;
+  $("set-sdk-chat-name")?.addEventListener("change", async (e) => {
+    const active = activeSdkProject();
+    const chat = activeSdkChat();
+    const name = String(e.target.value || "").trim();
+    if (!active || !chat || !name || !window.keycode.sdkRenameChat) return;
+    const r = await window.keycode.sdkRenameChat({
+      projectId: active.id,
+      chatId: chat.id,
+      name,
+    });
+    if (!r?.ok) return;
+    state.settings = { ...state.settings, sdkProjects: r.sdkProjects };
+    renderSdkProjectsForm();
+  });
+  $("set-sdk-chat-name")?.addEventListener("input", () => {
+    clearTimeout(chatRenameTimer);
+    chatRenameTimer = setTimeout(() => {
+      $("set-sdk-chat-name")?.dispatchEvent(new Event("change"));
+    }, 600);
+  });
+
+  $("btn-sdk-add-chat")?.addEventListener("click", async () => {
+    const active = activeSdkProject();
+    if (!active || !window.keycode.sdkAddChat) return;
+    const r = await window.keycode.sdkAddChat({ projectId: active.id });
+    if (!r?.ok) {
+      toast(r?.error || "SDK", "error");
+      return;
+    }
+    state.settings = {
+      ...state.settings,
+      sdkProjects: r.sdkProjects,
+      activeSdkProjectId: r.activeSdkProjectId,
+    };
+    renderSdkProjectsForm();
+    toast(window.I18n.t("settingsMsg.sdkChatAdded"), "ok");
+  });
+
+  $("btn-sdk-remove-chat")?.addEventListener("click", async () => {
+    const active = activeSdkProject();
+    const chat = activeSdkChat();
+    if (!active || !chat || !window.keycode.sdkRemoveChat) return;
+    const r = await window.keycode.sdkRemoveChat({
+      projectId: active.id,
+      chatId: chat.id,
+    });
+    if (!r?.ok) {
+      toast(r?.error || "SDK", "error");
+      return;
+    }
+    state.settings = { ...state.settings, sdkProjects: r.sdkProjects };
+    renderSdkProjectsForm();
+    toast(window.I18n.t("settingsMsg.sdkChatRemoved"), "ok");
+  });
+
+  $("btn-sdk-probe")?.addEventListener("click", async () => {
+    const line = $("sdk-status-line");
+    if (line) line.textContent = window.I18n.t("settingsMsg.sdkProbing");
+    // Persist key from the field before probe
+    const cursorApiKey = String($("set-cursor-api-key")?.value || "");
+    state.settings = await window.keycode.saveSettings({ cursorApiKey });
+    const r = await window.keycode.sdkProbe();
+    if (line) {
+      line.textContent = r?.ok
+        ? r.hint || window.I18n.t("settingsMsg.sdkOk", {
+            name: r.apiKeyName ? ` (${r.apiKeyName})` : "",
+          })
+        : r?.error || window.I18n.t("settingsMsg.sdkProbeFail", { err: "?" });
+    }
+    toast(
+      r?.ok
+        ? window.I18n.t("settingsMsg.sdkOk", {
+            name: r.apiKeyName ? ` (${r.apiKeyName})` : "",
+          })
+        : r?.error || "SDK",
+      r?.ok ? "ok" : "error"
+    );
+  });
+
+  $("btn-sdk-new-agent")?.addEventListener("click", async () => {
+    const cursorApiKey = String($("set-cursor-api-key")?.value || "");
+    state.settings = await window.keycode.saveSettings({ cursorApiKey });
+    const r = await window.keycode.sdkNewAgent();
+    const line = $("sdk-status-line");
+    if (line) line.textContent = r?.hint || r?.error || "";
+    if (r?.ok) {
+      state.settings = {
+        ...state.settings,
+        cursorSdkAgentId: r.agentId || "",
+        sdkProjects: r.sdkProjects || state.settings.sdkProjects,
+      };
+      renderSdkProjectsForm();
+    }
+    toast(r?.hint || r?.error || "", r?.ok ? "ok" : "error");
+  });
+
   const setCursorStatus = (text, type = "") => {
     const el = $("cursor-status");
     if (!el) return;
@@ -694,7 +1082,10 @@ function bindEvents() {
 
   $("btn-cursor-launch")?.addEventListener("click", async () => {
     setCursorStatus(window.I18n.t("settingsMsg.launching"));
-    const r = await window.keycode.cursorLaunchIntegration({ mode: "both" });
+    const r = await window.keycode.cursorLaunchIntegration({
+      mode: "both",
+      allowRestart: true,
+    });
     if (!r?.ok) {
       setCursorStatus(r?.error || window.I18n.t("settingsMsg.launchFail"), "warn");
       return;

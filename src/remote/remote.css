@@ -73,6 +73,18 @@ body {
   min-width: 0;
 }
 
+.backend-badge {
+  margin: 0.1rem 0 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.backend-badge[data-backend="sdk"] {
+  color: var(--gold);
+}
+
 .deck-pager {
   display: flex;
   align-items: center;
@@ -324,6 +336,88 @@ body {
   max-width: 40rem;
   width: 100%;
   margin: 0.4rem auto 0.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.composer-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.composer-select-wrap {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.composer-select-wrap select {
+  width: 100%;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: rgba(28, 18, 48, 0.9);
+  color: var(--text);
+  font-size: 0.82rem;
+  padding: 0.45rem 0.65rem;
+  touch-action: manipulation;
+}
+
+.composer-select-wrap select:disabled {
+  opacity: 0.45;
+}
+
+.clarifications {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 9.5rem;
+  overflow: auto;
+  padding: 0.05rem;
+}
+
+.clarifications.hidden {
+  display: none;
+}
+
+.clarify-card {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: rgba(28, 18, 48, 0.88);
+  padding: 0.55rem 0.65rem;
+}
+
+.clarify-prompt {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.clarify-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.clarify-opt {
+  border: 1px solid rgba(212, 168, 75, 0.35);
+  border-radius: 999px;
+  background: rgba(212, 168, 75, 0.12);
+  color: var(--gold);
+  font-size: 0.78rem;
+  padding: 0.35rem 0.7rem;
+  touch-action: manipulation;
+}
+
+.clarify-opt:active {
+  transform: scale(0.97);
+}
+
+.send-btn[data-kind="build"] {
+  background: linear-gradient(180deg, #6d8cff 0%, #4f6ae8 100%);
+  box-shadow: 0 0 0 1px rgba(109, 140, 255, 0.35);
 }
 
 .composer-shell {
@@ -518,10 +612,14 @@ body {
   min-width: 0;
   min-height: 4.2rem;
   touch-action: manipulation;
+  position: relative;
+  transition-property: transform, box-shadow, border-color, filter, background-color;
+  transition-duration: 0.22s;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .card:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
   border-color: var(--gold);
 }
 
@@ -536,6 +634,8 @@ body {
   object-fit: contain;
   border-radius: 0.3rem;
   background: #0d0714;
+  outline: 1px solid rgba(255, 255, 255, 0.1);
+  outline-offset: -1px;
 }
 
 .card .title {
@@ -554,8 +654,36 @@ body {
   overflow: hidden;
 }
 
-.card.suggested {
-  box-shadow: 0 0 0 1px rgba(212, 168, 75, 0.55), 0 0 16px rgba(139, 92, 246, 0.25);
+#cards.has-suggestions .card:not(.suggested-primary):not(.suggested-secondary) {
+  filter: brightness(0.82) saturate(0.88);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.card.suggested,
+.card.suggested-primary {
+  z-index: 2;
+  border-color: transparent;
+  background: linear-gradient(165deg, rgba(232, 197, 122, 0.18), var(--panel) 55%);
+  box-shadow:
+    0 0 0 2px rgba(255, 228, 160, 0.95),
+    0 0 0 4px rgba(212, 168, 75, 0.28),
+    0 0 18px rgba(212, 168, 75, 0.45),
+    0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.card.suggested-secondary {
+  z-index: 1;
+  border-color: rgba(212, 168, 75, 0.65);
+  background: linear-gradient(165deg, rgba(212, 168, 75, 0.1), var(--panel) 60%);
+  box-shadow:
+    0 0 0 1px rgba(212, 168, 75, 0.55),
+    0 0 12px rgba(212, 168, 75, 0.28),
+    0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.card.suggested-primary .title,
+.card.suggested .title {
+  color: #ffe9a8;
 }
 
 .toast {
@@ -609,7 +737,7 @@ body {
   }
 
   .cards {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(9, minmax(0, 1fr));
   }
 
   .card {

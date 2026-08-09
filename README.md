@@ -1,6 +1,40 @@
 # Keycode — Lazy Coder
 
-Прозрачная колода из **до 8 карточек-промптов** поверх всех окон. Клик или **F1–F8** вставляет текст в отмеченные чаты — в том числе в Cursor **без перехвата фокуса** (игра/другое окно остаются активными).
+Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F8** for hotkeyed cards) pastes a saved prompt into Cursor chats **without stealing focus** — your game or other app stays in front.
+
+![Deck preview](docs/screenshots/demo-deck.png)
+
+**Official builds:** only from [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) on this repository (`DikoeNebo/keycode`). Do not trust re-uploads elsewhere. Verify SHA-256 from the release `SHA256SUMS.txt`.
+
+| | |
+|---|---|
+| **Download** | [Latest Release](https://github.com/DikoeNebo/keycode/releases/latest) (portable `.exe` or Setup) |
+| **License** | [MIT](LICENSE) |
+| **Security** | [SECURITY.md](SECURITY.md) |
+| **Русский** | см. раздел ниже |
+
+### Quick start (2 minutes)
+
+1. Download `Keycode-*-portable.exe` from Releases and run it.
+2. Press **F9** (or the eye button) to show the deck.
+3. **Settings → Cursor background → Always enable (shortcut)** once → close Cursor → open Cursor from the new Keycode shortcut.
+4. **+ chat** → pick a Cursor chat → enable the chip → click a card.
+
+Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR). Anyone on that Wi‑Fi with the link can control the remote — do not share the secret.
+
+Windows may show **Unknown publisher** (unsigned first builds). Compare the file hash with the release notes:
+
+```powershell
+Get-FileHash .\Keycode-1.0.0-portable.exe -Algorithm SHA256
+```
+
+---
+
+# Keycode — Lazy Coder (RU)
+
+Прозрачная колода из **до 9 карточек-промптов** поверх всех окон. Клик или **F1–F8** (если у карты есть горячая клавиша) вставляет текст в отмеченные чаты — в том числе в Cursor **без перехвата фокуса** (игра/другое окно остаются активными).
+
+**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) репозитория `DikoeNebo/keycode`. Сверяйте SHA-256 из `SHA256SUMS.txt`.
 
 ## Запуск (разработка)
 
@@ -25,7 +59,7 @@ npm run build:all      # check + test + portable + NSIS
 
 После сборки: `powershell -File scripts/release-checksums.ps1` → `dist/SHA256SUMS.txt` для GitHub Release.
 
-В `package.json` → `build.publish` замените `OWNER` / `keycode` на свой GitHub-репозиторий — иначе автопроверка обновлений не найдёт релизы.
+Автопроверка обновлений смотрит релизы в `DikoeNebo/keycode`.
 
 **Важно:** папка `data/` с колодами «Тарокод · Хобби» и «Тарокод · Продакшен» должна быть в репозитории. Картинки таро — в `assets/tarot/`.
 

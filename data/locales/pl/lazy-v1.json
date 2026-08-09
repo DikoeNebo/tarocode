@@ -6,7 +6,7 @@
       "id": "plan",
       "title": "Plan",
       "description": "Hierofant: podziel zadanie na kroki — na razie bez kodu",
-      "prompt": "Stwórz plan krok po kroku dla bieżącego zadania. Nie pisz kodu.\n\nJeśli czat już to wyjaśnia — nie pytaj ponownie. W przeciwnym razie krótko zapisz:\n- wynik w jednym zdaniu;\n- co już istnieje;\n- ograniczenie: prosty projekt hobby, bez zbędnej złożoności.\n\nWymagania:\n1. Małe kroki: jeden krok = jedna weryfikowalna rzecz.\n2. Dla każdego kroku: co zrobić · co znaczy „gotowe” · jak sprawdzić.\n3. Najpierw to, bez czego nie można iść dalej.\n4. Ryzyka i co można uprościć lub odłożyć.\n5. Tylko plan — bez implementacji.\n\nNa końcu — numerowana lista kroków (jedna linia na krok).",
+      "prompt": "Stwórz plan krok po kroku dla bieżącego zadania. Nie pisz kodu.\n\nZ czatu (pytaj tylko gdy brak): wynik w jednym zdaniu; co już jest; prosty projekt hobby bez zbędnej złożoności.\n\nZasady:\n1. Małe kroki — jeden krok = jedna weryfikowalna rzecz.\n2. Na krok: co · „gotowe” · jak sprawdzić.\n3. Najpierw blokery; ryzyka / co odłożyć.\n\nNa końcu numerowana lista kroków (jedna linia na krok).",
       "image": "hierophant",
       "hotkey": "F1"
     },
@@ -14,7 +14,7 @@
       "id": "evaluate",
       "title": "Oceń",
       "description": "Sprawiedliwość: ocena jakości projektu 0–10 i werdykt",
-      "prompt": "Oceń bieżący plan lub ostatni wynik uczciwie — bez lania wody i pochlebstw.\n\nTo ocena jakości projektu w skali 0–10 (musisz podać liczbę):\n- 0–6 — słabo, trzeba przerabiać;\n- 7–8 — akceptowalnie, można kontynuować;\n- 9–10 — doskonale.\nIdealna 10 jest rzadka. Do normalnej pracy wystarczy ≥ 7. Poniżej 7 — trzeba przerabiać.\n\nSprawdź:\n1. Czy cel jest jasny? Czy „gotowe” można powiedzieć jednoznacznie?\n2. Dziury, luki, niejasności?\n3. Zbędna złożoność dla hobby?\n4. Co zepsuje się pierwsze?\n5. Top 3 poprawki, które najbardziej podniosą ocenę.\n\nFormat odpowiedzi:\n- Ocena jakości projektu: N/10\n- Werdykt: przerabiać (<7) / akceptowalnie (7–8) / doskonale (9–10)\n- Plusy (krótko)\n- Minusy i ryzyka\n- Konkretne poprawki (lista)\n\nNie proponuj wszystkiego od zera, jeśli wystarczą punktowe poprawki. Nie zaczynaj kodu, dopóki nie poproszą.",
+      "prompt": "Oceń bieżący plan lub ostatni wynik uczciwie — bez lania wody i pochlebstw.\n\nOcena jakości 0–10: 0–6 przerobić; 7–8 akceptowalne; 9–10 świetnie. Poniżej 7 — przerobić; ≥7 można iść dalej.\n\nSprawdź: cel/gotowe jasne? luki? nadmierna złożoność hobby? co padnie pierwsze? top 3 poprawki pod wynik.\n\nOdpowiedź:\n- Project quality score: N/10\n- Werdykt: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Plusy · minusy/ryzyka · konkretne poprawki\n\nNie proponuj od zera, jeśli wystarczą punktowe poprawki. Bez kodu aż poproszą.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
@@ -22,7 +22,7 @@
       "id": "work",
       "title": "Pracuj",
       "description": "Mag: zrób następny krok planu w kodzie",
-      "prompt": "Zrób następny otwarty krok zatwierdzonego planu — tylko ten, nie wszystko naraz.\n\nZasady:\n1. Jeśli krok nie jest oczywisty — nazwij go jednym zdaniem i rób dokładnie to.\n2. Nie psuj tego, co już działa, bez potrzeby.\n3. Brak danych — zapytaj krótko, nie wymyślaj.\n4. Po pracy: co zrobiłeś · gdzie patrzeć · jak sprawdzić.\n\nNa końcu jedna linia: status kroku — gotowe / częściowo / blokada (i dlaczego).",
+      "prompt": "Zrób następny otwarty krok zatwierdzonego planu — tylko ten, nie wszystko naraz.\n\nZasady: nazwij krok jeśli niejasny; nie psuj działającego; brak danych — krótko pytaj, nie wymyślaj. Potem: co · gdzie · jak sprawdzić.\n\nZakończ jedną linią: status — done / partial / blocked (i dlaczego).",
       "image": "magician",
       "hotkey": "F3"
     },
@@ -30,7 +30,7 @@
       "id": "test",
       "title": "Test",
       "description": "Gwiazda: sprawdź wynik faktami, nie słowami",
-      "prompt": "Przetestuj to, co właśnie zrobiono (ostatni krok lub wyraźnie nazwana część).\n\nZrób:\n1. Odpowiednie sprawdzenia: polecenia, build, scenariusz ręczny — co pasuje.\n2. Pokaż fakty: output, błędy, co naprawdę działa.\n3. Jeśli padło — przyczyna i minimalna poprawka (lub powiedz, że potrzebny „Napraw”).\n4. Jeśli OK — „TEST ZALICZONY” i lista sprawdzonego.\n5. Nie przechodź do następnego kroku na czerwonym (dopóki nie powiem inaczej).\n\nWynik: zielony / czerwony + jedno zdanie dlaczego.\nJeśli możliwe, dodaj wstępną ocenę jakości projektu 0–10 (poniżej 7 = jeszcze nie gotowe).",
+      "prompt": "Przetestuj to, co właśnie zrobiono (ostatni krok lub wyraźnie nazwana część).\n\nRelewantne checki (komendy/build/ręcznie); pokaż fakty; przy fail — przyczyna + minimalny fix; przy OK — \"TEST PASSED\" + co sprawdzono. Na czerwonym nie idź dalej w planie.\n\nWynik: green / red + jedno zdanie dlaczego. Wstępna ocena 0–10 (poniżej 7 = niegotowe).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F4"
     },
@@ -38,7 +38,7 @@
       "id": "fix",
       "title": "Napraw",
       "description": "Wieża: napraw awarię do akceptowalnej oceny (≥7)",
-      "prompt": "Napraw problemy z ostatniego testu, błędu lub oceny jakości projektu poniżej 7/10.\n\nZasady:\n1. Minimalna poprawka — bez refaktoryzacji „przy okazji” i bez nowych funkcji.\n2. Najpierw: objaw → prawdopodobna przyczyna.\n3. Po poprawce sprawdź ponownie i pokaż wynik.\n4. Krótko: było → zrobiłem → jak potwierdziłem.\n5. Pętla „poprawka → weryfikacja”, aż ocena ≥ 7/10.\n6. Jeśli ślepa uliczka — blokada i 2 wyjścia.\n\nNowe funkcje zabronione, dopóki awaria jest otwarta.",
+      "prompt": "Napraw problemy z ostatniego testu, błędu lub oceny jakości projektu poniżej 7/10.\n\nTylko minimalny fix — bez refaktorów i nowych ficzerów. Objaw → przyczyna → patch → weryfikacja. Pętla do wyniku ≥ 7. Jeśli ściana — bloker + 2 wyjścia. Krótko: było → zrobiłem → potwierdziłem.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F5"
     },
@@ -46,7 +46,7 @@
       "id": "polish",
       "title": "Dopracuj",
       "description": "Siła: podnieś ocenę jakości projektu do 9–10",
-      "prompt": "Tryb „Dopracuj”. Nie zatrzymuj się, dopóki ocena jakości projektu nie będzie 9 lub 10 z 10.\n\nSkala oceny jakości projektu:\n- poniżej 7 — niedopuszczalne;\n- 7–8 — OK do normalnej pracy, ale za mało dla tej karty;\n- 9–10 — cel; można się zatrzymać.\n\nPętla bez pytania „kontynuować?”:\n1. Ustaw ocenę N/10 i wymień 3 główne luki trzymające ocenę.\n2. Jeśli ocena ≤ 8 — poprawki tylko w tych lukach (bez nowych funkcji, bez rozszerzania zadania).\n3. Sprawdź to, co zmieniłeś.\n4. Ponownie ustaw ocenę 0–10.\n5. Dopóki ≤ 8 — powtarzaj od kroku 2.\n\nStop tylko przy 9 lub 10. Wtedy:\n- Końcowa ocena jakości projektu: N/10\n- Co podniosło ocenę\n- Czego świadomie nie ruszałeś\n\nWażne: 7–8 to tu nie meta. Meta to tylko 9 lub 10.",
+      "prompt": "Tryb „Dopracuj”. Nie zatrzymuj się, dopóki ocena jakości projektu nie będzie 9 lub 10 z 10.\n\n7–8 nie wystarczy dla tej karty. Pętla bez pytań: wynik N/10 + główne luki → popraw tylko je → sprawdź → nowy wynik. Dopóki ≤ 8 — powtarzaj. Stop tylko na 9–10.\n\nPotem: wynik końcowy · co podniosło · czego nie ruszałeś.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F6"
     },
@@ -54,7 +54,7 @@
       "id": "backup",
       "title": "Backup",
       "description": "Pustelnik: zapisz punkt rollbacku",
-      "prompt": "Utwórz bezpieczny punkt rollbacku bieżącego stanu projektu.\n\nPo kolei, o ile możliwe:\n1. git status (lub odpowiednik) — co się zmieniło.\n2. Jeśli jest git — sensowny commit LUB gotowa komenda commit. Bez force, bez niebezpiecznych operacji, bez --no-verify bez prośby.\n3. Bez git — kopia kluczowych plików/folderu do backup z datą w nazwie.\n4. Jak cofnąć jedną-dwoma komendami.\n5. Nie pushuj na remote bez wyraźnej prośby.\n\nNa końcu: „Punkt zapisany” + gdzie/jak cofnąć.",
+      "prompt": "Utwórz bezpieczny punkt rollbacku bieżącego stanu projektu.\n\n1. git status (lub równoważne).\n2. Sensowny commit lub gotowa komenda — bez force i --no-verify bez prośby.\n3. Brak git — kopia kluczowych plików z datą w nazwie.\n4. Rollback 1–2 komendami. Bez push bez prośby.\n\nKoniec: \"Checkpoint saved\" + gdzie/jak wrócić.",
       "image": "hermit",
       "hotkey": "F7"
     },
@@ -62,9 +62,17 @@
       "id": "fullcycle",
       "title": "Pełny cykl",
       "description": "Świat: plan → praca → test, każdy krok ≥ 7 punktów",
-      "prompt": "Pełny cykl przez plan od początku do końca — bez przeskakiwania.\n\nOcena jakości projektu 0–10: punkt zamknięty tylko przy ≥ 7. Idealna 10 w tym trybie nie jest wymagana (dla 9–10 jest karta „Dopracuj”).\n\nDla KAŻDEGO punktu planu:\n1. Który punkt teraz.\n2. Wykonaj pracę.\n3. Sprawdź wynik.\n4. Ustaw ocenę 0–10.\n5. Jeśli < 7 — napraw i powtórz, aż ≥ 7.\n6. Dopiero potem następny punkt.\n\nZasady: nie przeskakiwać kroków; nie puchnąć zadania; postęp krótko i jasno.\nBez planu — najpierw krótki plan (5–8 kroków) i potwierdzenie, albo od razu, jeśli zadanie już uzgodnione.\n\nFinał:\n- ogólne sprawdzenie + ogólna ocena jakości projektu 0–10;\n- co gotowe · czego nie zrobiono · co sprawdzić ręcznie;\n- jeśli ogólna ocena < 7 — nie ogłaszaj sukcesu, dopracowuj dalej.",
+      "prompt": "Pełny cykl przez plan od początku do końca — bez przeskakiwania.\n\nZamykaj punkt tylko przy wyniku ≥ 7 (Polish na 9–10). Na punkt: nazwij → zrób → sprawdź → wynik → jeśli <7 popraw do ≥7 → dalej. Bez rozdymania scope.\n\nBrak planu — najpierw krótki 5–8 kroków (lub od razu jeśli uzgodnione).\n\nFinał: wynik łączny · done / not done · co sprawdzić ręcznie. Przy łącznym <7 nie ogłaszaj sukcesu.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Podsumowanie",
+      "description": "Kapłanka: krótko — zadanie, zrobione, nie, dalej",
+      "prompt": "Przeczytaj ten czat i kontekst repozytorium. Nie pisz ani nie zmieniaj kodu.\n\nOdpowiedź dokładnie w czterech krótkich sekcjach (1–3 punkty każda):\n1. Zadanie — cel (jedno zdanie + scope jeśli znany).\n2. Zrobione — zaimplementowane lub zweryfikowane.\n3. Niezrobione — otwarte kroki, padnięcia, blokery, niewiadome.\n4. Następny krok — jedna najlepsza akcja (nazwij Plan / Pracuj / Test / Napraw jeśli oczywiste).\n\nBrak planu — napisz to i poleć Plan. Niewiadome oznacz jawnie — nie zmyślaj. Bez linii KEYCODE_SCORE.",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }

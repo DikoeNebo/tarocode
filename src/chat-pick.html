@@ -12,26 +12,210 @@
       body {
         padding: 14px 16px 16px;
         min-height: 100vh;
+        height: 100vh;
         display: flex;
         flex-direction: column;
         gap: 10px;
+        overflow: hidden;
+      }
+      .row-actions {
+        flex: 0 0 auto;
+      }
+      #status,
+      .field.block,
+      .win-header,
+      .cdp-pick-actions {
+        flex: 0 0 auto;
       }
       .chat-list {
-        flex: 1;
+        flex: 1 1 auto;
+        min-height: 0;
         overflow: auto;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
+        padding-right: 2px;
       }
-      .chat-item {
+      .project-group {
+        flex: 0 0 auto;
+        border: 1px solid rgba(232, 197, 122, 0.22);
+        border-radius: 8px;
+        background: rgba(8, 4, 16, 0.45);
+        overflow: visible;
+      }
+      .project-head {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 40px;
+        padding: 6px 8px 6px 4px;
+        background: rgba(232, 197, 122, 0.1);
+        color: var(--gold, #e8c57a);
+      }
+      .project-head-toggle {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         text-align: left;
+        min-height: 36px;
+        padding: 6px 8px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+      .project-head-toggle:hover {
+        background: rgba(232, 197, 122, 0.14);
+      }
+      .project-chevron {
+        width: 1.1em;
+        flex: 0 0 auto;
+        opacity: 0.9;
+        line-height: 1;
+      }
+      .project-name {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.35;
+      }
+      .project-count {
+        flex: 0 0 auto;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 500;
+        line-height: 1.35;
+      }
+      .project-new {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 6px;
+        border: 1px solid rgba(232, 197, 122, 0.4);
+        background: rgba(232, 197, 122, 0.14);
+        color: var(--gold, #e8c57a);
+        font: inherit;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .project-new:hover {
+        background: rgba(232, 197, 122, 0.28);
+      }
+      .project-new:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .task-modal.hidden {
+        display: none;
+      }
+      .task-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(6, 2, 12, 0.72);
+      }
+      .task-panel {
+        width: min(420px, 100%);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(232, 197, 122, 0.35);
+        background: #1a1024;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      }
+      .task-panel h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+        color: var(--gold, #e8c57a);
+        line-height: 1.35;
+      }
+      .task-input {
+        width: 100%;
+        min-height: 110px;
+        resize: vertical;
         padding: 10px 12px;
         border-radius: 8px;
-        border: 1px solid rgba(232, 197, 122, 0.2);
+        border: 1px solid rgba(232, 197, 122, 0.28);
+        background: rgba(8, 4, 16, 0.75);
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .task-input:focus {
+        outline: 1px solid rgba(232, 197, 122, 0.55);
+      }
+      .task-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .task-actions .ghost-btn,
+      .task-actions .primary-btn {
+        min-height: 36px;
+      }
+      .mic-btn {
+        margin-right: auto;
+        min-width: 40px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(232, 197, 122, 0.35);
+        background: rgba(232, 197, 122, 0.1);
+        color: var(--gold, #e8c57a);
+        font: inherit;
+        cursor: pointer;
+      }
+      .mic-btn.listening {
+        background: rgba(220, 80, 80, 0.22);
+        border-color: rgba(220, 120, 120, 0.55);
+        color: #f0c0c0;
+      }
+      .mic-btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .project-chats {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 6px 8px 8px;
+      }
+      .project-group.collapsed .project-chats {
+        display: none;
+      }
+      .chat-item {
+        flex: 0 0 auto;
+        text-align: left;
+        min-height: 38px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(232, 197, 122, 0.18);
         background: rgba(8, 4, 16, 0.55);
         color: var(--text);
         cursor: pointer;
         font: inherit;
+        font-size: 13px;
+        line-height: 1.35;
       }
       .chat-item:hover {
         border-color: rgba(232, 197, 122, 0.45);
@@ -53,6 +237,30 @@
         gap: 8px;
         justify-content: flex-end;
       }
+      .cdp-pick-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .cdp-pick-actions.hidden {
+        display: none;
+      }
+      .primary-btn {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(232, 197, 122, 0.45);
+        background: rgba(232, 197, 122, 0.16);
+        color: var(--gold, #e8c57a);
+        font: inherit;
+        cursor: pointer;
+      }
+      .primary-btn:hover {
+        background: rgba(232, 197, 122, 0.28);
+      }
+      .primary-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
     </style>
   </head>
   <body>
@@ -67,10 +275,38 @@
       <select id="win-select" class="win-select"></select>
     </label>
     <p class="muted" id="status" data-i18n="chatPick.loading">Loading…</p>
+    <div class="cdp-pick-actions hidden" id="cdp-pick-actions">
+      <button type="button" class="primary-btn" id="btn-cdp-restart" data-i18n="cdp.restartBtn">
+        Restart with CDP?
+      </button>
+    </div>
     <div class="chat-list" id="chat-list"></div>
     <div class="row-actions">
       <button type="button" class="ghost-btn" id="btn-refresh" data-i18n="chatPick.refresh">Refresh</button>
       <button type="button" class="ghost-btn" id="btn-cancel" data-i18n="chatPick.cancel">Cancel</button>
+    </div>
+    <div id="task-modal" class="task-modal hidden" aria-hidden="true">
+      <div class="task-panel" role="dialog" aria-modal="true" aria-labelledby="task-title">
+        <h2 id="task-title" data-i18n="chatPick.taskTitle">What task shall we solve?</h2>
+        <textarea
+          id="task-input"
+          class="task-input"
+          rows="5"
+          data-i18n-placeholder="chatPick.taskPlaceholder"
+          placeholder="Describe the task…"
+        ></textarea>
+        <div class="task-actions">
+          <button type="button" class="mic-btn" id="btn-task-mic" data-i18n-title="chatPick.mic" title="Dictate">
+            🎤
+          </button>
+          <button type="button" class="ghost-btn" id="btn-task-cancel" data-i18n="chatPick.cancel">
+            Cancel
+          </button>
+          <button type="button" class="primary-btn" id="btn-task-send" data-i18n="chatPick.send">
+            Send
+          </button>
+        </div>
+      </div>
     </div>
     <div id="toast" class="toast hidden"></div>
     <script src="i18n.js"></script>

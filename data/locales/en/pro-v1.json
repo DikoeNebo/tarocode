@@ -6,7 +6,7 @@
       "id": "plan",
       "title": "Plan",
       "description": "Hierophant: plan for a merge-ready change, not a draft",
-      "prompt": "Create an implementation plan for the current task. Do not write code. No filler.\n\nFrom context, note (do not over-ask):\n- acceptance criteria (what counts as done);\n- scope: IN / OUT;\n- risks: data, API, races, compatibility, regressions.\n\nRequirements:\n1. Small verifiable steps; each has a deliverable + how to verify.\n2. Account for tests, errors, edge cases, rollback.\n3. Simple working solution beats \"ideal\" architecture.\n4. Explicit: assumptions and open questions.\n5. Plan only.\n\nOutput: numbered plan + short risk list + definition of done.",
+      "prompt": "Create an implementation plan for the current task. Do not write code. No filler.\n\nFrom context: acceptance criteria; scope IN/OUT; risks (data, API, races, compatibility, regressions).\n\nRules: small verifiable steps with deliverable + verify method; cover tests/errors/edges/rollback; working simple > ideal architecture; list assumptions and open questions.\n\nOutput: numbered plan + short risk list + definition of done.",
       "image": "hierophant",
       "hotkey": "F1"
     },
@@ -14,7 +14,7 @@
       "id": "evaluate",
       "title": "Review",
       "description": "Justice: review with project quality score 0–10",
-      "prompt": "Strict review of the current plan or diff/result.\n\nSet project quality score 0–10:\n- 0–6 — block: cannot continue / merge;\n- 7–8 — acceptable with caveats;\n- 9–10 — high bar.\nBelow 7 = blocker. For normal review, ≥ 7 is enough; 10 is not required.\n\nCheck:\n1. Correctness and edge cases\n2. Regressions and fragility\n3. Readability, cohesion, unnecessary complexity\n4. Tests and error handling\n5. Security and data (if relevant)\n6. Top 3 fixes for the next PR\n\nFormat:\n- Project quality score: N/10\n- Verdict: block (<7) / acceptable (7–8) / strong (9–10)\n- Findings: Critical / Major / Minor\n- Specific fixes (files/places if known)\n\nLarge refactoring only on request. Do not accept \"good enough\" below 7.",
+      "prompt": "Strict review of the current plan or diff/result.\n\nProject quality score 0–10: 0–6 block; 7–8 acceptable with caveats; 9–10 high bar. Below 7 = blocker.\n\nCheck: correctness/edges; regressions; complexity; tests/errors; security/data if relevant; top 3 PR fixes.\n\nFormat:\n- Project quality score: N/10\n- Verdict: block (<7) / acceptable (7–8) / strong (9–10)\n- Findings: Critical / Major / Minor\n- Specific fixes\n\nNo large refactor unless asked. Do not accept below 7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
@@ -22,7 +22,7 @@
       "id": "improve",
       "title": "Refine",
       "description": "Temperance: trim the plan to the minimum needed for implementation",
-      "prompt": "Improve the current plan or design to implementation-ready level.\n\nRules:\n1. Cut everything outside acceptance criteria.\n2. Clarify vague parts: interfaces, data, errors, tests.\n3. If bloated — propose simpler with trade-offs.\n4. Keep steps and verification method.\n5. No code until asked.\n\nOutput: full updated plan + changelog (3–7 items) + expected plan readiness score 0–10.",
+      "prompt": "Improve the current plan or design to implementation-ready level.\n\nCut outside acceptance criteria; clarify interfaces/data/errors/tests; if bloated, propose simpler with trade-offs; keep steps + verify method. No code until asked.\n\nOutput: updated plan + changelog (3–7 items) + readiness score 0–10.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "temperance",
       "hotkey": "F3"
     },
@@ -30,7 +30,7 @@
       "id": "work",
       "title": "Code",
       "description": "Magician: next step — verifiable code without regressions",
-      "prompt": "Implement the next open step of the approved plan.\n\nRules:\n1. Only this step — no \"while we're at it\".\n2. No regressions: preserve existing behavior.\n3. Handle errors explicitly; do not swallow exceptions.\n4. Missing data — 1–3 precise questions, do not invent APIs.\n5. After: what changed · how to verify · risks.\n\nStatus: done / partial / blocked + why.\nStep goal — confident project quality score ≥ 7/10 on correctness.",
+      "prompt": "Implement the next open step of the approved plan.\n\nOnly this step; no regressions; handle errors explicitly; 1–3 precise questions if data missing — don't invent APIs. After: what changed · how to verify · risks.\n\nStatus: done / partial / blocked + why. Aim for correctness score ≥ 7/10.",
       "image": "magician",
       "hotkey": "F4"
     },
@@ -38,7 +38,7 @@
       "id": "test",
       "title": "Test",
       "description": "Star: prove with a green run, not a promise",
-      "prompt": "Verify what was just done as in CI, not \"should work\".\n\nDo:\n1. Commands/tests/build; show actual output.\n2. Happy path + at least one failure/edge (or why not possible).\n3. Red — root cause + minimal fix or blocker.\n4. Green — \"TEST PASSED\" + list of checks.\n5. On red, do not move to the next step.\n\nResult: green/red + preliminary project quality score 0–10 (below 7 = not ready).",
+      "prompt": "Verify what was just done as in CI, not \"should work\".\n\nCommands/tests/build with real output; happy path + one edge/failure (or why not). Red — cause + minimal fix/blocker; green — \"TEST PASSED\" + checks. Do not advance on red.\n\nResult: green/red + preliminary project quality score 0–10 (below 7 = not ready).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F5"
     },
@@ -46,7 +46,7 @@
       "id": "fix",
       "title": "Fix",
       "description": "Tower: minimal patch until quality score ≥ 7",
-      "prompt": "Fix the defect from the last test, review, or project quality score < 7.\n\nRules:\n1. Minimal fix — no \"while we're at it\" refactoring.\n2. Symptom → cause → blast radius.\n3. Patch → verify the same way the bug was caught.\n4. before → after → evidence.\n5. Repeat until score / test is ≥ 7.\n6. Blocker — 2 options with trade-offs.\n\nNew features forbidden while the defect is open.",
+      "prompt": "Fix the defect from the last test, review, or project quality score < 7.\n\nMinimal fix only. Symptom → cause → blast radius → patch → verify same way. Loop until ≥ 7. Blocker — 2 options with trade-offs. before → after → evidence. No new features while open.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F6"
     },
@@ -54,7 +54,7 @@
       "id": "polish",
       "title": "Polish",
       "description": "Strength: raise project quality score to 9–10",
-      "prompt": "High-quality polish mode. Stopping at 7–8 is forbidden. Goal — project quality score 9 or 10 out of 10.\n\nProject quality score scale:\n- <7 — fail;\n- 7–8 — \"merge under pressure\", not enough for this card;\n- 9–10 — stop.\n\nLoop without \"continue?\":\n1. Project quality score N/10 + findings holding the score (Critical/Major).\n2. If ≤ 8 — fixes only for those (scope freeze, no new features).\n3. Re-run checks.\n4. New project quality score.\n5. While ≤ 8 — repeat.\n\nStop only at 9 or 10. Report:\n- Project quality score: N/10\n- What raised quality\n- Residual risk (if any)\n- What you did not touch and why\n\nIf ceiling is below 9 due to external constraints — name them and max achievable score, but first exhaust fixes within scope.",
+      "prompt": "High-quality polish mode. Stopping at 7–8 is forbidden. Goal — project quality score 9 or 10 out of 10.\n\nLoop: score N/10 + Critical/Major gaps → fix only those (scope freeze) → recheck → rescore. While ≤ 8, repeat. Stop only at 9–10.\n\nReport: score · what raised quality · residual risk · what you did not touch. If external ceiling <9 — name it after exhausting in-scope fixes.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F7"
     },
@@ -62,9 +62,17 @@
       "id": "fullcycle",
       "title": "Cycle",
       "description": "World: end-to-end, each item ≥ 7 quality points",
-      "prompt": "Full end-to-end cycle through the plan.\n\nAn item is closed only at project quality score ≥ 7. Use \"Polish\" for 9–10.\n\nFor each item:\n1. Name the item.\n2. Implement.\n3. Verify with facts (commands/tests/scenario).\n4. Project quality score 0–10.\n5. If < 7 — fix until ≥ 7.\n6. Next item.\n\nForbidden: skipping steps, inflating scope, masking red tests.\nNo plan — first a short plan (5–8 steps) with acceptance criteria, then execution.\n\nFinal:\n- overall project quality score 0–10;\n- done / not done;\n- residual risks;\n- what to verify manually before merge.",
+      "prompt": "Full end-to-end cycle through the plan.\n\nClose each item only at project quality score ≥ 7 (Polish for 9–10). Per item: name → implement → verify with facts → score → fix until ≥7 → next. No skipping, scope inflation, or masking red tests.\n\nNo plan — short 5–8 step plan with acceptance criteria, then execute.\n\nFinal: overall score · done/not done · residual risks · manual checks before merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Recap",
+      "description": "High Priestess: short status — task, done, gaps, next",
+      "prompt": "Read this chat and the repo context. Do not write or change code.\n\nReply in exactly four short sections (1–3 bullets each):\n1. Task — goal + acceptance criteria if known.\n2. Done — implemented, reviewed, or verified.\n3. Not done — open items, failures, blockers, unknowns.\n4. Next step — single best action (name Plan / Review / Code / Test / Fix if obvious).\n\nIf there is no plan, say so and recommend Plan. Mark unknowns explicitly — do not invent. No KEYCODE_SCORE line.",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }

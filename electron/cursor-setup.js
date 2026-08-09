@@ -276,20 +276,71 @@ function launchViaCmdStart(exe, args) {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * Launch Cursor. Never kills an existing Cursor.
- * @param {{ mode?: 'accessibility'|'background'|'both', cdpPort?: number }} opts
+ * Close Cursor processes. Soft CloseMainWindow first; after timeout, Stop-Process -Force.
+ * Only call from an explicit user «Restart with CDP» action.
+ * @param {{ forceAfterMs?: number }} [opts]
+ * @returns {Promise<{ ok: boolean, method?: string, error?: string }>}
+ */
+async function closeCursorProcesses(opts = {}) {
+  const forceAfterMs = Math.max(2000, Number(opts.forceAfterMs) || 10000);
+  const script = `
+$ErrorActionPreference = 'SilentlyContinue'
+$procs = @(Get-Process -Name Cursor -ErrorAction SilentlyContinue)
+if ($procs.Count -eq 0) { Write-Output 'NONE'; exit 0 }
+foreach ($p in $procs) { try { $null = $p.CloseMainWindow() } catch {} }
+$deadline = [DateTime]::UtcNow.AddMilliseconds(${forceAfterMs})
+while ([DateTime]::UtcNow -lt $deadline) {
+  $left = @(Get-Process -Name Cursor -ErrorAction SilentlyContinue)
+  if ($left.Count -eq 0) { Write-Output 'SOFT'; exit 0 }
+  Start-Sleep -Milliseconds 400
+}
+Get-Process -Name Cursor -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 600
+$left = @(Get-Process -Name Cursor -ErrorAction SilentlyContinue)
+if ($left.Count -eq 0) { Write-Output 'FORCE'; exit 0 }
+Write-Output 'FAIL'
+exit 1
+`;
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+      { windowsHide: true, timeout: forceAfterMs + 8000 }
+    );
+    const line = String(stdout || "").trim().split(/\r?\n/).pop() || "";
+    if (line === "NONE" || line === "SOFT" || line === "FORCE") {
+      return { ok: true, method: line.toLowerCase() };
+    }
+    return { ok: false, error: t("cursor.restartCloseFail") };
+  } catch {
+    const still = await isCursorRunning();
+    if (!still) return { ok: true, method: "force" };
+    return { ok: false, error: t("cursor.restartCloseFail") };
+  }
+}
+
+/**
+ * Launch Cursor. Never kills an existing Cursor unless skipRunningCheck (after close).
+ * @param {{ mode?: 'accessibility'|'background'|'both', cdpPort?: number, skipRunningCheck?: boolean }} opts
  */
 async function launchCursorForIntegration(opts = {}) {
   const mode = opts.mode || "background";
   const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
-  const running = await isCursorRunning();
-  if (running) {
-    return {
-      ok: false,
-      alreadyRunning: true,
-      error: t("cursor.alreadyOpen"),
-    };
+  if (!opts.skipRunningCheck) {
+    const running = await isCursorRunning();
+    if (running) {
+      return {
+        ok: false,
+        alreadyRunning: true,
+        needsRestart: true,
+        error: t("cursor.alreadyOpen"),
+      };
+    }
   }
   const exe = await resolveCursorExe();
   if (!exe) {
@@ -348,13 +399,65 @@ async function launchCursorForIntegration(opts = {}) {
   };
 }
 
+/**
+ * Launch Cursor with CDP, or close+relaunch when allowRestart and Cursor is already open.
+ * @param {{ mode?: string, cdpPort?: number, allowRestart?: boolean, forceAfterMs?: number }} [opts]
+ */
+async function launchOrRestartCursorWithCdp(opts = {}) {
+  const mode = opts.mode || "both";
+  const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
+  const allowRestart = opts.allowRestart === true;
+  const running = await isCursorRunning();
+  let restarted = false;
+  let closeMethod = "";
+
+  if (running) {
+    if (!allowRestart) {
+      return {
+        ok: false,
+        alreadyRunning: true,
+        needsRestart: true,
+        error: t("cursor.alreadyOpen"),
+      };
+    }
+    const closed = await closeCursorProcesses({
+      forceAfterMs: opts.forceAfterMs,
+    });
+    if (!closed.ok) {
+      return {
+        ok: false,
+        alreadyRunning: true,
+        needsRestart: true,
+        error: closed.error || t("cursor.restartCloseFail"),
+      };
+    }
+    restarted = true;
+    closeMethod = closed.method || "";
+    await sleep(700);
+  }
+
+  const result = await launchCursorForIntegration({
+    mode,
+    cdpPort,
+    skipRunningCheck: true,
+  });
+  if (!result.ok) return result;
+  return {
+    ...result,
+    restarted,
+    closeMethod,
+  };
+}
+
 module.exports = {
   ACCESSIBILITY_FLAG,
   DEFAULT_CDP_PORT,
   SHORTCUT_FILE_NAME,
   isCursorRunning,
   resolveCursorExe,
+  closeCursorProcesses,
   launchCursorForIntegration,
+  launchOrRestartCursorWithCdp,
   installCursorCdpShortcut,
   buildCdpLaunchArgs,
   buildShortcutTargetString,

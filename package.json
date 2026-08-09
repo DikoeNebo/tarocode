@@ -13,17 +13,22 @@
     "build:installer": "electron-builder --win nsis",
     "build:all": "npm run prebuild && electron-builder --win portable nsis"
   },
-  "author": "Keycode",
+  "author": "DikoeNebo",
   "license": "MIT",
+  "homepage": "https://github.com/DikoeNebo/keycode",
+  "bugs": {
+    "url": "https://github.com/DikoeNebo/keycode/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/OWNER/keycode.git"
+    "url": "https://github.com/DikoeNebo/keycode.git"
   },
   "build": {
     "appId": "ru.keycode.lazycoder",
     "productName": "Keycode",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "electron/**/*",
@@ -35,12 +40,13 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "OWNER",
+        "owner": "DikoeNebo",
         "repo": "keycode",
         "releaseType": "release"
       }
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "portable",
@@ -70,6 +76,7 @@
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.24",
     "electron-updater": "^6.8.9",
     "qrcode": "^1.5.4"
   }

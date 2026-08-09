@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#120a1c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Keycode Remote</title>
-    <link rel="stylesheet" href="remote.css?v=20260723f" />
+    <link rel="stylesheet" href="remote.css?v=20260723h" />
   </head>
   <body>
     <header class="top">
@@ -21,6 +21,7 @@
         <span class="brand-mark" aria-hidden="true">◈</span>
         <div class="brand-text">
           <h1 id="app-title">Keycode</h1>
+          <p class="backend-badge" id="backend-badge" hidden></p>
           <div
             class="deck-pager"
             id="deck-pager"
@@ -73,6 +74,22 @@
     </main>
 
     <section class="composer" id="composer">
+      <div class="composer-toolbar" id="composer-toolbar">
+        <label class="composer-select-wrap">
+          <span class="sr-only" id="mode-label">Mode</span>
+          <select id="composer-mode" aria-labelledby="mode-label">
+            <option value="agent">Agent</option>
+            <option value="plan">Plan</option>
+          </select>
+        </label>
+        <label class="composer-select-wrap">
+          <span class="sr-only" id="model-label">Model</span>
+          <select id="composer-model" aria-labelledby="model-label" disabled>
+            <option value="">Model</option>
+          </select>
+        </label>
+      </div>
+      <div id="clarifications" class="clarifications hidden" aria-live="polite"></div>
       <label class="sr-only" id="composer-label" for="composer-input">Message</label>
       <div class="composer-shell">
         <textarea
@@ -96,7 +113,7 @@
               aria-label="Dictate"
               aria-pressed="false"
             >🎤</button>
-            <button type="button" class="send-btn" id="btn-send">Send</button>
+            <button type="button" class="send-btn" id="btn-send" data-kind="send">Send</button>
           </div>
         </div>
       </div>
@@ -122,6 +139,6 @@
       </div>
     </div>
 
-    <script src="remote.js?v=20260723f"></script>
+    <script src="remote.js?v=20260723h"></script>
   </body>
 </html>

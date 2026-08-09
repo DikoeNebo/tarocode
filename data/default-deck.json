@@ -1,70 +1,78 @@
 {
   "id": "lazy-v1",
-  "name": "Тарокод · Хобби",
+  "name": "Tarocode · Hobby",
   "cards": [
     {
       "id": "plan",
-      "title": "План",
-      "description": "Иерофант: разбей задачу на шаги — пока без кода",
-      "prompt": "Составь пошаговый план по текущей задаче. Код не пиши.\n\nЕсли в чате уже ясно — не переспрашивай. Иначе кратко зафиксируй:\n- итог одной фразой;\n- что уже есть;\n- ограничение: простой хобби-проект, без лишней сложности.\n\nТребования:\n1. Шаги мелкие: один шаг = одна проверяемая вещь.\n2. У каждого шага: что сделать · что значит «готово» · как проверить.\n3. Сначала то, без чего нельзя идти дальше.\n4. Риски и что можно упростить или отложить.\n5. Только план — без реализации.\n\nВ конце — нумерованный список шагов (одна строка на шаг).",
+      "title": "Plan",
+      "description": "Hierophant: break the task into steps — no code yet",
+      "prompt": "Create a step-by-step plan for the current task. Do not write code.\n\nFrom chat context (ask only if missing): outcome in one sentence; what already exists; keep it a simple hobby project.\n\nRules:\n1. Small steps — one step = one verifiable thing.\n2. Per step: what · done means · how to verify.\n3. Blockers first; note risks / what to defer.\n\nEnd with a numbered list of steps (one line each).",
       "image": "hierophant",
       "hotkey": "F1"
     },
     {
       "id": "evaluate",
-      "title": "Оцени",
-      "description": "Справедливость: балл оценки проекта 0–10 и вердикт",
-      "prompt": "Оцени текущий план или последний результат честно, без воды и лести.\n\nЭто балл оценки качества проекта по шкале 0–10 (обязательно поставь число):\n- 0–6 — слабо, нужно переделывать;\n- 7–8 — приемлемо, можно продолжать;\n- 9–10 — отлично.\nИдеал 10 редок. Для обычной работы достаточно ≥ 7. Ниже 7 — обязательно переделать.\n\nПроверь:\n1. Цель ясна? «Готово» можно сказать однозначно?\n2. Дыры, пропуски, расплывчатость?\n3. Нет ли лишней сложности для хобби?\n4. Что сломается первым?\n5. Топ-3 правки, которые сильнее всего поднимут балл оценки.\n\nФормат ответа:\n- Балл оценки проекта: N/10\n- Вердикт: переделать (<7) / приемлемо (7–8) / отлично (9–10)\n- Плюсы (кратко)\n- Минусы и риски\n- Конкретные правки (список)\n\nНе предлагай всё с нуля, если хватает точечных правок. Код не начинай, пока не попросят.",
+      "title": "Evaluate",
+      "description": "Justice: project quality score 0–10 and verdict",
+      "prompt": "Evaluate the current plan or latest result honestly — no filler, no flattery.\n\nProject quality score 0–10: 0–6 redo; 7–8 acceptable; 9–10 excellent. Below 7 must redo; ≥7 can continue.\n\nCheck: clear goal/done? gaps? hobby overcomplexity? what breaks first? top 3 score-raising fixes.\n\nReply:\n- Project quality score: N/10\n- Verdict: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Pros · cons/risks · specific fixes\n\nNo rewrite-from-scratch if targeted fixes work. No code until asked.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
     {
       "id": "work",
-      "title": "Работай",
-      "description": "Маг: сделай следующий шаг плана в коде",
-      "prompt": "Сделай следующий незакрытый шаг утверждённого плана — только его, не всё сразу.\n\nПравила:\n1. Если шаг неочевиден — назови его одной фразой и делай именно его.\n2. Не ломай то, что уже работает, без нужды.\n3. Не хватает данных — спроси коротко, не выдумывай.\n4. После работы: что сделал · где смотреть · как проверить.\n\nВ конце одной строкой: статус шага — готово / частично / блокер (и почему).",
+      "title": "Work",
+      "description": "Magician: implement the next plan step in code",
+      "prompt": "Do the next open step of the approved plan — only that step, not everything at once.\n\nRules: name the step if unclear; don't break working code; ask briefly if data missing — don't invent. After: what · where · how to verify.\n\nEnd with one line: step status — done / partial / blocked (and why).",
       "image": "magician",
       "hotkey": "F3"
     },
     {
       "id": "test",
-      "title": "Тест",
-      "description": "Звезда: проверь результат фактом, не словами",
-      "prompt": "Протестируй то, что только что сделано (последний шаг или явно названная часть).\n\nСделай:\n1. Релевантные проверки: команды, сборка, ручной сценарий — что уместно.\n2. Покажи факт: вывод, ошибки, что реально работает.\n3. Если упало — причина и минимальный фикс (или скажи, что нужен «Исправь»).\n4. Если ок — «ТЕСТ ПРОЙДЕН» и список проверенного.\n5. К следующему шагу плана не переходи на красном (пока я не скажу иначе).\n\nИтог: зелёный / красный + одна фраза почему.\nПо возможности добавь предварительный балл оценки проекта 0–10 (ниже 7 = ещё не готово).",
+      "title": "Test",
+      "description": "Star: verify the result with facts, not words",
+      "prompt": "Test what was just done (the last step or a clearly named part).\n\nDo: relevant checks (commands/build/manual); show facts; on fail — cause + minimal fix; on OK — \"TEST PASSED\" + what was verified. Do not advance the plan on red.\n\nResult: green / red + one sentence why. Add preliminary project quality score 0–10 (below 7 = not ready).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F4"
     },
     {
       "id": "fix",
-      "title": "Исправь",
-      "description": "Башня: почини поломку до приемлемого балла (≥7)",
-      "prompt": "Исправь проблемы по последнему тесту, ошибке или баллу оценки проекта ниже 7/10.\n\nПравила:\n1. Минимальный фикс — без рефакторинга «заодно» и без новых фич.\n2. Сначала: симптом → вероятная причина.\n3. После фикса снова проверь и покажи результат.\n4. Кратко: было → сделал → как убедился.\n5. Цикл «фикс → проверка», пока балл оценки проекта не станет ≥ 7/10.\n6. Если стена — блокер и 2 варианта выхода.\n\nНовые фичи запрещены, пока поломка открыта.",
+      "title": "Fix",
+      "description": "Tower: fix the breakage until acceptable score (≥7)",
+      "prompt": "Fix issues from the last test, error, or project quality score below 7/10.\n\nMinimal fix only — no drive-by refactors or new features. Symptom → cause → patch → verify. Loop until score ≥ 7. If stuck — blocker + 2 exits. Brief: was → did → confirmed.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F5"
     },
     {
       "id": "polish",
-      "title": "Доведи",
-      "description": "Сила: поднимай балл оценки проекта до 9–10",
-      "prompt": "Режим «Доведи». Не останавливайся, пока балл оценки проекта не станет 9 или 10 из 10.\n\nШкала баллов оценки проекта:\n- ниже 7 — неприемлемо;\n- 7–8 — нормально для обычной работы, но для этой карты мало;\n- 9–10 — цель; можно остановиться.\n\nЦикл без вопросов «продолжать?»:\n1. Поставь балл оценки проекта N/10 и назови 3 главные дыры, которые держат оценку.\n2. Если балл ≤ 8 — правки только по этим дырам (без новых фич, без расширения задачи).\n3. Проверь то, что изменил.\n4. Снова поставь балл оценки проекта 0–10.\n5. Пока ≤ 8 — повторяй с шага 2.\n\nСтоп только на 9 или 10. Тогда:\n- Итоговый балл оценки проекта: N/10\n- Что подняло оценку\n- Что сознательно не трогал\n\nВажно: 7–8 здесь не финиш. Финиш — только 9 или 10.",
+      "title": "Polish",
+      "description": "Strength: raise project quality score to 9–10",
+      "prompt": "\"Polish\" mode. Do not stop until the project quality score is 9 or 10 out of 10.\n\n7–8 is not enough for this card. Loop without asking: score N/10 + top gaps → fix only those → verify → rescore. While ≤ 8, repeat. Stop only at 9–10.\n\nThen: final score · what raised it · what you left alone.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F6"
     },
     {
       "id": "backup",
-      "title": "Бэкап",
-      "description": "Отшельник: сохрани точку отката",
-      "prompt": "Сделай безопасную точку отката текущего состояния проекта.\n\nПо порядку, насколько возможно:\n1. git status (или аналог) — что изменено.\n2. Если есть git — осмысленный коммит ИЛИ готовая команда коммита. Без force, без опасных операций, без --no-verify без просьбы.\n3. Если git нет — копия ключевых файлов/папки в backup с датой в имени.\n4. Как откатиться одной-двумя командами.\n5. Не пушь на remote без явной просьбы.\n\nВ конце: «Точка сохранена» + куда/как откатиться.",
+      "title": "Backup",
+      "description": "Hermit: save a rollback point",
+      "prompt": "Create a safe rollback point for the current project state.\n\n1. git status (or equivalent).\n2. Meaningful commit or ready commit command — no force, no --no-verify unless asked.\n3. No git — dated backup copy of key files.\n4. Rollback in 1–2 commands. No push without request.\n\nEnd with: \"Checkpoint saved\" + where/how to roll back.",
       "image": "hermit",
       "hotkey": "F7"
     },
     {
       "id": "fullcycle",
-      "title": "Полный цикл",
-      "description": "Мир: план → работа → тест, каждый шаг ≥ 7 баллов",
-      "prompt": "Полный цикл по плану от начала до конца — без перескоков.\n\nБалл оценки проекта 0–10: пункт закрыт только при ≥ 7. Идеал 10 в этом режиме не обязателен (для 9–10 есть карта «Доведи»).\n\nДля КАЖДОГО пункта плана:\n1. Какой пункт сейчас.\n2. Сделай работу.\n3. Проверь результат.\n4. Поставь балл оценки проекта 0–10.\n5. Если < 7 — исправь и повтори, пока не будет ≥ 7.\n6. Только потом следующий пункт.\n\nПравила: не прыгать через шаги; не раздувать задачу; писать прогресс коротко и ясно.\nЕсли плана нет — сначала короткий план (5–8 шагов) и подтверждение, либо сразу по нему, если задача уже согласована.\n\nФинал:\n- общая проверка + общий балл оценки проекта 0–10;\n- что готово · что не сделано · что проверить мне вручную;\n- если общий балл < 7 — не объявляй успех, продолжи доводить.",
+      "title": "Full Cycle",
+      "description": "World: plan → work → test, each step ≥ 7 points",
+      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nClose each item only at project quality score ≥ 7 (use Polish for 9–10). Per item: name → implement → verify → score → if <7 fix until ≥7 → next. No scope inflation.\n\nNo plan — short 5–8 step plan first (or proceed if already agreed).\n\nFinal: overall score · done / not done · what to verify manually. Don't declare success if overall <7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Recap",
+      "description": "High Priestess: short chat/task status — done vs not done",
+      "prompt": "Read this chat and the repo context. Do not write or change code.\n\nReply in exactly four short sections (1–3 bullets each):\n1. Task — what we aim for (one sentence + scope if known).\n2. Done — implemented or verified.\n3. Not done — open steps, failures, blockers, unknowns.\n4. Next step — single best action (name Plan / Work / Test / Fix if obvious).\n\nIf there is no plan, say so and recommend Plan. Mark unknowns explicitly — do not invent. No KEYCODE_SCORE line.",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }

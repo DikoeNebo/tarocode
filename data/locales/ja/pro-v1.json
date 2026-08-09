@@ -6,7 +6,7 @@
       "id": "plan",
       "title": "計画",
       "description": "教皇：merge 可能な計画、下書きではない",
-      "prompt": "現在のタスクの実装計画を作成。コードは書かない。水増しなし。\n\nコンテキストから記録（過剰に質問しない）：\n- acceptance criteria（done の定義）；\n- scope：IN / OUT；\n- リスク：データ、API、競合、互換性、回帰。\n\n要件：\n1. 小さく検証可能なステップ；各 deliverable + 検証方法。\n2. テスト、エラー、エッジケース、ロールバックを考慮。\n3. シンプルで動く解 > 「理想」アーキテクチャ。\n4. 明示：assumptions と open questions。\n5. 計画のみ。\n\n出力：番号付き計画 + 短い risk list + definition of done。",
+      "prompt": "現在のタスクの実装計画を作成。コードは書かない。水増しなし。\n\n文脈から：受け入れ基準；スコープ IN/OUT；リスク（データ、API、競合、互換、回帰）。\n\nルール：検証可能な小ステップ（成果物+検証）；テスト/エラー/境界/ロールバック；動く単純案>理想アーキ；前提と未解決質問。\n\n出力：番号付き計画 + 短いリスク一覧 + definition of done。",
       "image": "hierophant",
       "hotkey": "F1"
     },
@@ -14,7 +14,7 @@
       "id": "evaluate",
       "title": "レビュー",
       "description": "正義：プロジェクト品質スコア 0–10 付きレビュー",
-      "prompt": "現在の計画または diff/結果の厳格レビュー。\n\nプロジェクト品質スコア 0–10 を設定：\n- 0–6 — ブロック：続行/merge 不可；\n- 7–8 — 条件付き許容；\n- 9–10 — 高水準。\n7未満 = ブロッカー。通常レビューは ≥ 7 で可；10 は必須ではない。\n\n確認：\n1. Correctness と edge cases\n2. 回帰と脆弱性\n3. 可読性、結合、不要な複雑さ\n4. テストとエラー処理\n5. セキュリティとデータ（該当時）\n6. 次 PR の修正トップ3\n\n形式：\n- プロジェクト品質スコア：N/10\n- 判定：ブロック (<7) / 許容 (7–8) / 強 (9–10)\n- Findings：Critical / Major / Minor\n- 具体的修正（ファイル/場所が分かれば）\n\n大規模リファクタは依頼時のみ。7未満の「まあいいか」は不可。",
+      "prompt": "現在の計画または diff/結果の厳格レビュー。\n\nスコア0–10：0–6ブロック；7–8留保付き許容；9–10高水準。7未満=ブロッカー。\n\n確認：正しさ/境界；回帰；複雑さ；テスト/エラー；セキュリティ/データ（該当時）；PR向け上位3修正。\n\n形式：\n- Project quality score: N/10\n- 判定：block (<7) / acceptable (7–8) / strong (9–10)\n- Findings: Critical / Major / Minor\n- 具体修正\n\n依頼なしの大リファクタ禁止。7未満は受け入れない。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "justice",
       "hotkey": "F2"
     },
@@ -22,7 +22,7 @@
       "id": "improve",
       "title": "精緻化",
       "description": "節制：実装に必要な最小まで計画を圧縮",
-      "prompt": "現在の計画または設計を実装可能レベルまで改善。\n\nルール：\n1. acceptance criteria 外はすべて削除。\n2. 曖昧さを明確化：インターフェース、データ、エラー、テスト。\n3. 肥大なら——trade-offs 付きでより簡素に。\n4. ステップと検証方法は維持。\n5. 依頼されるまでコードなし。\n\n出力：更新計画全文 + changelog（3–7項目）+ 期待計画 readiness スコア 0–10。",
+      "prompt": "現在の計画または設計を実装可能レベルまで改善。\n\n受け入れ基準外を削る；インターフェース/データ/エラー/テストを明確化；肥大ならトレードオフ付きで簡素化；ステップ+検証を維持。依頼までコード禁止。\n\n出力：更新計画 + changelog（3–7）+ readiness 0–10。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "temperance",
       "hotkey": "F3"
     },
@@ -30,7 +30,7 @@
       "id": "work",
       "title": "コード",
       "description": "魔術師：次ステップ——回帰なしの検証可能コード",
-      "prompt": "承認済み計画の次の未完了ステップを実装。\n\nルール：\n1. このステップのみ——「ついでに」なし。\n2. 回帰なし：既存動作を保持。\n3. エラーは明示処理；exceptions を飲み込まない。\n4. データ不足——1–3 の precise 質問、API を作らない。\n5. 後：変更点 · 検証方法 · リスク。\n\n状態：done / partial / blocked + 理由。\nステップ目標——correctness でプロジェクト品質スコア ≥ 7/10。",
+      "prompt": "承認済み計画の次の未完了ステップを実装。\n\nこのステップのみ；回帰なし；エラー明示；データ不足は1–3の精密質問——APIを創作しない。後：変更 · 検証 · リスク。\n\n状態：done / partial / blocked + 理由。正しさ≥7/10を目指す。",
       "image": "magician",
       "hotkey": "F4"
     },
@@ -38,7 +38,7 @@
       "id": "test",
       "title": "テスト",
       "description": "星：約束ではなくグリーン実行で証明",
-      "prompt": "今作ったものを CI のように検証。「動くはず」は不可。\n\n実行：\n1. コマンド/テスト/ビルド；実際の出力を示す。\n2. Happy path + 最低1つの failure/edge（または不可の理由）。\n3. 赤——root cause + 最小修正またはブロッカー。\n4. 緑——「テスト合格」+ チェック一覧。\n5. 赤のまま次ステップに進まない。\n\n結果：green/red + 予備的プロジェクト品質スコア 0–10（7未満 = 未完了）。",
+      "prompt": "今作ったものを CI のように検証。「動くはず」は不可。\n\nコマンド/テスト/ビルドの実出力；happy path + 境界/失敗1つ（または不可理由）。赤—原因+最小修正/ブロッカー；緑—\"TEST PASSED\" + チェック。赤では進まない。\n\n結果：green/red + 予備スコア0–10（7未満=未準備）。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "star",
       "hotkey": "F5"
     },
@@ -46,7 +46,7 @@
       "id": "fix",
       "title": "Fix",
       "description": "塔：スコア ≥ 7 まで最小パッチ",
-      "prompt": "直近のテスト、レビュー、またはプロジェクト品質スコア < 7 の欠陥を修正。\n\nルール：\n1. 最小 fix——ついでリファクタなし。\n2. 症状 → 原因 → blast radius。\n3. パッチ → バグ発見と同じ方法で検証。\n4. before → after → evidence。\n5. スコア/テスト ≥ 7 まで繰り返し。\n6. ブロッカー——trade-offs 付き2案。\n\n欠陥が開いている間は新機能禁止。",
+      "prompt": "直近のテスト、レビュー、またはプロジェクト品質スコア < 7 の欠陥を修正。\n\n最小修正のみ。症状→原因→影響範囲→パッチ→同じ検証。≥7までループ。ブロッカー—トレードオフ付き選択肢2つ。before→after→証拠。未解決中は新機能禁止。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "tower",
       "hotkey": "F6"
     },
@@ -54,7 +54,7 @@
       "id": "polish",
       "title": "仕上げ",
       "description": "力：プロジェクト品質スコアを 9–10 に",
-      "prompt": "高品質仕上げモード。7–8 で止めるのは禁止。目標——プロジェクト品質スコア 9 または 10。\n\nプロジェクト品質スコア尺度：\n- <7 — 失敗；\n- 7–8 — 「プレッシャー下 merge 可」、このカードには不足；\n- 9–10 — 停止。\n\n「続ける？」なしループ：\n1. スコア N/10 + スコアを下げる findings（Critical/Major）。\n2. ≤ 8 なら——それだけ修正（scope freeze、新機能なし）。\n3. チェック再実行。\n4. 新スコア。\n5. ≤ 8 の間繰り返し。\n\n9 または 10 のみ停止。報告：\n- プロジェクト品質スコア：N/10\n- 品質を上げたもの\n- Residual risk（あれば）\n- 触れなかったものと理由\n\n外部制約で天井が9未満なら——制約と到達可能最大スコアを述べ、まず scope 内修正を尽くす。",
+      "prompt": "高品質仕上げモード。7–8 で止めるのは禁止。目標——プロジェクト品質スコア 9 または 10。\n\nループ：スコアN/10 + Critical/Major →それだけ修正（スコープ凍結）→再確認→再採点。≤8なら繰返し。9–10のみ停止。\n\n報告：スコア · 品質を上げた点 · 残留リスク · 触らなかった点。外部上限<9—スコープ内を尽した後に名指し。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "strength",
       "hotkey": "F7"
     },
@@ -62,9 +62,17 @@
       "id": "fullcycle",
       "title": "サイクル",
       "description": "世界：end-to-end、各項目 ≥ 7 品質点",
-      "prompt": "計画の完全 end-to-end サイクル。\n\n項目はプロジェクト品質スコア ≥ 7 のみクローズ。9–10 は「仕上げ」を使用。\n\n各項目：\n1. 項目名。\n2. 実装。\n3. 事実で検証（コマンド/テスト/シナリオ）。\n4. スコア 0–10。\n5. < 7 なら ≥ 7 まで fix。\n6. 次項目。\n\n禁止：ステップ飛ばし、scope 膨張、赤テストの隠蔽。\n計画なし——まず短い計画（5–8ステップ）と acceptance criteria、その後実行。\n\n最終：\n- 全体プロジェクト品質スコア 0–10；\n- 完了/未完了；\n- residual risks；\n- merge 前に手動確認すべきこと。",
+      "prompt": "計画の完全 end-to-end サイクル。\n\n各項目はスコア≥7でのみクローズ（9–10は仕上げ）。項目ごと：名指し→実装→事実で検証→スコア→≥7まで修正→次。スキップ・膨張・赤テスト隠蔽禁止。\n\n計画なし—受け入れ基準付き5–8ステップ短計画の後に実行。\n\n最終：総合スコア · 完了/未完了 · 残留リスク · merge前の手動確認。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
       "image": "world",
       "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "要約",
+      "description": "女教皇：短く——タスク、完了、ギャップ、次",
+      "prompt": "このチャットとリポジトリの文脈を読んでください。コードは書かず変更しないでください。\n\n厳密に4つの短いセクションで回答（各1–3項目）：\n1. タスク — 目標＋既知の受け入れ基準。\n2. 完了 — 実装・レビュー・検証済み。\n3. 未完了 — 未着手、失敗、ブロッカー、不明点。\n4. 次の一手 — 最良の1アクション（明らかなら 計画 / レビュー / 実装 / テスト / 修正）。\n\n計画がなければそう書き、「計画」を勧める。不明は明示——創作しない。KEYCODE_SCORE 行は付けない。",
+      "image": "high_priestess",
+      "hotkey": ""
     }
   ]
 }
