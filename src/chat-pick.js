@@ -80,11 +80,11 @@ async function launchOrRestartCdp() {
     }
     const running = !!probe?.cursorRunning;
     toast(
-      running ? window.I18n.t("cdp.restarting") : window.I18n.t("cdp.launching"),
+      running ? window.I18n.t("cursor.restartWaitClose") : window.I18n.t("cdp.launching"),
       ""
     );
     const r = await window.keycode.cursorLaunchIntegration({
-      mode: "both",
+      mode: "background",
       allowRestart: true,
     });
     if (!r?.ok) {

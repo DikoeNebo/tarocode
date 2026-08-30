@@ -1,6 +1,6 @@
 {
   "id": "lazy-v1",
-  "name": "Tarocode · ホビー",
+  "name": "03 作業 · 趣味",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "フルサイクル",
       "description": "世界：計画 → 作業 → テスト、各ステップ ≥ 7 点",
-      "prompt": "計画を最初から最後までフルサイクル——飛ばさない。\n\n各項目は品質スコア≥7でのみクローズ（9–10は仕上げ）。項目ごと：名指し→実装→検証→スコア→<7なら≥7まで修正→次。スコープ膨張禁止。\n\n計画なし——まず5–8ステップの短計画（合意済みなら実行）。\n\n最終：総合スコア · 完了/未完了 · 手動確認。総合<7なら成功宣言しない。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "計画を最初から最後までフルサイクル——飛ばさない。\n\n各項目は品質スコア≥7でのみクローズ（9–10は仕上げ）。項目ごと：名指し→実装→検証→スコア→<7なら≥7まで修正→次。スコープ膨張禁止。\n\n計画なし——まず5–8ステップの短計画（合意済みなら実行）。\n\n最終：総合スコア · 完了/未完了 · 手動確認。総合<7なら成功宣言しない。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

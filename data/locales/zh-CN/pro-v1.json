@@ -1,6 +1,6 @@
 {
   "id": "pro-v1",
-  "name": "Tarocode · 生产",
+  "name": "03 工作 · 生产",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "循环",
       "description": "世界：端到端，每项 ≥ 7 质量分",
-      "prompt": "计划的完整端到端循环。\n\n每项仅在评分 ≥ 7 时关闭（9–10 用打磨）。每项：命名 → 实现 → 用事实验证 → 打分 → 修到 ≥7 → 下一项。禁止跳步、扩大范围或掩盖红测。\n\n无计划——先做带验收标准的 5–8 步短计划再执行。\n\n最终：总分 · 已完成/未完成 · 残留风险 · merge 前手动检查。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "计划的完整端到端循环。\n\n每项仅在评分 ≥ 7 时关闭（9–10 用打磨）。每项：命名 → 实现 → 用事实验证 → 打分 → 修到 ≥7 → 下一项。禁止跳步、扩大范围或掩盖红测。\n\n无计划——先做带验收标准的 5–8 步短计划再执行。\n\n最终：总分 · 已完成/未完成 · 残留风险 · merge 前手动检查。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

@@ -1,6 +1,6 @@
 {
   "id": "pro-v1",
-  "name": "Tarocode · Production",
+  "name": "03 Work · Production",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "Cycle",
       "description": "World: end-to-end, each item ≥ 7 quality points",
-      "prompt": "Full end-to-end cycle through the plan.\n\nClose each item only at project quality score ≥ 7 (Polish for 9–10). Per item: name → implement → verify with facts → score → fix until ≥7 → next. No skipping, scope inflation, or masking red tests.\n\nNo plan — short 5–8 step plan with acceptance criteria, then execute.\n\nFinal: overall score · done/not done · residual risks · manual checks before merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Full end-to-end cycle through the plan.\n\nClose each item only at project quality score ≥ 7 (Polish for 9–10). Per item: name → implement → verify with facts → score → fix until ≥7 → next. No skipping, scope inflation, or masking red tests.\n\nNo plan — short 5–8 step plan with acceptance criteria, then execute.\n\nFinal: overall score · done/not done · residual risks · manual checks before merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

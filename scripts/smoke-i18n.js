@@ -43,7 +43,7 @@ for (const code of i18n.SUPPORTED) {
 
 // 3) Decks
 for (const code of i18n.SUPPORTED) {
-  for (const id of ["lazy-v1", "pro-v1"]) {
+  for (const id of i18n.STOCK_DECK_IDS) {
     const p = i18n.bundledDeckPath(code, id);
     if (!fs.existsSync(p)) {
       fail(`missing deck ${code}/${id}`);

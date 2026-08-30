@@ -13,6 +13,11 @@ const {
   normalizeClarifications,
   SUBMIT_BUTTON_SELECTOR,
 } = require("./cdp-composer");
+const {
+  findBestChat,
+  pickCdpWindow,
+  transcriptFailHint,
+} = require("./cdp-resolve");
 
 const DEFAULT_PORT = 9222;
 /** Stable sentinel for "already open composer" — do not localize (matching). */
@@ -45,18 +50,41 @@ class CdpSession {
 
   async connect() {
     if (this.ws && this.ws.readyState === 1) return;
-    this.ws = new WebSocket(this.wsUrl);
-    await new Promise((resolve, reject) => {
-      const to = setTimeout(() => reject(new Error("CDP connect timeout")), 8000);
+    if (this._connecting) return this._connecting;
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch {
+        /* ignore */
+      }
+      this.ws = null;
+    }
+    this._connecting = new Promise((resolve, reject) => {
+      this.ws = new WebSocket(this.wsUrl);
+      let to = null;
+      let opened = false;
+      const fail = (err) => {
+        if (opened) return;
+        if (to) clearTimeout(to);
+        try {
+          this.ws?.close();
+        } catch {
+          /* ignore */
+        }
+        reject(err);
+      };
+      to = setTimeout(() => fail(new Error("CDP connect timeout")), 8000);
       this.ws.onopen = () => {
-        clearTimeout(to);
+        opened = true;
+        if (to) clearTimeout(to);
         resolve();
       };
-      this.ws.onerror = () => {
-        clearTimeout(to);
-        reject(new Error("CDP WebSocket error"));
-      };
+      this.ws.onerror = () => fail(new Error("CDP WebSocket error"));
+    }).finally(() => {
+      this._connecting = null;
     });
+    await this._connecting;
+    if (!this.ws) throw new Error("CDP WebSocket error");
     this.ws.onmessage = (ev) => {
       let msg;
       try {
@@ -132,6 +160,8 @@ class CdpClient {
     this.port = Number(port) || DEFAULT_PORT;
     /** @type {Map<string, CdpSession>} */
     this.sessions = new Map();
+    /** Avoid expanding the Cursor sidebar on every failed poll. */
+    this._revealTried = new Set();
   }
 
   baseUrl() {
@@ -183,14 +213,19 @@ class CdpClient {
     }
   }
 
-  async getSession(cdpTargetId) {
+  async getSession(cdpTargetId, chat = null) {
     const probe = await this.probe();
     if (!probe.open) throw new Error(t("cdp.portClosed"));
     const wantId = String(cdpTargetId || "");
-    let target = (probe.targets || []).find((t) => t.id === wantId);
-    // Only auto-pick when exactly one window and no specific id was stored
-    if (!target && !wantId && probe.targets?.length === 1) {
-      target = probe.targets[0];
+    const picked = pickCdpWindow(probe.targets || [], wantId);
+    let target = picked.target;
+    let matchedChat = null;
+    if (!target && chat) {
+      const found = await this.findWindowForChat(probe.targets || [], chat);
+      if (found) {
+        target = found.target;
+        matchedChat = found.chat;
+      }
     }
     if (!target?.webSocketDebuggerUrl) {
       throw new Error(
@@ -199,17 +234,57 @@ class CdpClient {
     }
     const key = target.id;
     let session = this.sessions.get(key);
-    if (!session) {
+    if (!session || session.wsUrl !== target.webSocketDebuggerUrl) {
+      if (session) session.close();
       session = new CdpSession(target.webSocketDebuggerUrl);
       this.sessions.set(key, session);
     }
-    await session.connect();
     try {
-      await session.send("Runtime.enable", {});
-    } catch {
-      /* may already be enabled */
+      await session.connect();
+      try {
+        await session.send("Runtime.enable", {});
+      } catch {
+        /* may already be enabled */
+      }
+    } catch (e) {
+      this.sessions.delete(key);
+      session.close();
+      throw e;
     }
-    return { session, target };
+    return { session, target, chat: matchedChat };
+  }
+
+  /**
+   * After Cursor restart the stored window id is gone — find the chat in
+   * whatever workbench pages are live now.
+   */
+  async findWindowForChat(targets, chat) {
+    const list = Array.isArray(targets) ? targets : [];
+    const tryScan = async (reveal) => {
+      const hits = [];
+      for (const win of list.slice(0, 8)) {
+        let listed;
+        try {
+          listed = await this.listChats(win.id, { revealAll: reveal === true });
+        } catch {
+          continue;
+        }
+        if (!listed?.ok) continue;
+        const match = findBestChat(listed.chats || [], chat);
+        if (match) hits.push({ target: win, chat: match });
+      }
+      return hits.length ? hits[0] : null;
+    };
+    const title = String(chat?.title || chat?.chatTitle || "");
+    const id = String(chat?.id || chat?.chatId || "");
+    const key = `${id}|${title}|${String(chat?.project || chat?.projectName || "")}`;
+    let hit = await tryScan(false);
+    if (!hit && !this._revealTried.has(key)) {
+      this._revealTried.add(key);
+      hit = await tryScan(true);
+    }
+    if (hit) this._revealTried.delete(key);
+    return hit;
   }
 
   /**
@@ -402,11 +477,11 @@ class CdpClient {
   }
 
   async selectChat(cdpTargetId, chat) {
-    const { session } = await this.getSession(cdpTargetId);
+    const { session, target } = await this.getSession(cdpTargetId, chat);
     const chatId = chat?.id || chat?.chatId || "";
     const chatTitle = chat?.title || chat?.chatTitle || "";
     const projectName = chat?.project || chat?.projectName || "";
-    const ok = await session.evaluate(`(() => {
+    const runSelect = () => session.evaluate(`(() => {
       const wantId = ${JSON.stringify(chatId)};
       const wantTitle = ${JSON.stringify(chatTitle)};
       const wantProject = ${JSON.stringify(projectName)};
@@ -499,9 +574,18 @@ class CdpClient {
       }
       return false;
     })()`);
+    let ok = await runSelect();
+    if (!ok) {
+      try {
+        await this.revealSidebarChats(session);
+      } catch {
+        /* still try once more on whatever is visible */
+      }
+      ok = await runSelect();
+    }
     if (!ok) throw new Error("chat_not_found");
     await sleep(200);
-    return { ok: true };
+    return { ok: true, cdpTargetId: target.id };
   }
 
   async insertText(cdpTargetId, text, { submit = false } = {}) {
@@ -685,9 +769,11 @@ class CdpClient {
   }
 
   async sendToChat(cdpTargetId, chat, text, { submit = false } = {}) {
-    await this.selectChat(cdpTargetId, chat);
+    const selected = await this.selectChat(cdpTargetId, chat);
+    const id = selected?.cdpTargetId || cdpTargetId;
     await sleep(150);
-    return this.insertText(cdpTargetId, text, { submit });
+    const r = await this.insertText(id, text, { submit });
+    return { ...r, cdpTargetId: id };
   }
 
   /**
@@ -939,15 +1025,18 @@ class CdpClient {
     { maxMessages = 80, maxChars = 12000, select = true } = {}
   ) {
     try {
+      let targetId = cdpTargetId;
       // select=false for SSE polls — avoid re-clicking the sidebar every few seconds
       if (
         select &&
         (chat?.id || chat?.chatId || chat?.title || chat?.chatTitle)
       ) {
-        await this.selectChat(cdpTargetId, chat);
+        const selected = await this.selectChat(cdpTargetId, chat);
+        if (selected?.cdpTargetId) targetId = selected.cdpTargetId;
         await sleep(120);
       }
-      const { session } = await this.getSession(cdpTargetId);
+      const { session, target } = await this.getSession(targetId, chat);
+      if (target?.id) targetId = target.id;
       const maxMsg = Math.max(1, Math.min(200, Number(maxMessages) || 80));
       const maxCh = Math.max(500, Math.min(40000, Number(maxChars) || 12000));
       const raw = await session.evaluate(`(() => {
@@ -1090,7 +1179,7 @@ class CdpClient {
       let composer = normalizeComposerChrome({ generating: raw?.generating === true });
       let clarifications = [];
       try {
-        const chrome = await this.getComposerChrome(cdpTargetId);
+        const chrome = await this.getComposerChrome(targetId);
         if (chrome?.ok) {
           composer = chrome.composer;
           clarifications = chrome.clarifications || [];
@@ -1106,15 +1195,15 @@ class CdpClient {
         generating: raw?.generating === true || composer.generating === true,
         composer,
         clarifications,
+        cdpTargetId: targetId,
       };
     } catch (e) {
       const msg = String(e.message || e);
-      if (/chat_not_found/i.test(msg)) {
-        return { ok: false, error: "chat_not_found", hint: "chat_missing" };
+      const hint = transcriptFailHint(msg);
+      if (hint === "chat_missing") {
+        return { ok: false, error: "chat_not_found", hint };
       }
-      if (/CDP|ECONNREFUSED|fetch|port/i.test(msg)) {
-        return { ok: false, error: msg, hint: "cdp_closed" };
-      }
+      if (hint) return { ok: false, error: msg, hint };
       return { ok: false, error: msg };
     }
   }

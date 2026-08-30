@@ -1,0 +1,78 @@
+{
+  "id": "spec-v1",
+  "name": "02 Specification",
+  "cards": [
+    {
+      "id": "brief",
+      "title": "Brief",
+      "description": "Emperor: goal, users, stories, measurable outcome",
+      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "image": "emperor",
+      "hotkey": "F1"
+    },
+    {
+      "id": "scope",
+      "title": "MVP",
+      "description": "Two of Swords: IN / OUT, one happy path, acceptance",
+      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "image": "swords_02",
+      "hotkey": "F2"
+    },
+    {
+      "id": "ux",
+      "title": "Interface",
+      "description": "Ace of Cups: screens, buttons, empty/error/loading",
+      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "image": "cups_ace",
+      "hotkey": "F3"
+    },
+    {
+      "id": "data-contracts",
+      "title": "Data",
+      "description": "Ace of Pentacles: entities only if the project needs them",
+      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "image": "pentacles_ace",
+      "hotkey": "F4"
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "description": "Chariot: simplest fit after reading the repo",
+      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "image": "chariot",
+      "hotkey": "F5"
+    },
+    {
+      "id": "project-rules",
+      "title": "Rules",
+      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
+      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "image": "hierophant",
+      "hotkey": "F6"
+    },
+    {
+      "id": "risk-review",
+      "title": "Review",
+      "description": "Justice: clarity, YAGNI, safety, testability",
+      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "image": "justice",
+      "hotkey": "F7"
+    },
+    {
+      "id": "readiness",
+      "title": "Ready?",
+      "description": "Judgement: gate to Hobby or Production work",
+      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "image": "judgement",
+      "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Recap",
+      "description": "High Priestess: hypothesis / evidence / gaps / next",
+      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "image": "high_priestess",
+      "hotkey": ""
+    }
+  ]
+}

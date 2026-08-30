@@ -297,7 +297,7 @@ function createRemoteServer(opts) {
           q: (result.clarifications || []).map((x) => x.id),
         });
         const sugKey = (result.suggestions || [])
-          .map((s) => `${s.rank}:${s.cardId}`)
+          .map((s) => `${s.rank}:${s.deckId || ""}:${s.cardId}`)
           .join(",");
         const nextKey = `${result.hash || ""}|${chromeKey}|${sugKey}`;
         if (prev !== nextKey) {
@@ -600,7 +600,7 @@ function createRemoteServer(opts) {
                 c: result.composer || null,
                 q: (result.clarifications || []).map((x) => x.id),
               })}|${(result.suggestions || [])
-                .map((s) => `${s.rank}:${s.cardId}`)
+                .map((s) => `${s.rank}:${s.deckId || ""}:${s.cardId}`)
                 .join(",")}`
             );
             res._keycodeGenerating =

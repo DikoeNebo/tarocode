@@ -5,10 +5,15 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
-const decks = [
-  path.join(root, "data", "default-deck.json"),
-  path.join(root, "data", "pro-deck.json"),
-];
+const i18n = require("../electron/i18n");
+i18n.setPacksRoot(root);
+
+const decks = [];
+for (const id of i18n.STOCK_DECK_IDS) {
+  decks.push(path.join(root, "data", "locales", "en", `${id}.json`));
+}
+decks.push(path.join(root, "data", "default-deck.json"));
+decks.push(path.join(root, "data", "pro-deck.json"));
 const tarotDir = path.join(root, "assets", "tarot");
 
 let failed = false;

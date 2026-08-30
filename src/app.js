@@ -242,6 +242,7 @@ function renderAll() {
   renderDestBar();
   syncDeckTranscript();
   renderCards();
+  renderPhaseNext();
   document.body.classList.toggle("edit-mode", state.editMode);
 }
 
@@ -641,7 +642,11 @@ async function refreshDeckTranscript({ select = false } = {}) {
         empty.textContent =
           result?.hint === "not_cdp"
             ? window.I18n.t("deck.transcriptNotCdp")
-            : window.I18n.t("deck.transcriptError");
+            : result?.hint === "chat_missing" ||
+                result?.hint === "window_missing" ||
+                result?.hint === "rebind"
+              ? window.I18n.t("err.chatMissingReselect")
+              : window.I18n.t("deck.transcriptError");
         $("deck-transcript-msgs").innerHTML = "";
       }
       pane.classList.remove("is-generating");
@@ -678,21 +683,68 @@ function applyDeckSuggestions(list) {
   const same =
     prev.length === next.length &&
     prev.every(
-      (s, i) => s.cardId === next[i].cardId && Number(s.rank) === Number(next[i].rank)
+      (s, i) =>
+        s.cardId === next[i].cardId &&
+        Number(s.rank) === Number(next[i].rank) &&
+        String(s.deckId || "") === String(next[i].deckId || "")
     );
   state.suggestions = next;
-  if (!same) renderCards();
+  if (!same) {
+    renderCards();
+    renderPhaseNext();
+  }
 }
 
 function clearDeckSuggestions() {
   if (!(state.suggestions || []).length) {
-    // DOM may still show stale classes if a prior clear skipped render
     const root = $("cards");
     if (root?.classList.contains("has-suggestions")) renderCards();
+    renderPhaseNext();
     return;
   }
   state.suggestions = [];
   renderCards();
+  renderPhaseNext();
+}
+
+function activeDeckId() {
+  return state.deck?.id || state.settings?.activeDeckId || "";
+}
+
+function renderPhaseNext() {
+  const btn = $("btn-phase-next");
+  if (!btn) return;
+  const active = activeDeckId();
+  const cross = (state.suggestions || []).find(
+    (s) => s?.deckId && s.deckId !== active && s.cardId
+  );
+  if (!cross) {
+    btn.hidden = true;
+    btn.classList.add("hidden");
+    btn.textContent = "";
+    return;
+  }
+  const decks = state.decks || [];
+  const deckName = cross.deckName || decks.find((d) => d.id === cross.deckId)?.name || cross.deckId;
+  const cardTitle = cross.cardTitle || cross.cardId;
+  const label = window.I18n.t("hint.nextPhase", { deck: deckName, card: cardTitle });
+  btn.hidden = false;
+  btn.classList.remove("hidden");
+  btn.textContent = label;
+  btn.title = label;
+  btn.setAttribute(
+    "aria-label",
+    window.I18n.t("hint.nextPhaseAria", { deck: deckName, card: cardTitle })
+  );
+  btn.dataset.deckId = cross.deckId;
+}
+
+async function switchToSuggestedDeck() {
+  const btn = $("btn-phase-next");
+  const deckId = btn?.dataset?.deckId;
+  if (!deckId) return;
+  await window.keycode.setActiveDeck(deckId);
+  await refresh();
 }
 
 function shortAction(text, maxWords = 2) {
@@ -767,8 +819,21 @@ function pointInPreview(x, y) {
   return x >= left && x <= right && y >= top && y <= bottom;
 }
 
+/** OS focus of the deck BrowserWindow (main process). Click-through makes document.hasFocus() lie. */
+let deckWindowFocused = false;
+
 function deckIsActiveWindow() {
-  return document.hasFocus();
+  return deckWindowFocused;
+}
+
+function setDeckWindowFocused(on) {
+  const next = !!on;
+  if (deckWindowFocused === next) {
+    if (!next) hideCardPreview();
+    return;
+  }
+  deckWindowFocused = next;
+  if (!deckWindowFocused) hideCardPreview();
 }
 
 function updatePreviewHover(clientX, clientY) {
@@ -1078,8 +1143,12 @@ function renderCards() {
     return;
   }
 
+  const active = state.deck?.id || state.settings?.activeDeckId;
   const hasSuggestions = (state.suggestions || []).some(
-    (s) => s?.cardId && (s.rank === 1 || s.rank === 2)
+    (s) =>
+      s?.cardId &&
+      (s.rank === 1 || s.rank === 2) &&
+      (!s.deckId || s.deckId === active)
   );
   root.classList.toggle("has-suggestions", hasSuggestions);
 
@@ -1088,7 +1157,9 @@ function renderCards() {
       const preset = window.tarotPreset(card.image);
       const src = window.tarotImageUrl(card.image);
       const action = shortAction(card.title || card.description);
-      const sug = (state.suggestions || []).find((s) => s.cardId === card.id);
+      const sug = (state.suggestions || []).find(
+        (s) => s.cardId === card.id && (!s.deckId || s.deckId === active)
+      );
       const sugClass =
         sug?.rank === 1
           ? " suggested-primary"
@@ -1186,9 +1257,7 @@ function showCdpNudge(data = {}) {
       : window.I18n.t("cdp.nudgeLaunch");
   }
   if (action) {
-    action.textContent = cdpNudgeCursorRunning
-      ? window.I18n.t("cdp.restartBtn")
-      : window.I18n.t("cdp.launchBtn");
+    action.textContent = window.I18n.t("cdp.launchBtn");
   }
   el.classList.remove("hidden");
   window.keycode.setModalHold?.(true);
@@ -1264,13 +1333,14 @@ async function launchOrRestartCdp({ fromNudge = false } = {}) {
       return;
     }
     const running = !!probe?.cursorRunning;
-    toast(
-      running ? window.I18n.t("cdp.restarting") : window.I18n.t("cdp.launching"),
-      ""
-    );
+    if (running) {
+      showCdpNudge({ cursorRunning: true });
+      return;
+    }
+    toast(window.I18n.t("cdp.launching"), "");
     const r = await window.keycode.cursorLaunchIntegration({
-      mode: "both",
-      allowRestart: true,
+      mode: "background",
+      allowRestart: false,
     });
     if (!r?.ok) {
       setCdpCornerState("warn");
@@ -1487,10 +1557,20 @@ function bindEvents() {
     window.keycode.openSettings();
   });
 
-  $("btn-corner-cdp")?.addEventListener("click", (e) => {
+  $("btn-corner-cdp")?.addEventListener("click", async (e) => {
     e.stopPropagation();
     hideCardPreview();
-    launchOrRestartCdp();
+    try {
+      const probe = await window.keycode.cursorProbe();
+      if (probe?.ok || probe?.open) {
+        setCdpCornerState("ok");
+        toast(probe.hint || window.I18n.t("cdp.alreadyOk"), "ok");
+        return;
+      }
+      showCdpNudge(probe || {});
+    } catch (err) {
+      toast(String(err.message || err), "error");
+    }
   });
 
   $("cdp-nudge-action")?.addEventListener("click", (e) => {
@@ -1604,6 +1684,10 @@ function bindEvents() {
   $("btn-deck-next")?.addEventListener("click", async (e) => {
     e.stopPropagation();
     await cycleDeck(1);
+  });
+  $("btn-phase-next")?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await switchToSuggestedDeck();
   });
 
 $("card-cancel").addEventListener("click", closeCardEditor);
@@ -1737,12 +1821,31 @@ $("card-cancel").addEventListener("click", closeCardEditor);
     { passive: true }
   );
 
+  window.keycode.onDeckFocusChanged?.((data) => {
+    setDeckWindowFocused(!!data?.focused);
+    if (!deckWindowFocused) return;
+    syncMousePassthroughFromCursor().then(() => {
+      window.keycode.getCursorClient?.().then((p) => {
+        if (!p || typeof p.x !== "number" || !deckWindowFocused) return;
+        updatePreviewHover(p.x, p.y);
+      });
+    });
+  });
+  // Backup if IPC focus events are delayed
+  let focusCheckGen = 0;
   window.addEventListener("blur", () => {
-    hideCardPreview();
+    focusCheckGen += 1;
+    setDeckWindowFocused(false);
   });
   window.addEventListener("focus", async () => {
+    const gen = (focusCheckGen += 1);
     try {
+      const focused = await window.keycode.getDeckFocused?.();
+      if (gen !== focusCheckGen) return;
+      setDeckWindowFocused(typeof focused === "boolean" ? focused : true);
+      if (!deckWindowFocused) return;
       const p = await window.keycode.getCursorClient?.();
+      if (gen !== focusCheckGen) return;
       if (!p || typeof p.x !== "number") return;
       lastIgnoreMouse = null;
       updateMousePassthrough(p.x, p.y);
@@ -1783,6 +1886,10 @@ $("card-cancel").addEventListener("click", closeCardEditor);
   // По умолчанию клики сквозь прозрачную зону
   window.keycode.setIgnoreMouse?.(true);
   lastIgnoreMouse = true;
+
+  window.keycode.getDeckFocused?.().then((focused) => {
+    setDeckWindowFocused(!!focused);
+  });
 }
 
 bindEvents();

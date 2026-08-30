@@ -13,7 +13,13 @@ contextBridge.exposeInMainWorld("keycode", {
   readDeckChat: (payload) => ipcRenderer.invoke("deck-read-chat", payload || {}),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke("set-ignore-mouse", ignore),
   getCursorClient: () => ipcRenderer.invoke("get-cursor-client"),
+  getDeckFocused: () => ipcRenderer.invoke("get-deck-focused"),
   setPreviewHold: (on) => ipcRenderer.invoke("set-preview-hold", on),
+  onDeckFocusChanged: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("deck-focus-changed", handler);
+    return () => ipcRenderer.removeListener("deck-focus-changed", handler);
+  },
   setModalHold: (on) => ipcRenderer.invoke("set-modal-hold", on),
   deckUiReady: () => ipcRenderer.invoke("deck-ui-ready"),
   startTargetPick: (mode = "field") =>

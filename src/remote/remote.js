@@ -66,6 +66,7 @@
       prevDeck: "Previous deck",
       nextDeck: "Next deck",
       deckPager: "Deck switcher",
+      nextPhase: "Next: {deck} → {card}",
       backendCdp: "Mode: CDP",
       backendSdk: "Mode: API",
       sdkAgent: "SDK project",
@@ -118,6 +119,7 @@
       prevDeck: "Предыдущая колода",
       nextDeck: "Следующая колода",
       deckPager: "Переключение колоды",
+      nextPhase: "Дальше: {deck} → {card}",
       backendCdp: "Режим: CDP",
       backendSdk: "Режим: API",
       sdkAgent: "Проект SDK",
@@ -136,9 +138,15 @@
   let audioContext = null;
   let recognition = null;
 
-  function tr(key) {
+  function tr(key, vars) {
     const lang = state.locale.toLowerCase().startsWith("ru") ? "ru" : "en";
-    return copy[lang][key] || copy.en[key] || key;
+    let s = copy[lang][key] || copy.en[key] || key;
+    if (vars && typeof vars === "object") {
+      for (const [k, v] of Object.entries(vars)) {
+        s = s.split(`{${k}}`).join(String(v ?? ""));
+      }
+    }
+    return s;
   }
 
   function toast(message, type = "") {
@@ -372,14 +380,69 @@
 
   function suggestedRankMap() {
     const map = new Map();
+    const active = state.deck?.id || "";
     for (const s of state.suggestions || []) {
       const id = s?.cardId || (s?.origin === "deck" ? s.id : "");
       const rank = Number(s?.rank) === 1 ? 1 : 2;
       if (!id) continue;
-      // Keep brightest (rank 1) if duplicated
+      if (s.deckId && active && s.deckId !== active) continue;
       if (!map.has(id) || rank < map.get(id)) map.set(id, rank);
     }
     return map;
+  }
+
+  function renderPhaseNext() {
+    const btn = $("btn-phase-next");
+    if (!btn) return;
+    const active = state.deck?.id || "";
+    const cross = (state.suggestions || []).find(
+      (s) => s?.deckId && s.deckId !== active && s.cardId
+    );
+    if (!cross) {
+      btn.hidden = true;
+      btn.classList.add("hidden");
+      btn.textContent = "";
+      return;
+    }
+    const deckName =
+      cross.deckName ||
+      (state.decks || []).find((d) => d.id === cross.deckId)?.name ||
+      cross.deckId;
+    const cardTitle = cross.cardTitle || cross.cardId;
+    const label = tr("nextPhase", { deck: deckName, card: cardTitle });
+    btn.hidden = false;
+    btn.classList.remove("hidden");
+    btn.textContent = label;
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+    btn.dataset.deckId = cross.deckId;
+  }
+
+  async function switchToSuggestedDeck() {
+    const btn = $("btn-phase-next");
+    const deckId = btn?.dataset?.deckId;
+    if (!deckId || state.deckBusy) return;
+    state.deckBusy = true;
+    renderDeckPager();
+    try {
+      const { body } = await api("/api/deck", {
+        method: "POST",
+        body: JSON.stringify({ deckId }),
+      });
+      if (!body?.ok) {
+        toast(body?.error || "Deck switch failed", "error");
+        return;
+      }
+      applyDeckState(body);
+      $("cards-label").textContent = tr("cards");
+      applyComposerLabels();
+      renderPhaseNext();
+    } catch (e) {
+      toast(String(e.message || e), "error");
+    } finally {
+      state.deckBusy = false;
+      renderDeckPager();
+    }
   }
 
   function renderCards() {
@@ -625,10 +688,15 @@
         prev.length === next.length &&
         prev.every(
           (s, i) =>
-            s.cardId === next[i].cardId && Number(s.rank) === Number(next[i].rank)
+            s.cardId === next[i].cardId &&
+            Number(s.rank) === Number(next[i].rank) &&
+            String(s.deckId || "") === String(next[i].deckId || "")
         );
       state.suggestions = next;
-      if (!same) renderCards();
+      if (!same) {
+        renderCards();
+        renderPhaseNext();
+      }
     }
   }
 
@@ -872,6 +940,7 @@
     renderBackendBadge();
     renderDeckPager();
     renderCards();
+    renderPhaseNext();
     const empty = $("transcript-empty");
     if (empty) {
       empty.textContent =
@@ -1223,6 +1292,7 @@
       state.targetId = e.target.value || "";
       state.suggestions = [];
       renderCards();
+      renderPhaseNext();
       syncComposer();
       await loadChat();
       connectSse();
@@ -1230,6 +1300,7 @@
 
     $("btn-deck-prev")?.addEventListener("click", () => cycleDeck(-1));
     $("btn-deck-next")?.addEventListener("click", () => cycleDeck(1));
+    $("btn-phase-next")?.addEventListener("click", () => switchToSuggestedDeck());
 
     $("composer-input")?.addEventListener("input", () => {
       const input = $("composer-input");

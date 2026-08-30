@@ -2,7 +2,7 @@
  * Locale resolve + message packs for main process.
  * UI JSON: src/i18n/ui/{locale}.json
  * Tarot JSON: src/i18n/tarot/{locale}.json
- * Bundled decks: data/locales/{locale}/{lazy-v1|pro-v1}.json
+ * Bundled decks: data/locales/{locale}/{validate-v1|spec-v1|lazy-v1|pro-v1|release-v1}.json
  */
 const fs = require("fs");
 const path = require("path");
@@ -21,6 +21,36 @@ const SUPPORTED = [
 ];
 
 const SUPPORTED_SET = new Set(SUPPORTED);
+
+/** Phase order for pager + sync. User decks sort after these by name. */
+const STOCK_DECK_IDS = [
+  "validate-v1",
+  "spec-v1",
+  "lazy-v1",
+  "pro-v1",
+  "release-v1",
+];
+
+const STOCK_DECK_ID_SET = new Set(STOCK_DECK_IDS);
+
+function isStockDeckId(id) {
+  return STOCK_DECK_ID_SET.has(String(id || ""));
+}
+
+/**
+ * @param {{ id?: string, name?: string }} a
+ * @param {{ id?: string, name?: string }} b
+ */
+function compareDeckOrder(a, b) {
+  const ia = STOCK_DECK_IDS.indexOf(a?.id);
+  const ib = STOCK_DECK_IDS.indexOf(b?.id);
+  const aStock = ia >= 0;
+  const bStock = ib >= 0;
+  if (aStock && bStock) return ia - ib;
+  if (aStock) return -1;
+  if (bStock) return 1;
+  return String(a?.name || a?.id || "").localeCompare(String(b?.name || b?.id || ""), "en");
+}
 
 /** Native labels for language dropdowns */
 const LOCALE_LABELS = {
@@ -199,6 +229,10 @@ function bundledDeckPath(locale, deckId) {
   return primary;
 }
 
+function stockDeckIds() {
+  return STOCK_DECK_IDS.slice();
+}
+
 function localeOptions() {
   return SUPPORTED.map((code) => ({
     code,
@@ -227,6 +261,10 @@ function buildI18nPayload(settings, systemLocale) {
 module.exports = {
   SUPPORTED,
   LOCALE_LABELS,
+  STOCK_DECK_IDS,
+  isStockDeckId,
+  compareDeckOrder,
+  stockDeckIds,
   setPacksRoot,
   normalizeTag,
   resolveUiLocale,

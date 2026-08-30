@@ -1,6 +1,6 @@
 {
   "id": "pro-v1",
-  "name": "Tarocode · Produção",
+  "name": "03 Trabalho · Produção",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "Ciclo",
       "description": "Mundo: end-to-end, cada item ≥ 7 pontos de qualidade",
-      "prompt": "Ciclo completo end-to-end do plano.\n\nFeche cada item só com score ≥ 7 (Polish para 9–10). Por item: nomear → implementar → verificar com fatos → score → fix até ≥7 → próximo. Sem pular, inflar scope ou mascarar testes vermelhos.\n\nSem plano — plano curto 5–8 com acceptance criteria, depois executar.\n\nFinal: score global · done/not done · riscos residuais · checks manuais antes do merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Ciclo completo end-to-end do plano.\n\nFeche cada item só com score ≥ 7 (Polish para 9–10). Por item: nomear → implementar → verificar com fatos → score → fix até ≥7 → próximo. Sem pular, inflar scope ou mascarar testes vermelhos.\n\nSem plano — plano curto 5–8 com acceptance criteria, depois executar.\n\nFinal: score global · done/not done · riscos residuais · checks manuais antes do merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

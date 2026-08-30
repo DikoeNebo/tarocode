@@ -64,7 +64,7 @@ const SETTINGS_WHITELIST = [
   /** Named SDK projects: [{ id, name, cwd, chats[{id,name,agentId}], activeChatId, agentId? }] */
   "sdkProjects",
   "activeSdkProjectId",
-  /** Bumps rewrite stock lazy-v1/pro-v1 from locale packs (KEYCODE_SCORE etc.) */
+  /** Bumps rewrite stock phase decks from locale packs (KEYCODE_SCORE etc.) */
   "stockDeckRev",
 ];
 

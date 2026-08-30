@@ -1061,7 +1061,7 @@ function bindEvents() {
 
   $("btn-cursor-shortcut")?.addEventListener("click", async () => {
     setCursorStatus(window.I18n.t("settingsMsg.shortcutInstalling"));
-    const r = await window.keycode.cursorInstallCdpShortcut?.({ mode: "both" });
+    const r = await window.keycode.cursorInstallCdpShortcut?.({ mode: "background" });
     if (!r?.ok) {
       setCursorStatus(r?.error || window.I18n.t("settingsMsg.shortcutFail"), "warn");
       return;
@@ -1081,9 +1081,9 @@ function bindEvents() {
   });
 
   $("btn-cursor-launch")?.addEventListener("click", async () => {
-    setCursorStatus(window.I18n.t("settingsMsg.launching"));
+    setCursorStatus(window.I18n.t("cursor.restartWaitClose"));
     const r = await window.keycode.cursorLaunchIntegration({
-      mode: "both",
+      mode: "background",
       allowRestart: true,
     });
     if (!r?.ok) {

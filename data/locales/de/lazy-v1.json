@@ -1,6 +1,6 @@
 {
   "id": "lazy-v1",
-  "name": "Tarocode · Hobby",
+  "name": "03 Arbeit · Hobby",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "Voller Zyklus",
       "description": "Welt: Plan → Arbeit → Test, jeder Schritt ≥ 7 Punkte",
-      "prompt": "Voller Zyklus durch den Plan von Anfang bis Ende — ohne Überspringen.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 schließen (Polish für 9–10). Pro Punkt: nennen → umsetzen → prüfen → Score → wenn <7 bis ≥7 fixen → weiter. Kein Scope-Aufblasen.\n\nKein Plan — zuerst kurzer 5–8-Schritt-Plan (oder sofort wenn schon vereinbart).\n\nFinal: Gesamtscore · done / not done · manuell prüfen. Bei Gesamt <7 keinen Erfolg erklären.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Voller Zyklus durch den Plan von Anfang bis Ende — ohne Überspringen.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 schließen (Polish für 9–10). Pro Punkt: nennen → umsetzen → prüfen → Score → wenn <7 bis ≥7 fixen → weiter. Kein Scope-Aufblasen.\n\nKein Plan — zuerst kurzer 5–8-Schritt-Plan (oder sofort wenn schon vereinbart).\n\nFinal: Gesamtscore · done / not done · manuell prüfen. Bei Gesamt <7 keinen Erfolg erklären.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

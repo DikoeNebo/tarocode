@@ -1,6 +1,6 @@
 {
   "id": "lazy-v1",
-  "name": "Tarocode · 爱好",
+  "name": "03 工作 · 爱好",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "完整循环",
       "description": "世界：计划 → 执行 → 测试，每步 ≥ 7 分",
-      "prompt": "从头到尾完整执行计划——不要跳步。\n\n每项仅在项目质量评分 ≥ 7 时关闭（9–10 用打磨）。每项：命名 → 实现 → 验证 → 打分 → 若 <7 修到 ≥7 → 下一项。不要扩大范围。\n\n无计划——先做 5–8 步短计划（或已约定则直接执行）。\n\n最终：总分 · 已完成/未完成 · 需手动核对项。总分 <7 时不要宣称成功。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "从头到尾完整执行计划——不要跳步。\n\n每项仅在项目质量评分 ≥ 7 时关闭（9–10 用打磨）。每项：命名 → 实现 → 验证 → 打分 → 若 <7 修到 ≥7 → 下一项。不要扩大范围。\n\n无计划——先做 5–8 步短计划（或已约定则直接执行）。\n\n最终：总分 · 已完成/未完成 · 需手动核对项。总分 <7 时不要宣称成功。\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

@@ -29,7 +29,7 @@ for (const code of i18n.SUPPORTED) {
 
 const enDeckIds = {};
 for (const code of i18n.SUPPORTED) {
-  for (const id of ["lazy-v1", "pro-v1"]) {
+  for (const id of i18n.STOCK_DECK_IDS) {
     const p = i18n.bundledDeckPath(code, id);
     const d = JSON.parse(fs.readFileSync(p, "utf8"));
     if (d.id !== id || !Array.isArray(d.cards) || d.cards.length < 1 || d.cards.length > 9) {

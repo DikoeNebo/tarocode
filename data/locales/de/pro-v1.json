@@ -1,6 +1,6 @@
 {
   "id": "pro-v1",
-  "name": "Tarocode · Produktion",
+  "name": "03 Arbeit · Produktion",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "Zyklus",
       "description": "Welt: end-to-end, jeder Punkt ≥ 7 Qualitätspunkte",
-      "prompt": "Voller end-to-end-Zyklus durch den Plan.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 (Polish für 9–10). Pro Punkt: nennen → implementieren → mit Fakten prüfen → Score → bis ≥7 fixen → weiter. Kein Skip, Scope-Inflation oder Maskieren roter Tests.\n\nKein Plan — kurzer 5–8-Schritt-Plan mit Acceptance Criteria, dann ausführen.\n\nFinal: Gesamtscore · done/not done · Restrisiken · manuelle Checks vor Merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Voller end-to-end-Zyklus durch den Plan.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 (Polish für 9–10). Pro Punkt: nennen → implementieren → mit Fakten prüfen → Score → bis ≥7 fixen → weiter. Kein Skip, Scope-Inflation oder Maskieren roter Tests.\n\nKein Plan — kurzer 5–8-Schritt-Plan mit Acceptance Criteria, dann ausführen.\n\nFinal: Gesamtscore · done/not done · Restrisiken · manuelle Checks vor Merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

@@ -10,6 +10,19 @@ const ACCESSIBILITY_FLAG = "--force-renderer-accessibility=complete";
 const DEFAULT_CDP_PORT = 9222;
 const SHORTCUT_FILE_NAME = "Cursor background.lnk";
 const SHORTCUT_DESCRIPTION = "Cursor with CDP for Keycode background paste";
+/** Product path is CDP; accessibility is leftover UIA and can crash Cursor's renderer. */
+const DEFAULT_CDP_MODE = "background";
+/** Electron/Chromium leak these into children — Cursor then crashes with code -1. */
+const ELECTRON_CHILD_UNSET_ENV = [
+  "CHROME_CRASHPAD_PIPE_NAME",
+  "CHROME_RESTART",
+  "ELECTRON_RUN_AS_NODE",
+  "ELECTRON_NO_ASAR",
+  "ELECTRON_FORCE_IS_PACKAGED",
+  "ELECTRON_NO_ATTACH_CONSOLE",
+  "ELECTRON_ENABLE_LOGGING",
+  "ELECTRON_ENABLE_STACK_DUMPING",
+];
 
 function candidateCursorPaths() {
   const local = process.env.LOCALAPPDATA || "";
@@ -75,6 +88,22 @@ function cdpAddressFlag() {
 }
 
 /**
+ * Copy of env without Electron/Chromium keys that crash a child Cursor.
+ * Pure — safe for unit tests.
+ * @param {NodeJS.ProcessEnv} [base]
+ * @returns {NodeJS.ProcessEnv}
+ */
+function envWithoutElectronLeak(base = process.env) {
+  const drop = new Set(ELECTRON_CHILD_UNSET_ENV.map((k) => k.toUpperCase()));
+  const env = {};
+  for (const [key, value] of Object.entries(base || {})) {
+    if (drop.has(String(key).toUpperCase())) continue;
+    env[key] = value;
+  }
+  return env;
+}
+
+/**
  * Build Chromium/Cursor args for CDP (+ optional accessibility).
  * Pure — safe for unit tests.
  * @param {{ mode?: 'accessibility'|'background'|'both', cdpPort?: number }} [opts]
@@ -135,7 +164,7 @@ function keycodeShortcutPaths() {
  * @param {{ mode?: string, cdpPort?: number }} [opts]
  */
 async function installCursorCdpShortcut(opts = {}) {
-  const mode = opts.mode || "both";
+  const mode = opts.mode || DEFAULT_CDP_MODE;
   const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
   const exe = await resolveCursorExe();
   if (!exe || !fs.existsSync(exe)) {
@@ -171,7 +200,7 @@ Write-Output 'OK'
     const { stdout } = await execFileAsync(
       "powershell.exe",
       ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-      { windowsHide: true, timeout: 15000 }
+      { windowsHide: true, timeout: 15000, env: envWithoutElectronLeak() }
     );
     if (!String(stdout || "").includes("OK")) {
       throw new Error(String(stdout || "CreateShortcut failed"));
@@ -229,7 +258,7 @@ Write-Output ('OK|' + $p.Id)
   const { stdout } = await execFileAsync(
     "powershell.exe",
     ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-    { windowsHide: true, timeout: 15000 }
+    { windowsHide: true, timeout: 15000, env: envWithoutElectronLeak() }
   );
   const line = String(stdout || "").trim();
   if (!line.startsWith("OK|")) {
@@ -249,6 +278,7 @@ function launchViaCmdStart(exe, args) {
       detached: true,
       stdio: "ignore",
       windowsHide: true,
+      env: envWithoutElectronLeak(),
     });
     const finish = (fn, value) => {
       if (settled) return;
@@ -281,30 +311,29 @@ function sleep(ms) {
 }
 
 /**
- * Close Cursor processes. Soft CloseMainWindow first; after timeout, Stop-Process -Force.
- * Only call from an explicit user «Restart with CDP» action.
+ * Ask Cursor windows to close. Never force-kill: that leaves the main
+ * process up and shows "window terminated unexpectedly (killed)".
  * @param {{ forceAfterMs?: number }} [opts]
  * @returns {Promise<{ ok: boolean, method?: string, error?: string }>}
  */
 async function closeCursorProcesses(opts = {}) {
-  const forceAfterMs = Math.max(2000, Number(opts.forceAfterMs) || 10000);
+  const forceAfterMs = Math.max(2000, Number(opts.forceAfterMs) || 3000);
   const script = `
 $ErrorActionPreference = 'SilentlyContinue'
 $procs = @(Get-Process -Name Cursor -ErrorAction SilentlyContinue)
 if ($procs.Count -eq 0) { Write-Output 'NONE'; exit 0 }
-foreach ($p in $procs) { try { $null = $p.CloseMainWindow() } catch {} }
+foreach ($p in $procs) {
+  if ($p.MainWindowHandle -eq 0) { continue }
+  try { $null = $p.CloseMainWindow() } catch {}
+}
 $deadline = [DateTime]::UtcNow.AddMilliseconds(${forceAfterMs})
 while ([DateTime]::UtcNow -lt $deadline) {
   $left = @(Get-Process -Name Cursor -ErrorAction SilentlyContinue)
   if ($left.Count -eq 0) { Write-Output 'SOFT'; exit 0 }
   Start-Sleep -Milliseconds 400
 }
-Get-Process -Name Cursor -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 600
-$left = @(Get-Process -Name Cursor -ErrorAction SilentlyContinue)
-if ($left.Count -eq 0) { Write-Output 'FORCE'; exit 0 }
 Write-Output 'FAIL'
-exit 1
+exit 0
 `;
   try {
     const { stdout } = await execFileAsync(
@@ -313,15 +342,24 @@ exit 1
       { windowsHide: true, timeout: forceAfterMs + 8000 }
     );
     const line = String(stdout || "").trim().split(/\r?\n/).pop() || "";
-    if (line === "NONE" || line === "SOFT" || line === "FORCE") {
+    if (line === "NONE" || line === "SOFT") {
       return { ok: true, method: line.toLowerCase() };
     }
     return { ok: false, error: t("cursor.restartCloseFail") };
   } catch {
     const still = await isCursorRunning();
-    if (!still) return { ok: true, method: "force" };
+    if (!still) return { ok: true, method: "soft" };
     return { ok: false, error: t("cursor.restartCloseFail") };
   }
+}
+
+async function waitForCursorExit(maxMs) {
+  const deadline = Date.now() + Math.max(1000, Number(maxMs) || 90000);
+  while (Date.now() < deadline) {
+    if (!(await isCursorRunning())) return { ok: true };
+    await sleep(500);
+  }
+  return { ok: false };
 }
 
 /**
@@ -329,7 +367,7 @@ exit 1
  * @param {{ mode?: 'accessibility'|'background'|'both', cdpPort?: number, skipRunningCheck?: boolean }} opts
  */
 async function launchCursorForIntegration(opts = {}) {
-  const mode = opts.mode || "background";
+  const mode = opts.mode || DEFAULT_CDP_MODE;
   const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
   if (!opts.skipRunningCheck) {
     const running = await isCursorRunning();
@@ -404,7 +442,7 @@ async function launchCursorForIntegration(opts = {}) {
  * @param {{ mode?: string, cdpPort?: number, allowRestart?: boolean, forceAfterMs?: number }} [opts]
  */
 async function launchOrRestartCursorWithCdp(opts = {}) {
-  const mode = opts.mode || "both";
+  const mode = opts.mode || DEFAULT_CDP_MODE;
   const cdpPort = Number(opts.cdpPort) || DEFAULT_CDP_PORT;
   const allowRestart = opts.allowRestart === true;
   const running = await isCursorRunning();
@@ -421,19 +459,26 @@ async function launchOrRestartCursorWithCdp(opts = {}) {
       };
     }
     const closed = await closeCursorProcesses({
-      forceAfterMs: opts.forceAfterMs,
+      forceAfterMs: opts.forceAfterMs || 3000,
     });
-    if (!closed.ok) {
-      return {
-        ok: false,
-        alreadyRunning: true,
-        needsRestart: true,
-        error: closed.error || t("cursor.restartCloseFail"),
-      };
+    if (closed.ok) {
+      restarted = true;
+      closeMethod = closed.method || "";
+      await sleep(800);
+    } else {
+      const waited = await waitForCursorExit(90000);
+      if (!waited.ok) {
+        return {
+          ok: false,
+          alreadyRunning: true,
+          needsRestart: true,
+          error: closed.error || t("cursor.restartCloseFail"),
+        };
+      }
+      restarted = true;
+      closeMethod = "user";
+      await sleep(800);
     }
-    restarted = true;
-    closeMethod = closed.method || "";
-    await sleep(700);
   }
 
   const result = await launchCursorForIntegration({
@@ -452,6 +497,9 @@ async function launchOrRestartCursorWithCdp(opts = {}) {
 module.exports = {
   ACCESSIBILITY_FLAG,
   DEFAULT_CDP_PORT,
+  DEFAULT_CDP_MODE,
+  ELECTRON_CHILD_UNSET_ENV,
+  envWithoutElectronLeak,
   SHORTCUT_FILE_NAME,
   isCursorRunning,
   resolveCursorExe,

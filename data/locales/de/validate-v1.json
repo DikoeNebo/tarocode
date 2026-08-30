@@ -1,0 +1,78 @@
+{
+  "id": "validate-v1",
+  "name": "01 Validierung",
+  "cards": [
+    {
+      "id": "problem",
+      "title": "Problem",
+      "description": "Fool: who hurts, what breaks, testable hypothesis",
+      "prompt": "State the target audience, the observable problem, the current workaround, and a testable hypothesis. Analysis only — no product, no code.\n\nMark unknowns as assumptions. Do not invent users, quotes, or market size.\n\nOutput:\n- Who\n- Problem (observable)\n- Workaround today\n- Hypothesis (if we ship X, Y will happen)\n- Open questions\n\nNext card: Evidence plan.",
+      "image": "fool",
+      "hotkey": "F1"
+    },
+    {
+      "id": "evidence-plan",
+      "title": "Prüfplan",
+      "description": "Hierophant: cheapest proof, metric, stop rule",
+      "prompt": "Pick the cheapest way to test the hypothesis. Write the success metric, threshold, deadline, and stop/pivot rule BEFORE any experiment.\n\nDo not treat AI research as external proof. Interviews, waitlist signups, clicks, and preorders count. Opinions in this chat do not.\n\nOutput:\n- Method (interview / landing / fake door / preorder / other)\n- Metric + threshold + date\n- What FAIL means\n- What the human must do\n\nDo not start coding the product.",
+      "image": "hierophant",
+      "hotkey": "F2"
+    },
+    {
+      "id": "interview",
+      "title": "Interview",
+      "description": "Two of Cups: questions or real answers — no invented people",
+      "prompt": "Prepare non-leading interview questions, or analyze answers the user actually provided.\n\nForbidden: inventing respondents, quotes, or \"typical users\". If no real answers exist, output only the question list and how to run the talks.\n\nIf real notes exist: pains, current tools, willingness to pay, disconfirming evidence.\n\nNext: Market (if still missing) or Verdict (if enough talks exist).",
+      "image": "cups_02",
+      "hotkey": "F3"
+    },
+    {
+      "id": "market",
+      "title": "Markt",
+      "description": "Wheel: competitors, licenses, reuse — not a copy dump",
+      "prompt": "Map competitors, substitutes, licenses, and reusable references. Competitors are a market signal, not an automatic fail.\n\nIf you cannot browse the web, ask for sources instead of guessing GitHub/npm names.\n\nFor each reference: what it does, license, risk of reuse, what NOT to copy.\n\nDo not dump or paste third-party code.",
+      "image": "wheel_of_fortune",
+      "hotkey": "F4"
+    },
+    {
+      "id": "experiment",
+      "title": "Experiment",
+      "description": "Magician: smoke / fake door / waitlist; success bar already set",
+      "prompt": "Design the smallest smoke / fake-door / waitlist experiment using the threshold already written in the evidence plan. Do not invent a new success bar after the fact.\n\nChange files only if the user explicitly asked to create the landing/asset. Otherwise describe copy, layout, and how to count results.\n\nNo payment integration, no production deploy.",
+      "image": "magician",
+      "hotkey": "F5"
+    },
+    {
+      "id": "evidence-review",
+      "title": "Urteil",
+      "description": "Justice: only facts you have; PASS or FAIL",
+      "prompt": "Judge ONLY evidence the user actually provided (notes, counts, links). Missing evidence is a gap, not a pass.\n\nDo not invent subscriber counts. A number without a source is FAIL.\n\nEnd with exactly these two lines (choose PASS or FAIL, and a known stock id):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "image": "justice",
+      "hotkey": "F6"
+    },
+    {
+      "id": "pivot",
+      "title": "Pivot",
+      "description": "Hanged Man: keep facts, shrink audience / problem / channel",
+      "prompt": "Using the failed criterion, shrink audience, problem, or channel. Keep collected facts. Do not throw away interviews.\n\nOutput: what stays true · what changes · new hypothesis · next evidence plan.\n\nDo not write product code.",
+      "image": "hanged_man",
+      "hotkey": "F7"
+    },
+    {
+      "id": "validation-cycle",
+      "title": "Voller Check",
+      "description": "World: run the check; stop where a human must act",
+      "prompt": "Run the validation loop with what is already known: problem → evidence plan → available interviews/market/experiment.\n\nStop and ask the human wherever real-world data is required. Do not fabricate that data.\n\nGive a final gate ONLY if real evidence exists. Then end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "image": "world",
+      "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Kurzlage",
+      "description": "High Priestess: hypothesis / evidence / gaps / next",
+      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nReply in four short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step (name Problem / Evidence plan / Interview / Market / Experiment / Verdict / Pivot)\n\nNo KEYCODE_SCORE, KEYCODE_GATE, or KEYCODE_NEXT lines.",
+      "image": "high_priestess",
+      "hotkey": ""
+    }
+  ]
+}

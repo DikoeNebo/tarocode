@@ -1,6 +1,6 @@
 {
   "id": "pro-v1",
-  "name": "Тарокод · Продакшен",
+  "name": "03 Робота · Продакшен",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "Цикл",
       "description": "Світ: end-to-end, кожен пункт ≥ 7 балів оцінки",
-      "prompt": "Повний цикл за планом end-to-end.\n\nПункт закритий лише при балі оцінки проєкту ≥ 7 (для 9–10 — «Доведи»). На пункт: назвати → реалізувати → перевірити фактами → бал → лагодити до ≥7 → далі. Без перескоків, роздування scope і маскування червоних тестів.\n\nНемає плану — спочатку короткий на 5–8 кроків з критеріями приймання, потім виконання.\n\nФінал: загальний бал · готово/не зроблено · залишкові ризики · що перевірити вручну перед merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Повний цикл за планом end-to-end.\n\nПункт закритий лише при балі оцінки проєкту ≥ 7 (для 9–10 — «Доведи»). На пункт: назвати → реалізувати → перевірити фактами → бал → лагодити до ≥7 → далі. Без перескоків, роздування scope і маскування червоних тестів.\n\nНемає плану — спочатку короткий на 5–8 кроків з критеріями приймання, потім виконання.\n\nФінал: загальний бал · готово/не зроблено · залишкові ризики · що перевірити вручну перед merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

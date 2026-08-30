@@ -1,6 +1,6 @@
 {
   "id": "lazy-v1",
-  "name": "Tarocode · Hobby",
+  "name": "03 Work · Hobby",
   "cards": [
     {
       "id": "plan",
@@ -62,7 +62,7 @@
       "id": "fullcycle",
       "title": "Full Cycle",
       "description": "World: plan → work → test, each step ≥ 7 points",
-      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nClose each item only at project quality score ≥ 7 (use Polish for 9–10). Per item: name → implement → verify → score → if <7 fix until ≥7 → next. No scope inflation.\n\nNo plan — short 5–8 step plan first (or proceed if already agreed).\n\nFinal: overall score · done / not done · what to verify manually. Don't declare success if overall <7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nClose each item only at project quality score ≥ 7 (use Polish for 9–10). Per item: name → implement → verify → score → if <7 fix until ≥7 → next. No scope inflation.\n\nNo plan — short 5–8 step plan first (or proceed if already agreed).\n\nFinal: overall score · done / not done · what to verify manually. Don't declare success if overall <7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
       "image": "world",
       "hotkey": "F8"
     },

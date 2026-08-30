@@ -105,6 +105,12 @@
                   <span aria-hidden="true">›</span>
                 </button>
               </div>
+              <button
+                type="button"
+                class="phase-next hidden"
+                id="btn-phase-next"
+                hidden
+              ></button>
               <div
                 class="dest-bar hidden"
                 id="dest-bar"
@@ -163,13 +169,13 @@
       </div>
 
       <div id="toast" class="toast hidden" role="status"></div>
-      <div id="cdp-nudge" class="cdp-nudge hidden" role="status" aria-live="polite">
-        <p class="cdp-nudge-text" id="cdp-nudge-text"></p>
-        <div class="cdp-nudge-actions">
-          <button type="button" class="primary-btn" id="cdp-nudge-action" data-i18n="cdp.restartBtn">
-            Restart with CDP?
+      <div id="cdp-nudge" class="cdp-nudge hidden" role="dialog" aria-modal="true" aria-labelledby="cdp-nudge-text">
+        <div class="cdp-nudge-card">
+          <p class="cdp-nudge-text" id="cdp-nudge-text"></p>
+          <button type="button" class="primary-btn cdp-nudge-launch" id="cdp-nudge-action" data-i18n="cdp.launchBtn">
+            Launch Cursor with CDP
           </button>
-          <button type="button" class="ghost-btn" id="cdp-nudge-dismiss" data-i18n="cdp.dismiss" title="Dismiss">
+          <button type="button" class="ghost-btn" id="cdp-nudge-dismiss" data-i18n="cdp.dismiss">
             Later
           </button>
         </div>
@@ -180,7 +186,7 @@
           <h2 id="onboarding-title" data-i18n="onboarding.title">Quick start</h2>
           <ol class="onboarding-steps">
             <li data-i18n-html="onboarding.step1"><kbd>F9</kbd> — show or hide cards</li>
-            <li data-i18n-html="onboarding.step2">◎ → “Restart with CDP?” (or launch if Cursor is closed)</li>
+            <li data-i18n-html="onboarding.step2">◎ → close Cursor, then “Launch Cursor with CDP”</li>
             <li data-i18n-html="onboarding.step3">💬 «Чаты» → «+ чат» or «+ поле»</li>
             <li data-i18n-html="onboarding.step4">Enable a chat and click a card</li>
           </ol>

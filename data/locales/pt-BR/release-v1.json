@@ -1,0 +1,78 @@
+{
+  "id": "release-v1",
+  "name": "04 Lançamento",
+  "cards": [
+    {
+      "id": "release-plan",
+      "title": "Perfil",
+      "description": "Three of Wands: product type, channel, what needs a yes",
+      "prompt": "Choose a release profile from the actual project: desktop / web / mobile / open source (or say unknown).\n\nList channel, release criteria, and actions that need an explicit human yes (publish, signing, production migrate, store upload).\n\nDo not assume Vercel, Stripe, Docker, or npm.",
+      "image": "wands_03",
+      "hotkey": "F1"
+    },
+    {
+      "id": "quality-audit",
+      "title": "Qualidade",
+      "description": "Star: run existing tests/builds only",
+      "prompt": "Find and run only existing relevant builds/tests/linters in this repo. Do not invent npm/Docker/CI.\n\nShow real command output. Score 0–10 from those facts.\n\nAlways end with:\nKEYCODE_SCORE: N\n\nIf red or score < 7, say the next step is Production work card Fix.",
+      "image": "star",
+      "hotkey": "F2"
+    },
+    {
+      "id": "security-audit",
+      "title": "Segurança",
+      "description": "Ace of Swords: secrets, inputs, deps — report, don't patch",
+      "prompt": "Read-only security review: secrets, input validation, dependency risk, privacy. Prioritize findings with evidence.\n\nDo not apply patches. Do not print secret values.\n\nIf a critical issue exists, end with:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\n\nOtherwise say no critical blockers and continue to Package.",
+      "image": "swords_ace",
+      "hotkey": "F3"
+    },
+    {
+      "id": "package",
+      "title": "Pacote",
+      "description": "Three of Pentacles: artifact + rollback; wait before publish",
+      "prompt": "Prepare the package/deploy artifact and rollback for the chosen profile.\n\nInstalls, DB migrations, code signing, store upload, and production commands require an explicit user yes. Stop and ask. Do not publish.",
+      "image": "pentacles_03",
+      "hotkey": "F4"
+    },
+    {
+      "id": "docs",
+      "title": "Docs",
+      "description": "Hermit: README / notes / install / rollback that exist",
+      "prompt": "Update only relevant README, release notes, install/upgrade/rollback text. Do not create extra documents nobody asked for.",
+      "image": "hermit",
+      "hotkey": "F5"
+    },
+    {
+      "id": "operations",
+      "title": "Ops",
+      "description": "Temperance: logs, backup, support, incident",
+      "prompt": "Minimal ops: logs, errors, backups, support, incident response. Suggest external services only after the user picks them.",
+      "image": "temperance",
+      "hotkey": "F6"
+    },
+    {
+      "id": "release-gate",
+      "title": "Gate",
+      "description": "Justice: ship only if checks pass",
+      "prompt": "Check build/tests, critical security, docs, rollback, and remaining manual steps.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
+      "image": "justice",
+      "hotkey": "F7"
+    },
+    {
+      "id": "launch",
+      "title": "Lançar",
+      "description": "Sun: show plan first; publish only after a clear yes",
+      "prompt": "First list the launch actions, risks, and rollback. Do not publish, upload, or ship until the user clearly says to do it.\n\nAfter a confirmed launch, verify the artifact/availability if possible.\n\nThen recommend Validation → Verdict using real feedback (not a new invented idea). If launch happened, you may end with:\nKEYCODE_NEXT: validate-v1/evidence-review",
+      "image": "sun",
+      "hotkey": "F8"
+    },
+    {
+      "id": "summary",
+      "title": "Resumo",
+      "description": "High Priestess: hypothesis / evidence / gaps / next",
+      "prompt": "Read this chat. Do not publish anything. Do not change production.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step\n\nNo KEYCODE_SCORE line.",
+      "image": "high_priestess",
+      "hotkey": ""
+    }
+  ]
+}

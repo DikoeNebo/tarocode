@@ -24,7 +24,7 @@ const {
 } = require("./cdp-client");
 const { suggestNextCards } = require("./card-suggestions");
 /** Rewrite bundled hobby/pro decks from locale packs when this increases. */
-const STOCK_DECK_REV = 3;
+const STOCK_DECK_REV = 4;
 const {
   getCursorSdkClient,
   SDK_LIVE_CHAT_ID,
@@ -155,7 +155,7 @@ function refreshLocaleFromSettings(settings) {
 }
 
 function syncBundledDecks(locale, { onlyIfMissing = false } = {}) {
-  for (const deckId of ["lazy-v1", "pro-v1"]) {
+  for (const deckId of i18n.STOCK_DECK_IDS) {
     const dest = path.join(decksDir(), `${deckId}.json`);
     if (onlyIfMissing && fs.existsSync(dest)) continue;
     const src = i18n.bundledDeckPath(locale, deckId);
@@ -269,7 +269,7 @@ const defaultSettings = {
   targets: [],
   targetsWindowBounds: null,
   targetsWindowMaximized: false,
-  activeDeckId: "lazy-v1",
+  activeDeckId: "validate-v1",
   /** @type {'top'|'bottom'|'left'|'right'} */
   dock: "right",
   /** Side docks: "table" (default 3×4 grid) | "strip" (classic full-height column) */
@@ -579,7 +579,8 @@ function listDecks() {
         return null;
       }
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort(i18n.compareDeckOrder);
 }
 
 function loadDeck(id) {
@@ -1254,6 +1255,21 @@ function createDeckWindow() {
   deckWindow.setAlwaysOnTop(true, "screen-saver");
   deckWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   deckWindow.loadFile(path.join(appRoot(), "src", "index.html"));
+
+  // OS focus — not document.hasFocus() (unreliable with click-through / always-on-top)
+  const pushDeckFocus = () => {
+    if (!deckWindow || deckWindow.isDestroyed()) return;
+    const focused = deckWindow.isFocused();
+    if (!focused) previewHoldOpen = false;
+    sendDeck("deck-focus-changed", { focused });
+  };
+  deckWindow.on("focus", pushDeckFocus);
+  deckWindow.on("blur", pushDeckFocus);
+  deckWindow.on("show", pushDeckFocus);
+  deckWindow.on("hide", () => {
+    previewHoldOpen = false;
+    sendDeck("deck-focus-changed", { focused: false });
+  });
 
   deckWindow.on("close", (e) => {
     if (!app.isQuitting) {
@@ -2350,6 +2366,32 @@ function upsertTargetFromCdp({
   return { ok: true, duplicate: false, target };
 }
 
+function persistHealedCdpTarget(savedTargetId, healed) {
+  const nextId = String(healed?.cdpTargetId || "").trim();
+  const saved = String(savedTargetId || "").trim();
+  if (!saved || !nextId) return;
+  const settings = readSettings();
+  let changed = false;
+  const targets = (settings.targets || []).map((t) => {
+    if (t.id !== saved || t.driver !== "cdp") return t;
+    const chatId =
+      healed.chatId != null && String(healed.chatId).trim()
+        ? String(healed.chatId)
+        : t.chatId;
+    if (String(t.cdpTargetId) === nextId && String(t.chatId) === String(chatId)) {
+      return t;
+    }
+    changed = true;
+    return {
+      ...t,
+      cdpTargetId: nextId,
+      chatId,
+      needsCdpRebind: false,
+    };
+  });
+  if (changed) writeSettings({ targets });
+}
+
 function cursorBackendOf(settings) {
   // Product UI uses CDP only until SDK is finished; keep code paths behind the flag.
   if (!isCursorSdkEnabled()) return "cdp";
@@ -2514,10 +2556,14 @@ async function pasteViaCdp(target, text, autoEnter, cdpPort) {
       text,
       { submit: autoEnter === true }
     );
+    if (target.id && r?.cdpTargetId) {
+      persistHealedCdpTarget(target.id, { cdpTargetId: r.cdpTargetId });
+    }
     return {
       ok: true,
       warning:
         r?.warning === "inserted_not_sent" ? t("err.insertedNotSent") : "",
+      cdpTargetId: r?.cdpTargetId || target.cdpTargetId,
     };
   } catch (e) {
     const msg = String(e.message || e);
@@ -3067,6 +3113,7 @@ async function pasteTextToTarget(text, targetId, notify = { kind: "text", cardId
 
   const r = await pasteViaCdp(
     {
+      id: ref.kind === "saved" ? targetId : "",
       cdpTargetId: ref.cdpTargetId,
       chatId: ref.chatId,
       chatTitle: ref.chatTitle,
@@ -3201,7 +3248,7 @@ async function readRemoteChat(targetId, { select = true } = {}) {
   }
   const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
-  return cdp.readTranscript(
+  const result = await cdp.readTranscript(
     ref.cdpTargetId,
     {
       id: ref.chatId,
@@ -3210,6 +3257,10 @@ async function readRemoteChat(targetId, { select = true } = {}) {
     },
     { select: select !== false }
   );
+  if (ref.kind === "saved" && result?.cdpTargetId) {
+    persistHealedCdpTarget(targetId, { cdpTargetId: result.cdpTargetId });
+  }
+  return result;
 }
 
 /** Attach rule-based next-card suggestions for the active deck. */
@@ -3218,9 +3269,30 @@ function attachChatSuggestions(result) {
   try {
     const settings = readSettings();
     const deck = loadDeck(settings.activeDeckId);
+    const catalog = {};
+    for (const id of i18n.STOCK_DECK_IDS) {
+      try {
+        const file = deckFilePath(decksDir(), id);
+        if (!fs.existsSync(file)) continue;
+        const loaded = loadDeck(id);
+        if (loaded?.id === id) catalog[id] = loaded;
+      } catch {
+        /* skip missing stock deck */
+      }
+    }
     const suggestions = suggestNextCards({
       messages: result.messages || [],
       cards: deck.cards || [],
+      deckId: deck.id,
+      catalog,
+    }).map((s) => {
+      const target = s.deckId && catalog[s.deckId] ? catalog[s.deckId] : deck;
+      const card = (target.cards || []).find((c) => c.id === s.cardId);
+      return {
+        ...s,
+        deckName: target.name || s.deckId || deck.name,
+        cardTitle: (card && card.title) || s.cardId,
+      };
     });
     return { ...result, suggestions };
   } catch (e) {
@@ -3249,12 +3321,17 @@ async function setRemoteComposerMode(targetId, mode) {
   }
   const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
-  await cdp.selectChat(ref.cdpTargetId, {
+  const chat = {
     id: ref.chatId,
     title: ref.chatTitle,
     project: ref.projectName || "",
-  });
-  return cdp.setComposerMode(ref.cdpTargetId, want);
+  };
+  const selected = await cdp.selectChat(ref.cdpTargetId, chat);
+  const id = selected?.cdpTargetId || ref.cdpTargetId;
+  if (ref.kind === "saved" && id) {
+    persistHealedCdpTarget(targetId, { cdpTargetId: id });
+  }
+  return cdp.setComposerMode(id, want);
 }
 
 async function setRemoteComposerModel(targetId, model) {
@@ -3277,12 +3354,17 @@ async function setRemoteComposerModel(targetId, model) {
   }
   const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
-  await cdp.selectChat(ref.cdpTargetId, {
+  const chat = {
     id: ref.chatId,
     title: ref.chatTitle,
     project: ref.projectName || "",
-  });
-  return cdp.setComposerModel(ref.cdpTargetId, want);
+  };
+  const selected = await cdp.selectChat(ref.cdpTargetId, chat);
+  const id = selected?.cdpTargetId || ref.cdpTargetId;
+  if (ref.kind === "saved" && id) {
+    persistHealedCdpTarget(targetId, { cdpTargetId: id });
+  }
+  return cdp.setComposerModel(id, want);
 }
 
 async function answerRemoteClarification(targetId, payload = {}) {
@@ -3310,12 +3392,17 @@ async function answerRemoteClarification(targetId, payload = {}) {
   }
   const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
-  await cdp.selectChat(ref.cdpTargetId, {
+  const chat = {
     id: ref.chatId,
     title: ref.chatTitle,
     project: ref.projectName || "",
-  });
-  return cdp.answerClarification(ref.cdpTargetId, payload);
+  };
+  const selected = await cdp.selectChat(ref.cdpTargetId, chat);
+  const id = selected?.cdpTargetId || ref.cdpTargetId;
+  if (ref.kind === "saved" && id) {
+    persistHealedCdpTarget(targetId, { cdpTargetId: id });
+  }
+  return cdp.answerClarification(id, payload);
 }
 
 function ensureRemoteToken(settings, { persist = true } = {}) {
@@ -4295,7 +4382,17 @@ function setupIpc() {
 
   ipcMain.handle("get-cursor-client", () => cursorInDeckClient());
 
+  ipcMain.handle("get-deck-focused", () => {
+    if (!deckWindow || deckWindow.isDestroyed()) return false;
+    return deckWindow.isFocused();
+  });
+
   ipcMain.handle("set-preview-hold", (_e, on) => {
+    // Never keep preview hit-area alive while another app is foreground
+    if (on && (!deckWindow || deckWindow.isDestroyed() || !deckWindow.isFocused())) {
+      previewHoldOpen = false;
+      return false;
+    }
     previewHoldOpen = !!on;
     return true;
   });
@@ -4733,14 +4830,14 @@ function setupIpc() {
   ipcMain.handle("cursor-install-cdp-shortcut", async (_e, opts = {}) => {
     const settings = readSettings();
     const port = Number(opts.cdpPort) || settings.cdpPort || DEFAULT_CDP_PORT;
-    const mode = opts.mode || "both";
+    const mode = opts.mode || "background";
     return installCursorCdpShortcut({ mode, cdpPort: port });
   });
 
   ipcMain.handle("cursor-launch-integration", async (_e, opts = {}) => {
     const settings = readSettings();
     const port = Number(opts.cdpPort) || settings.cdpPort || DEFAULT_CDP_PORT;
-    const mode = opts.mode || "both";
+    const mode = opts.mode || "background";
     const allowRestart =
       opts.allowRestart === true || opts.restart === true;
     const result = allowRestart
@@ -5036,7 +5133,7 @@ function setupIpc() {
     if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
     const safe = trySafeId(id);
     if (!safe) return { ok: false, error: t("err.badId") };
-    if (safe === "lazy-v1" || safe === "pro-v1") {
+    if (i18n.isStockDeckId(safe)) {
       return { ok: false, error: t("err.cannotDeleteStock") };
     }
     try {
@@ -5047,7 +5144,7 @@ function setupIpc() {
     }
     const settings = readSettings();
     if (settings.activeDeckId === safe) {
-      writeSettings({ activeDeckId: "lazy-v1" });
+      writeSettings({ activeDeckId: "validate-v1" });
     }
     registerShortcuts();
     broadcastStateChanged();
@@ -5235,7 +5332,7 @@ app.whenReady().then(() => {
           if (!p.tarot?.cards?.magician) {
             throw new Error(`tarot missing for ${loc}`);
           }
-          const deck = loadDeck("lazy-v1");
+          const deck = loadDeck("validate-v1");
           if (!deck?.cards?.length) throw new Error(`deck empty after ${loc}`);
           console.log("[smoke-i18n] locale", loc, p.messages["settings.title"], deck.name);
         }

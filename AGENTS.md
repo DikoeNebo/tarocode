@@ -19,11 +19,11 @@
 1. Show/hide deck via on-screen eye button and global hotkey (default F9).
 2. Click card or bound key → text goes to all checked targets; optional Enter.
 3. Edit cards, change images, max 9 cards (F1–F8 hotkeys; 9th card click-only); switch decks; import/export file.
-4. Two bundled decks: «Тарокод · Хобби» and «Тарокод · Продакшен»; switch in settings.
-5. Evaluation uses a project quality score 0–10: &lt;7 = redo; 7–10 = acceptable; card «Доведи» loops until score 9–10. Stock score cards require a final line `KEYCODE_SCORE: N` for reliable parsing.
+4. Five bundled decks in four phases: Validation → Specification → Work (Hobby + Production) → Release; switch in settings or the deck pager.
+5. Evaluation uses a project quality score 0–10: &lt;7 = redo; 7–10 = acceptable; card «Доведи» loops until score 9–10. Score cards end with `KEYCODE_SCORE: N`. Gate cards may also end with `KEYCODE_GATE: PASS|FAIL` and `KEYCODE_NEXT: deck-id/card-id`. Hints never block paste.
 6. **Public readiness:** clean Windows 10/11 install → within ~2 minutes user adds a target and successfully sends a card; every failure shows a clear next action in the UI.
 7. **Phone remote (opt-in):** mobile web remote for Cursor — list **all open Cursor chats** from CDP (no need to add them in Keycode first), pick one active chat on the phone, read its loaded transcript live, send a deck card to that chat only. **Current access:** same Wi‑Fi (LAN): Keycode binds `0.0.0.0`, phone opens `http://{pc-lan-ip}:{port}/#token=…` with bearer secret. **Later:** Tailscale Serve for away-from-home. Not Funnel / not a cloud account.
-8. **Next-card hints (rules, not AI):** for the selected solo Cursor chat (desktop strip + phone), parse transcript for last pasted card + `KEYCODE_SCORE: N`; highlight up to 3 cards (1 bright primary + up to 2 dimmer secondary). Frozen while Cursor is generating.
+8. **Next-card hints (rules, not AI):** for the selected solo Cursor chat (desktop strip + phone), parse last pasted card + `KEYCODE_SCORE: N` / `KEYCODE_GATE` / `KEYCODE_NEXT`; highlight up to 3 cards in the active deck (1 bright primary + up to 2 dimmer secondary). Cross-deck NEXT is a clickable hint only (no auto-switch, no lock). Frozen while Cursor is generating.
 
 **Out of scope (v1):**
 
@@ -52,7 +52,7 @@
 | Authentication | No |
 | Language (UI) | 10 locales: `en`, `ru`, `uk`, `de`, `es`, `fr`, `pt-BR`, `zh-CN`, `ja`, `pl`. Default follows OS (`uiLocale: "system"`); unknown OS locale → `en`. Change applies immediately to all windows. |
 | Arcana names | Rider–Waite titles default English (`arcanaLocale: "en"`); Settings can switch to any UI locale or follow UI language (`"ui"`). |
-| Bundled decks | Hobby + Production ship translated per UI locale under `data/locales/{locale}/`; switching UI language rewrites stock `lazy-v1` / `pro-v1` from that pack. User-created decks stay as authored. |
+| Bundled decks | Five stock decks ship translated per UI locale under `data/locales/{locale}/`; switching UI language rewrites `validate-v1`, `spec-v1`, `lazy-v1`, `pro-v1`, `release-v1`. User-created decks stay as authored. Pager order is phase order, then user decks by name. |
 
 ---
 
@@ -97,7 +97,7 @@ First run --> [Short onboarding overlay on deck]
 |---|---------|--------|
 | 1 | Hide (👁) | Hide deck panel |
 | 2 | Settings (⚙) | Open centered settings window |
-| 3 | CDP (◎) | Launch Cursor with CDP, or restart with CDP if Cursor is open without the debug port |
+| 3 | CDP (◎) | If CDP is closed: centered dialog — close Cursor yourself, then big button «Launch Cursor with CDP». Does not kill Cursor. |
 | 4 | Chats (💬) | Open the Chats window — standard Windows frame (move / resize / minimize / maximize / close); badge = paste destination count (preset/enabled in broadcast, `1` in solo) |
 | 5 | Cards (≤9) | Side table / strip / top-bottom: click card. Paste to **resolved destinations** (active preset, or enabled targets, or solo chat). In solo CDP mode, up to 3 cards may glow (next-step hints) |
 | 6 | Quit (✕) | Exit or minimize to background |
@@ -114,11 +114,11 @@ Edge hover on/off — только в Settings (на полосе карт от�
 - `uia-quiet` — UIA `ValuePattern` write without activating the window (simple apps only). Created by «+ поле» when «Не забирать фокус» is on.
 - `win32-field` / `uia` — legacy focus + Ctrl+V paths; used only when setting «Не забирать фокус» is **off**.
 
-**No-focus mode (default on):** never call `SetForegroundWindow` / SendInput into other apps. Game stays focused. **Cursor path (product):** paste into open IDE chats via local CDP. Cursor must be started with `--remote-debugging-port=9222` bound to `127.0.0.1` (Keycode shortcut preferred). Keycode never kills Cursor in the background; **only** an explicit user click on «Launch / Restart with CDP» may close Cursor (graceful first, then force if still running) and relaunch with CDP flags. **Cursor API / SDK:** code kept (`electron/cursor-sdk-client.js`, settings keys, remote branches) but **hidden from UI**; re-enable later with env `KEYCODE_ENABLE_SDK=1` when finishing that path.
+**No-focus mode (default on):** never call `SetForegroundWindow` / SendInput into other apps. Game stays focused. **Cursor path (product):** paste into open IDE chats via local CDP. Cursor must be started with `--remote-debugging-port=9222` bound to `127.0.0.1` (Keycode shortcut preferred). Keycode never kills Cursor. If Cursor is already open without CDP, a centered deck dialog asks the user to close it, then a big button launches Cursor with CDP flags. **Cursor API / SDK:** code kept (`electron/cursor-sdk-client.js`, settings keys, remote branches) but **hidden from UI**; re-enable later with env `KEYCODE_ENABLE_SDK=1` when finishing that path.
 
 ### First-run onboarding
 
-Short overlay (not a multi-step wizard): F9 → CDP button / «Restart with CDP?» → 💬 Chats → + чат / + поле → enable → click card. Flag `firstRunDone` in settings.json. On each app start, if CDP is closed, the deck offers «Restart with CDP?» (or launch if Cursor is not running).
+Short overlay (not a multi-step wizard): F9 → if CDP is closed, centered dialog: close Cursor, then big button «Launch Cursor with CDP» → 💬 Chats → + чат / + поле → enable → click card. Flag `firstRunDone` in settings.json. On each app start, if CDP is closed, the same centered dialog is offered.
 
 ### Screen: Chats (separate Windows window)
 
@@ -157,7 +157,7 @@ Short overlay (not a multi-step wizard): F9 → CDP button / «Restart with CDP?
 |------|----------|
 | General | **UI language** (system / 10 locales), **arcana name language** (English default / follow UI / locale), pause, Enter, hotkey, **Не забирать фокус**, data folder, logs folder, check for updates |
 | Appearance | Dock side, **side layout** (table 3×4 default / classic strip), edge hover, sizes, opacity, fonts, card preview |
-| Cursor (CDP) | Optional cdpPort; probe debug port; **install permanent Start Menu + Desktop shortcut** with CDP flags (preferred); launch / **restart with CDP** (explicit user click may close Cursor); diagnostics; same launch/restart also on deck (◎), Chats, and chat-pick when CDP is closed |
+| Cursor (CDP) | Optional cdpPort; probe debug port; **install permanent Start Menu + Desktop shortcut** with CDP flags (preferred); launch Cursor with CDP after the user closes it (Keycode does not kill Cursor); diagnostics; same dialog on deck (◎), Chats, and chat-pick when CDP is closed |
 | Cursor API / SDK (shelved) | Implemented but **not shown** in Settings; future finish: API key, sdkProjects (folder + chats), phone `Project · Chat`. Dev re-enable: `KEYCODE_ENABLE_SDK=1` |
 | Phone | Opt-in LAN server (`0.0.0.0`); show port + LAN IP URL; QR with secret in URL fragment; rotate secret; diagnose; Tailscale Serve UI marked “later” |
 | Decks | Select/rename deck; new / export / import / delete; card list (≤9); card editor (title, description, prompt, tarot image, hotkey F1–F8 or none for click-only) |
@@ -252,14 +252,26 @@ New / rename / delete deck; export / import JSON — same as before, now inside 
 
 **Bundled decks (seeded on first run; per-locale packs under `data/locales/{locale}/`):**
 
-| id | name (RU example) | Tone |
-|----|------|------|
-| `lazy-v1` | Тарокод · Хобби | Side projects / learning; keep it simple |
-| `pro-v1` | Тарокод · Продакшен | Work / production bar; stricter review |
+| id | name (RU example) | Phase |
+|----|------|--------|
+| `validate-v1` | 01 Валидация | Evidence before code. New installs start here. |
+| `spec-v1` | 02 Спецификация | Brief, scope, UX, contracts, architecture, Cursor rules |
+| `lazy-v1` | 03 Работа · Хобби | Side projects / learning; keep it simple |
+| `pro-v1` | 03 Работа · Продакшен | Work / production bar; stricter review |
+| `release-v1` | 04 Релиз | Quality, security, package, docs, gate, launch (no auto-publish) |
 
-Stock decks ship **9 cards**: the usual loop (plan → evaluate/review → work → test → fix → polish → backup/fullcycle; Production also has refine) plus click-only **`summary` / Recap** (no hotkey): short chat status — task / done / not done / next step; no code; no `KEYCODE_SCORE`.
+Each stock deck ships **9 cards** (F1–F8 + click-only **`summary` / Recap**). Work decks keep the existing loop (plan → evaluate/review → work → test → fix → polish → backup/`improve`/fullcycle). Summary: short status — no code; no `KEYCODE_SCORE`.
 
-**Score convention («балл оценки проекта» 0–10):** Below 7 → must redo. 7–10 acceptable to continue. Card «Доведи» does not stop until score is 9 or 10 (evaluate → fix → re-score loop). Stock cards that request a score must end agent replies with `KEYCODE_SCORE: N` (same N) so next-card hints can parse reliably.
+**Score convention («балл оценки проекта» 0–10):** Below 7 → must redo. 7–10 acceptable to continue. Card «Доведи» does not stop until score is 9 or 10. Stock score cards must end with a final line `KEYCODE_SCORE: N` (N integer 0–10). Gate cards (`evidence-review`, `validation-cycle`, `readiness`, `release-gate`, and work `fullcycle` when scope is done) may add:
+
+```
+KEYCODE_GATE: PASS
+KEYCODE_NEXT: spec-v1/brief
+```
+
+or `FAIL` plus a known stock `deck-id/card-id`. Unknown NEXT ids are ignored. `FAIL` only highlights a fix card — never disables paste, hotkeys, or deck switch.
+
+**Safe execution (stock prompts):** do not invent market evidence, respondents, or APIs; do not apply secrets/migrations/production deploys without explicit user confirmation; do not create legacy `.cursorrules` when `.cursor/rules/*.mdc` or `AGENTS.md` already exist. Release `launch` shows plan + rollback first.
 
 **Storage:** `%APPDATA%/keycode-lazy-coder/keycode-data/` (settings.json, decks/*.json, donate-clicks.json). Writes are atomic (temp + rename) with one `.bak` backup.
 
@@ -276,10 +288,10 @@ Stock decks ship **9 cards**: the usual loop (plan → evaluate/review → work 
 | Stack | Electron + vanilla HTML/CSS/JS |
 | No-focus paste | CDP DOM inject for Cursor; UIA ValuePattern when possible; never steal focus when `preserveFocus` |
 | Focus paste (opt-in) | Clipboard + Win32/UIA + Ctrl+V |
-| Cursor background | Permanent Keycode shortcut (CDP flags) + `--remote-debugging-port=9222` + `--remote-debugging-address=127.0.0.1` + `electron/cdp-client.js`; kill only on explicit «Restart with CDP» (graceful → force) |
+| Cursor background | Permanent Keycode shortcut (CDP flags) + `--remote-debugging-port=9222` + `--remote-debugging-address=127.0.0.1` + `electron/cdp-client.js`; user closes Cursor, then launches it with CDP — Keycode does not kill Cursor |
 | Cursor SDK (shelved, future) | `@cursor/sdk` via `electron/cursor-sdk-client.js`; hidden unless `KEYCODE_ENABLE_SDK=1`; not product path |
 | Phone remote | `electron/remote-server.js` bind `0.0.0.0` (LAN); static `src/remote/`; bearer token; live CDP chat list + transcript + composer bar + single-active-chat paste; chat SSE carries rule-based `suggestions[]`; Tailscale mode later |
-| Next-card rules | `electron/card-suggestions.js` | Parse last pasted card + `KEYCODE_SCORE` / test outcome; no models |
+| Next-card rules | `electron/card-suggestions.js` | Parse last pasted card + `KEYCODE_SCORE` / `KEYCODE_GATE` / `KEYCODE_NEXT` / test outcome; stock catalog only; no models |
 | Windows list | PowerShell / native window enumeration |
 | Security | contextIsolation, sandbox, CSP without `file:`, path-safe deck/tarot, IPC sender + payload whitelist; remote: LAN bind + bearer token (Tailscale identity when mode=`tailscale`), no prompt logging |
 | Updates | electron-updater / GitHub Releases; never silent-update mid-paste |
@@ -310,5 +322,6 @@ Stock decks ship **9 cards**: the usual loop (plan → evaluate/review → work 
 - [x] Phone remote LAN Wi‑Fi for home testing (2026-07-22); Tailscale Serve later
 - [x] Experimental CDP vs Cursor SDK A/B code (2026-07-23); **SDK shelved from product UI** (2026-07-23) — keep code, finish later; CDP is the shipping path
 - [x] Rule-based next-card highlights for solo chat (KEYCODE_SCORE + glow on deck + phone) (2026-08-09)
+- [x] Four-phase stock decks (validation / spec / work hobby+pro / release) + soft GATE/NEXT (2026-08-18)
 
-**Approved by:** user **Date:** 2026-07-09; public plan 2026-07-19; phone remote 2026-07-19; LAN Wi‑Fi 2026-07-22; SDK A/B then shelve 2026-07-23; next-card hints 2026-08-09
+**Approved by:** user **Date:** 2026-07-09; public plan 2026-07-19; phone remote 2026-07-19; LAN Wi‑Fi 2026-07-22; SDK A/B then shelve 2026-07-23; next-card hints 2026-08-09; four-phase decks 2026-08-18
