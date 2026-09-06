@@ -2,7 +2,7 @@
 
 **TaroCode** (Prompt Tarot Lazy Code) is an open-source Windows companion for Cursor that turns repetitive AI-coding routines into a small always-on-top deck. Pick a chat, click a card, and continue working — no searching for an old prompt, retyping instructions, or constantly switching windows.
 
-This is the first public preview: useful today, but not presented as a polished 1.0. Feedback and bug reports are welcome. (v0.5.0 installer filenames still say `Keycode-*`; the display name is TaroCode.)
+This is the first public preview: useful today, but not presented as a polished 1.0. Feedback and bug reports are welcome. (v0.5.0 installer filenames use `TaroCode-*`.)
 
 ## Why TaroCode
 
@@ -41,8 +41,8 @@ Also included:
 
 ## Download
 
-- `Keycode-0.5.0-portable.exe` — run without installation
-- `Keycode-Setup-0.5.0.exe` — Windows installer
+- `TaroCode-0.5.0-portable.exe` — run without installation
+- `TaroCode-Setup-0.5.0.exe` — Windows installer
 - `SHA256SUMS.txt` — checksums for both builds
 
 Official downloads are published only in this repository. Do not trust third-party reuploads.
@@ -68,7 +68,7 @@ Official downloads are published only in this repository. Do not trust third-par
 ## Verify the download
 
 ```powershell
-Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
+Get-FileHash .\TaroCode-0.5.0-portable.exe -Algorithm SHA256
 ```
 
 Compare the result with `SHA256SUMS.txt` attached to this release.
@@ -87,7 +87,7 @@ I am also looking for work in vibe coding and automation. If you are building AI
 
 **TaroCode** (Prompt Tarot Lazy Code) — опенсорс-приложение для Windows, которое превращает повторяющуюся работу с Cursor в компактную колоду поверх окон. Выбираете чат, нажимаете карту и продолжаете работу — не нужно искать старый промпт, заново печатать инструкции и постоянно переключаться между окнами.
 
-Это первая публичная preview-версия: приложением уже можно пользоваться, но это ещё не отполированный 1.0. Буду рад отзывам и сообщениям об ошибках. (В файлах v0.5.0 ещё стоит имя `Keycode-*`; отображаемое имя — TaroCode.)
+Это первая публичная preview-версия: приложением уже можно пользоваться, но это ещё не отполированный 1.0. Буду рад отзывам и сообщениям об ошибках. 
 
 ## Зачем нужен TaroCode
 
@@ -126,8 +126,8 @@ I am also looking for work in vibe coding and automation. If you are building AI
 
 ## Скачать
 
-- `Keycode-0.5.0-portable.exe` — запуск без установки
-- `Keycode-Setup-0.5.0.exe` — установщик для Windows
+- `TaroCode-0.5.0-portable.exe` — запуск без установки
+- `TaroCode-Setup-0.5.0.exe` — установщик для Windows
 - `SHA256SUMS.txt` — контрольные суммы обеих сборок
 
 Официальные файлы публикуются только в этом репозитории. Не скачивайте TaroCode с сайтов-перезаливов.
@@ -153,7 +153,7 @@ I am also looking for work in vibe coding and automation. If you are building AI
 ## Проверка скачанного файла
 
 ```powershell
-Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
+Get-FileHash .\TaroCode-0.5.0-portable.exe -Algorithm SHA256
 ```
 
 Сравните результат с приложенным к релизу файлом `SHA256SUMS.txt`.

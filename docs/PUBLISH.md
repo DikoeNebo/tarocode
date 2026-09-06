@@ -16,9 +16,9 @@ powershell -File scripts/release-checksums.ps1
 
 4. Expected in `dist-release/` (or your chosen output folder):
 
-- `Keycode-X.Y.Z-portable.exe`
-- `Keycode-Setup-X.Y.Z.exe`
-- `Keycode-Setup-X.Y.Z.exe.blockmap`
+- `TaroCode-X.Y.Z-portable.exe`
+- `TaroCode-Setup-X.Y.Z.exe`
+- `TaroCode-Setup-X.Y.Z.exe.blockmap`
 - `latest.yml`
 - `SHA256SUMS.txt` — **UTF-8 without BOM** (the script writes it that way; do not re-save with Notepad “UTF-8” if that adds a BOM)
 
@@ -37,9 +37,9 @@ git tag -a vX.Y.Z -m "Keycode vX.Y.Z"
 git push origin vX.Y.Z
 
 gh release create vX.Y.Z `
-  dist-release/Keycode-X.Y.Z-portable.exe `
-  dist-release/Keycode-Setup-X.Y.Z.exe `
-  dist-release/Keycode-Setup-X.Y.Z.exe.blockmap `
+  dist-release/TaroCode-X.Y.Z-portable.exe `
+  dist-release/TaroCode-Setup-X.Y.Z.exe `
+  dist-release/TaroCode-Setup-X.Y.Z.exe.blockmap `
   dist-release/latest.yml `
   dist-release/SHA256SUMS.txt `
   --title "vX.Y.Z — …" `

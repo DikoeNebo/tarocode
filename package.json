@@ -62,14 +62,14 @@
           ]
         }
       ],
-      "artifactName": "Keycode-${version}.${ext}"
+      "artifactName": "TaroCode-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "Keycode-${version}-portable.exe"
+      "artifactName": "TaroCode-${version}-portable.exe"
     },
     "nsis": {
       "oneClick": true,
-      "artifactName": "Keycode-Setup-${version}.exe"
+      "artifactName": "TaroCode-Setup-${version}.exe"
     }
   },
   "devDependencies": {

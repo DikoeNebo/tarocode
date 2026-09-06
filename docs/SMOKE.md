@@ -5,7 +5,7 @@ Run before each public release.
 ## Clean install
 
 1. Fresh user profile or temp `%APPDATA%` wipe for `keycode-lazy-coder`.
-2. Start from built `Keycode-*-portable.exe` (not `npm start`).
+2. Start from built `TaroCode-*-portable.exe` (not `npm start`).
 3. Expect: five phase decks (validate → spec → hobby / production → release), tarot images, first-run overlay.
 4. Dismiss or Skip onboarding → overlay does not return after restart.
 

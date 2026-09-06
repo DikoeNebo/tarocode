@@ -21,9 +21,9 @@ Formerly shipped as **Keycode**; GitHub repo stays [`DikoeNebo/tarocode`](https:
 
 ### Quick start (2 minutes)
 
-1. Download `Keycode-*-portable.exe` from the v0.5.0 Release (old filename) and run it — or a newer `TaroCode-*` build when published.
+1. Download `TaroCode-*-portable.exe` from Releases and run it.
 2. Press **F9** (or the eye button) to show the deck.
-3. **◎** or **Settings → Cursor → Always enable (shortcut)** once → close Cursor → open Cursor from the TaroCode / Keycode shortcut (or “Launch Cursor with CDP”).
+3. **◎** or **Settings → Cursor → Always enable (shortcut)** once → close Cursor → open Cursor from the TaroCode shortcut (or “Launch Cursor with CDP”).
 4. **💬 Chats → + chat** → pick a Cursor chat (or a chip on the destination bar) → click a card (or F1–F8).
 
 Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR). Anyone on that Wi‑Fi with the link can control the remote — do not share the secret. Phone remote UI languages: English and Russian (desktop UI has 10 locales).
@@ -31,8 +31,8 @@ Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR)
 Windows may show **Unknown publisher** (unsigned first builds). Compare the file hash with the release `SHA256SUMS.txt`:
 
 ```powershell
-Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
-# expected portable: 426c3a656047cf01ee948fa15578d1b427f87d0d3e2fedccdcbad480885c2484
+Get-FileHash .\TaroCode-0.5.0-portable.exe -Algorithm SHA256
+# expected portable: 94ea577531797745369656cfb2f80c3f85d310381e64fb5321a983b32013f720
 ```
 
 Launch posts and demo script: [`docs/LAUNCH.md`](docs/LAUNCH.md). Publish checklist: [`docs/PUBLISH.md`](docs/PUBLISH.md).
@@ -45,7 +45,7 @@ Launch posts and demo script: [`docs/LAUNCH.md`](docs/LAUNCH.md). Publish checkl
 
 Раньше приложение называлось **Keycode**; репозиторий по-прежнему `DikoeNebo/tarocode`.
 
-**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/tarocode/releases) репозитория `DikoeNebo/tarocode`. Сверяйте SHA-256 из `SHA256SUMS.txt` (portable: `426c3a65…fba1e`).
+**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/tarocode/releases) репозитория `DikoeNebo/tarocode`. Сверяйте SHA-256 из `SHA256SUMS.txt` (portable: $(94ea577531797745369656cfb2f80c3f85d310381e64fb5321a983b32013f720.Substring(0,8))…)).
 
 ## Запуск (разработка)
 
@@ -66,7 +66,7 @@ npm run build:installer
 npm run build:all      # check + test + portable + NSIS
 ```
 
-Артефакты: `dist-release/Keycode-<version>-portable.exe`, `dist-release/Keycode-Setup-<version>.exe`.
+Артефакты: `dist-release/TaroCode-<version>-portable.exe`, `dist-release/TaroCode-Setup-<version>.exe`.
 
 После сборки: `powershell -File scripts/release-checksums.ps1` → `dist-release/SHA256SUMS.txt` для GitHub Release.
 
@@ -123,7 +123,7 @@ npm run build:all      # check + test + portable + NSIS
 Первые публичные сборки могут быть **без цифровой подписи**. Windows покажет «Неизвестный издатель» — это ожидаемо для unsigned open-source. Сверяйте SHA-256 из GitHub Release с файлом:
 
 ```powershell
-Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
+Get-FileHash .\TaroCode-0.5.0-portable.exe -Algorithm SHA256
 ```
 
 ## Лицензия

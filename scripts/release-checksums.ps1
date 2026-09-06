@@ -6,11 +6,11 @@ $dist = Join-Path $root "dist-release"
 if (-not (Test-Path $dist)) { $dist = Join-Path $root "dist" }
 if (-not (Test-Path $dist)) { throw "dist-release/ or dist/ not found - build first" }
 
-# Only ship artefacts: portable + Setup (skip unpacked Keycode.exe copies)
+# Only ship artefacts: portable + Setup (skip unpacked TaroCode.exe copies)
 $files = Get-ChildItem $dist -File | Where-Object {
-  $_.Name -match '^Keycode-(.+-portable|Setup-.+)\.(exe|7z|zip)$'
+  $_.Name -match '^TaroCode-(.+-portable|Setup-.+)\.(exe|7z|zip)$'
 } | Sort-Object Name
-if (-not $files) { throw "No Keycode artefacts in $dist" }
+if (-not $files) { throw "No TaroCode artefacts in $dist" }
 
 $out = Join-Path $dist "SHA256SUMS.txt"
 $lines = New-Object System.Collections.Generic.List[string]

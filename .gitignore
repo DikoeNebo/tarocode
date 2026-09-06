@@ -22,3 +22,5 @@ data/locales/**/*-v1.1.json
 dist-out/
 
 dist-final-*/
+
+dist-build-*/

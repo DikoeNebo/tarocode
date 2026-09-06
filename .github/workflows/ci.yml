@@ -34,8 +34,10 @@ jobs:
       - name: Verify artefacts
         shell: pwsh
         run: |
-          $portable = Get-ChildItem dist -Filter "Keycode-*-portable.exe" -ErrorAction SilentlyContinue
-          $setup = Get-ChildItem dist -Filter "Keycode-Setup-*.exe" -ErrorAction SilentlyContinue
+          $portable = Get-ChildItem dist-release -Filter "TaroCode-*-portable.exe" -ErrorAction SilentlyContinue
+          if (-not $portable) { $portable = Get-ChildItem dist -Filter "TaroCode-*-portable.exe" -ErrorAction SilentlyContinue }
+          $setup = Get-ChildItem dist-release -Filter "TaroCode-Setup-*.exe" -ErrorAction SilentlyContinue
+          if (-not $setup) { $setup = Get-ChildItem dist -Filter "TaroCode-Setup-*.exe" -ErrorAction SilentlyContinue }
           if (-not $portable) { throw "portable exe missing" }
           if (-not $setup) { throw "setup exe missing" }
           Get-FileHash $portable.FullName -Algorithm SHA256 | Format-List
@@ -44,8 +46,10 @@ jobs:
       - name: Upload artefacts
         uses: actions/upload-artifact@v4
         with:
-          name: keycode-windows
+          name: tarocode-windows
           path: |
-            dist/Keycode-*-portable.exe
-            dist/Keycode-Setup-*.exe
+            dist-release/TaroCode-*-portable.exe
+            dist-release/TaroCode-Setup-*.exe
+            dist/TaroCode-*-portable.exe
+            dist/TaroCode-Setup-*.exe
           if-no-files-found: error
