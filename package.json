@@ -15,13 +15,13 @@
   },
   "author": "DikoeNebo",
   "license": "MIT",
-  "homepage": "https://github.com/DikoeNebo/keycode",
+  "homepage": "https://github.com/DikoeNebo/tarocode",
   "bugs": {
-    "url": "https://github.com/DikoeNebo/keycode/issues"
+    "url": "https://github.com/DikoeNebo/tarocode/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/DikoeNebo/keycode.git"
+    "url": "https://github.com/DikoeNebo/tarocode.git"
   },
   "build": {
     "appId": "ru.keycode.lazycoder",

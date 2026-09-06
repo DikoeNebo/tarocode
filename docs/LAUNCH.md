@@ -1,7 +1,7 @@
 # TaroCode v0.5.0 launch kit
 
 Ready-to-copy community posts. Full release text: [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md).  
-Release page: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
+Release page: https://github.com/DikoeNebo/tarocode/releases/tag/v0.5.0
 
 ## Status (after GitHub publish)
 
@@ -38,11 +38,11 @@ I kept repeating the same actions in Cursor: explain the idea, ask for a plan, r
 
 So I built **TaroCode** (Prompt Tarot Lazy Code), an open-source Windows companion for Cursor. It puts up to nine prompt cards in a small always-on-top deck. Choose a chat and click a card; Keycode sends the prompt without taking focus away from the window you are currently using.
 
-![Keycode prompt deck](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
+![Keycode prompt deck](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
 The part I use most is the **phone remote**. When the PC and phone are on the same Wi‑Fi, I can open a secret QR link, see all open Cursor chats, select one, read its loaded transcript, and send a card or custom text from the phone. (If you attach a phone screenshot, crop or blur any QR, URL, token, and local IP.)
 
-![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
+![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-decks.png)
 
 TaroCode v0.5.0 includes:
 
@@ -54,9 +54,9 @@ TaroCode v0.5.0 includes:
 
 This is a public preview, not a polished 1.0. It is Windows-only, the phone remote is limited to the local Wi‑Fi network, and Cursor needs to be opened with Keycode’s local debugging shortcut. The first binaries are unsigned, so the release includes SHA-256 checksums.
 
-Source and downloads: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
+Source and downloads: https://github.com/DikoeNebo/tarocode/releases/tag/v0.5.0
 
-Issues and feedback: https://github.com/DikoeNebo/keycode/issues
+Issues and feedback: https://github.com/DikoeNebo/tarocode/issues
 
 I would especially value feedback on first-run setup, phone control, and paste reliability across current Cursor versions.
 
@@ -74,7 +74,7 @@ TaroCode turns recurring Cursor workflows into an always-on-top deck of prompt c
 
 It can control any open Cursor chat from a phone on the same Wi‑Fi, send prompts without stealing desktop focus, and dictate tasks through its own GigaAM/Windows Speech path. Windows, MIT licensed, first public preview.
 
-Download: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
+Download: https://github.com/DikoeNebo/tarocode/releases/tag/v0.5.0
 
 I am open to work in vibe coding and automation: https://github.com/DikoeNebo
 
@@ -90,7 +90,7 @@ TaroCode превращает повторяющуюся работу с Cursor 
 
 Приложение позволяет управлять любым открытым чатом Cursor с телефона в одной Wi‑Fi-сети, отправляет промпты без перехвата фокуса на компьютере и умеет надиктовывать задачи через собственный маршрут GigaAM/Windows Speech. Windows, лицензия MIT, первая публичная preview-версия.
 
-Скачать: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
+Скачать: https://github.com/DikoeNebo/tarocode/releases/tag/v0.5.0
 
 Также ищу работу по вайбкодингу и автоматизации: https://github.com/DikoeNebo
 
@@ -100,7 +100,7 @@ TaroCode превращает повторяющуюся работу с Cursor 
 
 Поэтому я сделал TaroCode (Prompt Tarot Lazy Code) — открытое Windows-приложение с колодой готовых промптов, отдельной диктовкой и локальным пультом для Cursor с телефона. В статье разберу, какую проблему оно решает, почему для управления выбран локальный CDP, как устроена безопасность пульта в домашней сети и где первая preview-версия пока ограничена.
 
-Ссылка на релиз: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
+Ссылка на релиз: https://github.com/DikoeNebo/tarocode/releases/tag/v0.5.0
 
 ## Demo video: 45–60 seconds
 
@@ -143,7 +143,7 @@ Record at 1080p. Use a clean demo project and test chats with no personal data. 
 **49–60 seconds — open source and call to action**
 
 - Show the GitHub repository, MIT License, and Releases page.
-- On-screen text: `Windows · MIT · Open source` followed by `github.com/DikoeNebo/keycode`.
+- On-screen text: `Windows · MIT · Open source` followed by `github.com/DikoeNebo/tarocode`.
 - Optional final line: `Looking for vibe-coding and automation work.`
 
 Use captions instead of narration if that produces a tighter video. Do not spend video time on installation, settings forms, or technical CDP details; those belong in the release text.

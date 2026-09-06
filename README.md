@@ -2,7 +2,7 @@
 
 Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F8** for hotkeyed cards) pastes a saved prompt into Cursor chats **without stealing focus** — your game or other app stays in front.
 
-Formerly shipped as **Keycode**; GitHub repo stays [`DikoeNebo/keycode`](https://github.com/DikoeNebo/keycode).
+Formerly shipped as **Keycode**; GitHub repo stays [`DikoeNebo/tarocode`](https://github.com/DikoeNebo/tarocode).
 
 ![Deck — Idea check](docs/screenshots/keycode-cycle.png)
 
@@ -10,11 +10,11 @@ Formerly shipped as **Keycode**; GitHub repo stays [`DikoeNebo/keycode`](https:/
 |----------------------|------------------------|-------------------|
 | ![decks](docs/screenshots/keycode-decks.png) | ![languages](docs/screenshots/keycode-languages.png) | ![dictation engine](docs/screenshots/keycode-dictation-engine.png) |
 
-**Official builds:** only from [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) on this repository (`DikoeNebo/keycode`). Do not trust re-uploads elsewhere. Verify SHA-256 from the release `SHA256SUMS.txt`.
+**Official builds:** only from [GitHub Releases](https://github.com/DikoeNebo/tarocode/releases) on this repository (`DikoeNebo/tarocode`). Do not trust re-uploads elsewhere. Verify SHA-256 from the release `SHA256SUMS.txt`.
 
 | | |
 |---|---|
-| **Download** | [Latest Release](https://github.com/DikoeNebo/keycode/releases/latest) (portable `.exe` or Setup) |
+| **Download** | [Latest Release](https://github.com/DikoeNebo/tarocode/releases/latest) (portable `.exe` or Setup) |
 | **License** | [MIT](LICENSE) |
 | **Security** | [SECURITY.md](SECURITY.md) |
 | **Русский** | см. раздел ниже |
@@ -43,9 +43,9 @@ Launch posts and demo script: [`docs/LAUNCH.md`](docs/LAUNCH.md). Publish checkl
 
 Прозрачная колода из **до 9 карточек-промптов** поверх всех окон. Клик или **F1–F8** (если у карты есть горячая клавиша) вставляет текст в отмеченные чаты — в том числе в Cursor **без перехвата фокуса** (игра/другое окно остаются активными).
 
-Раньше приложение называлось **Keycode**; репозиторий по-прежнему `DikoeNebo/keycode`.
+Раньше приложение называлось **Keycode**; репозиторий по-прежнему `DikoeNebo/tarocode`.
 
-**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) репозитория `DikoeNebo/keycode`. Сверяйте SHA-256 из `SHA256SUMS.txt` (portable: `426c3a65…fba1e`).
+**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/tarocode/releases) репозитория `DikoeNebo/tarocode`. Сверяйте SHA-256 из `SHA256SUMS.txt` (portable: `426c3a65…fba1e`).
 
 ## Запуск (разработка)
 
@@ -70,7 +70,7 @@ npm run build:all      # check + test + portable + NSIS
 
 После сборки: `powershell -File scripts/release-checksums.ps1` → `dist-release/SHA256SUMS.txt` для GitHub Release.
 
-Автопроверка обновлений смотрит релизы в `DikoeNebo/keycode`.
+Автопроверка обновлений смотрит релизы в `DikoeNebo/tarocode`.
 
 **Важно:** папка `data/locales/` с пятью встроенными колодами (проверка идеи → спецификация → хобби / продакшен → релиз) должна быть в репозитории. Картинки таро — в `assets/tarot/`.
 

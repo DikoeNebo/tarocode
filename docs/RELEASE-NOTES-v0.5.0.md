@@ -25,19 +25,19 @@ Also included:
 
 ### The prompt deck
 
-![Idea-validation prompt deck](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
+![Idea-validation prompt deck](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
 ### Editable decks and prompts
 
-![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
+![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-decks.png)
 
 ### Ten desktop interface languages
 
-![Interface language selector](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-languages.png)
+![Interface language selector](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-languages.png)
 
 ### TaroCode’s own dictation path
 
-![GigaAM and Windows Speech selector](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-dictation-engine.png)
+![GigaAM and Windows Speech selector](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-dictation-engine.png)
 
 ## Download
 
@@ -73,9 +73,9 @@ Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
 
 Compare the result with `SHA256SUMS.txt` attached to this release.
 
-Source: https://github.com/DikoeNebo/keycode
+Source: https://github.com/DikoeNebo/tarocode
 
-Issues and feedback: https://github.com/DikoeNebo/keycode/issues
+Issues and feedback: https://github.com/DikoeNebo/tarocode/issues
 
 License: MIT
 
@@ -110,19 +110,19 @@ I am also looking for work in vibe coding and automation. If you are building AI
 
 ### Колода готовых промптов
 
-![Колода проверки идеи](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
+![Колода проверки идеи](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
 ### Редактор колод и промптов
 
-![Редактор колод и промптов](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
+![Редактор колод и промптов](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-decks.png)
 
 ### Десять языков настольного интерфейса
 
-![Выбор языка интерфейса](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-languages.png)
+![Выбор языка интерфейса](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-languages.png)
 
 ### Собственный маршрут диктовки TaroCode
 
-![Выбор GigaAM или Windows Speech](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-dictation-engine.png)
+![Выбор GigaAM или Windows Speech](https://raw.githubusercontent.com/DikoeNebo/tarocode/v0.5.0/docs/screenshots/keycode-dictation-engine.png)
 
 ## Скачать
 
@@ -158,9 +158,9 @@ Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
 
 Сравните результат с приложенным к релизу файлом `SHA256SUMS.txt`.
 
-Исходный код: https://github.com/DikoeNebo/keycode
+Исходный код: https://github.com/DikoeNebo/tarocode
 
-Ошибки и предложения: https://github.com/DikoeNebo/keycode/issues
+Ошибки и предложения: https://github.com/DikoeNebo/tarocode/issues
 
 Лицензия: MIT
 

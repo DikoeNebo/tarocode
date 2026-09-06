@@ -4857,7 +4857,7 @@ function scheduleAutomaticUpdateCheck(settings) {
         noLink: true,
       });
       if (choice.response === 0) {
-        await shell.openExternal("https://github.com/DikoeNebo/keycode/releases/latest");
+        await shell.openExternal("https://github.com/DikoeNebo/tarocode/releases/latest");
       }
     } catch (err) {
       log.warn("automatic update check", String(err.message || err));

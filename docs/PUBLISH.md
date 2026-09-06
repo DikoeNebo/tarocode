@@ -1,6 +1,6 @@
 # Publish GitHub Release (manual)
 
-Repo: `https://github.com/DikoeNebo/keycode`  
+Repo: `https://github.com/DikoeNebo/tarocode`  
 Remote: `origin` → that URL.
 
 ## Checklist (every public tag)

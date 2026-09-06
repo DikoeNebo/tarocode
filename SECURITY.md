@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes target the latest GitHub Release of **TaroCode** (Prompt Tarot Lazy Code; repo `DikoeNebo/keycode`) on Windows.
+Security fixes target the latest GitHub Release of **TaroCode** (Prompt Tarot Lazy Code; repo `DikoeNebo/tarocode`) on Windows.
 
 ## What to know before enabling features
 
@@ -12,4 +12,4 @@ Security fixes target the latest GitHub Release of **TaroCode** (Prompt Tarot La
 
 ## Reporting a vulnerability
 
-Open a [GitHub Security Advisory](https://github.com/DikoeNebo/keycode/security/advisories/new) if available, or email the maintainer via the address on the GitHub profile. Please do not open a public issue for unfixed remote/RCE-class bugs.
+Open a [GitHub Security Advisory](https://github.com/DikoeNebo/tarocode/security/advisories/new) if available, or email the maintainer via the address on the GitHub profile. Please do not open a public issue for unfixed remote/RCE-class bugs.
