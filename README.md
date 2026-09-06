@@ -2,11 +2,11 @@
 
 Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F8** for hotkeyed cards) pastes a saved prompt into Cursor chats **without stealing focus** — your game or other app stays in front.
 
-![Deck — Idea check](docs/screenshots/keycode-hero.png)
+![Deck — Idea check](docs/screenshots/keycode-cycle.png)
 
-| Deck | Phone remote | Edit cards | Dictation |
-|------|--------------|------------|-----------|
-| ![cycle](docs/screenshots/keycode-cycle.png) | ![phone](docs/screenshots/keycode-phone.png) | ![decks](docs/screenshots/keycode-decks.png) | ![dictation](docs/screenshots/keycode-dictation.png) |
+| Edit cards and decks | 10 interface languages | Dictation engine |
+|----------------------|------------------------|-------------------|
+| ![decks](docs/screenshots/keycode-decks.png) | ![languages](docs/screenshots/keycode-languages.png) | ![dictation engine](docs/screenshots/keycode-dictation-engine.png) |
 
 **Official builds:** only from [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) on this repository (`DikoeNebo/keycode`). Do not trust re-uploads elsewhere. Verify SHA-256 from the release `SHA256SUMS.txt`.
 

@@ -23,15 +23,21 @@ Also included:
 
 ## Screenshots
 
-![Deck](screenshots/keycode-hero.png)
+### The prompt deck
 
-![Idea check grid](screenshots/keycode-cycle.png)
+![Idea-validation prompt deck](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
-![Phone remote](screenshots/keycode-phone.png)
+### Editable decks and prompts
 
-![Manual typing](screenshots/keycode-dictation.png)
+![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
 
-![Deck editor](screenshots/keycode-decks.png)
+### Ten desktop interface languages
+
+![Interface language selector](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-languages.png)
+
+### Keycode’s own dictation path
+
+![GigaAM and Windows Speech selector](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-dictation-engine.png)
 
 ## Download
 
@@ -102,15 +108,21 @@ Keycode — опенсорс-приложение для Windows, которое
 
 ## Скриншоты
 
-![Колода](screenshots/keycode-hero.png)
+### Колода готовых промптов
 
-![Сетка Idea check](screenshots/keycode-cycle.png)
+![Колода проверки идеи](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
-![Пульт с телефона](screenshots/keycode-phone.png)
+### Редактор колод и промптов
 
-![Ручной ввод](screenshots/keycode-dictation.png)
+![Редактор колод и промптов](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
 
-![Редактор колод](screenshots/keycode-decks.png)
+### Десять языков настольного интерфейса
+
+![Выбор языка интерфейса](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-languages.png)
+
+### Собственный маршрут диктовки Keycode
+
+![Выбор GigaAM или Windows Speech](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-dictation-engine.png)
 
 ## Скачать
 

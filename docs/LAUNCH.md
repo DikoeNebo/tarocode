@@ -2,10 +2,28 @@
 
 Ready-to-copy community posts for the first public preview. The full release description lives in [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md).
 
+## Current release readiness
+
+Ready:
+
+- v0.5.0 source, Windows builds, checksums, release copy, and community posts;
+- clean screenshots of the prompt deck, deck editor, 10-language selector, and dictation-engine selector.
+
+Before publishing:
+
+1. Add a safe replacement `keycode-phone.png`. The previous image was removed because it exposed the remote URL, QR code, local IP, and bearer secret. Click **New secret** in Keycode now; never reuse or publish the removed image.
+2. Add a safe replacement `keycode-hero.png` with a neutral demo chat. The previous image was removed because its real conversation about uncensored models distracted from the product.
+3. Replace `keycode-dictation.png` with a frame that visibly shows recognized demo text and a successful send. The current empty composer does not prove dictation.
+4. Record the optional 45–60 second demo below. It is recommended for Cursor Forum and required before trying Show HN or Product Hunt.
+5. Commit the final screenshots and text, then recreate the local `v0.5.0` tag on that final commit. Raw screenshot links in the release copy use this tag.
+6. Confirm the GitHub repository is public and all links work before posting elsewhere.
+
+The unsafe phone image already exists in a local commit. Deleting it from the current tree does not remove it from Git history. Rotating the remote secret is mandatory. If the old image must not appear anywhere in the future public history, squash or rewrite the unpublished release commits before the first push.
+
 ## Recommended publishing order
 
 1. Publish the source and binaries on GitHub Releases. This is the only official download location.
-2. On the same day, publish the English post below in the Cursor Forum category **Built for Cursor**.
+2. On the same day, publish the English post below in the Cursor Forum category **Built for Cursor**, using the clean deck screenshot and the replacement phone screenshot.
 3. After collecting the first real feedback, publish a Russian article on Habr: explain the repetitive workflow that led to Keycode, show the implementation and security trade-offs, and link to GitHub. Do not repost the release notes unchanged.
 4. Consider Show HN or Product Hunt only after v0.5.0 has real-user feedback, one clear English demo video, matching version numbers, and no placeholder checksums.
 
@@ -23,7 +41,11 @@ I kept repeating the same actions in Cursor: explain the idea, ask for a plan, r
 
 So I built **Keycode**, an open-source Windows companion for Cursor. It puts up to nine prompt cards in a small always-on-top deck. Choose a chat and click a card; Keycode sends the prompt without taking focus away from the window you are currently using.
 
+![Keycode prompt deck](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
+
 The part I use most is the **phone remote**. When the PC and phone are on the same Wi‑Fi, I can open a secret QR link, see all open Cursor chats, select one, read its loaded transcript, and send a card or custom text from the phone.
+
+After replacing the unsafe phone screenshot, attach it directly below this paragraph. Do not publish a QR code, URL, token, local IP address, or personal transcript.
 
 Keycode v0.5.0 includes:
 
@@ -127,34 +149,32 @@ Record at 1080p. Use a clean demo project and test chats with no personal data. 
 
 Use captions instead of narration if that produces a tighter video. Do not spend video time on installation, settings forms, or technical CDP details; those belong in the release text.
 
-## Required screenshots
+## Screenshot plan
 
-1. **Hero — deck over Cursor**
-   - Keycode’s 3×3 card deck visible beside a clean Cursor chat.
-   - Destination chip and one highlighted card visible.
-   - Suggested caption: `Repeatable Cursor workflows, one click away.`
+Use now:
 
-2. **Complete cycle**
-   - A composite of the deck pager showing validation, specification, work, and release phases.
-   - Keep card titles readable; do not try to show every prompt body.
-   - Suggested caption: `Five prompt decks from idea validation to release.`
+1. `keycode-cycle.png` — clean view of the 3×3 idea-validation deck.
+   - Caption: `Repeatable Cursor workflows, one click away.`
+2. `keycode-decks.png` — deck and prompt editor.
+   - Caption: `Use the five bundled decks or edit your own.`
+3. `keycode-languages.png` — desktop language selector.
+   - Caption: `Desktop interface available in 10 languages.`
+4. `keycode-dictation-engine.png` — GigaAM and Windows Speech selector.
+   - Caption: `Dictation handled by Keycode through GigaAM or Windows Speech.`
 
-3. **Phone remote**
-   - Phone and desktop in one frame.
-   - Phone shows the chat picker, a short fake transcript, and cards; desktop shows the corresponding Cursor chat.
-   - Suggested caption: `Pick an open Cursor chat and send a card from your phone.`
+Replace before launch:
 
-4. **Dictation and customization**
-   - Keycode composer with microphone state and recognized demo text, plus a small view of the deck editor.
-   - Suggested caption: `Dictate tasks or build your own prompt deck.`
+1. `keycode-hero.png` — capture the deck beside a clean Cursor demo chat containing only a short, neutral task and response. Keep the destination chip and one highlighted card visible.
+   - Caption: `A complete Cursor workflow in a compact always-on-top deck.`
+2. `keycode-phone.png` — show a phone and desktop in one frame, but crop or blur the QR code, URL, token, local IP, account details, and notifications. Use a disposable chat.
+   - Caption: `Pick an open Cursor chat and send a card from your phone.`
+3. `keycode-dictation.png` — show the microphone state, recognized neutral text, and the resulting message in a disposable Cursor chat.
+   - Caption: `Dictate a task and send it through Keycode’s own path.`
 
-Recommended filenames:
+Optional:
 
-- `docs/screenshots/keycode-hero.png`
-- `docs/screenshots/keycode-cycle.png`
-- `docs/screenshots/keycode-phone.png`
-- `docs/screenshots/keycode-dictation.png`
-- `docs/screenshots/keycode-demo.mp4` or an externally hosted video link
+- `docs/screenshots/keycode-demo.mp4` or an externally hosted video link;
+- keep `demo-deck.png` only as a legacy development image; do not use it in launch posts.
 
 ## Recording safety checklist
 

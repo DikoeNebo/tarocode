@@ -20,3 +20,5 @@ data/locales/**/*-v1.1.json
 *.local.md
 
 dist-out/
+
+dist-final-*/
