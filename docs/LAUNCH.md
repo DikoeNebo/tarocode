@@ -1,31 +1,28 @@
 # Keycode v0.5.0 launch kit
 
-Ready-to-copy community posts for the first public preview. The full release description lives in [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md).
+Ready-to-copy community posts. Full release text: [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md).  
+Release page: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
 
-## Current release readiness
+## Status (after GitHub publish)
 
-Ready:
+Already done:
 
-- v0.5.0 source, Windows builds, checksums, release copy, and community posts;
-- clean screenshots of the prompt deck, deck editor, 10-language selector, and dictation-engine selector.
+- Public repo + tag `v0.5.0` + Windows portable/Setup + checksums + notes (EN/RU);
+- Safe screenshots in the release: deck grid, decks editor, languages, dictation engine.
 
-Before publishing:
+Still only you can do:
 
-1. Add a safe replacement `keycode-phone.png`. The previous image was removed because it exposed the remote URL, QR code, local IP, and bearer secret. Click **New secret** in Keycode now; never reuse or publish the removed image.
-2. Add a safe replacement `keycode-hero.png` with a neutral demo chat. The previous image was removed because its real conversation about uncensored models distracted from the product.
-3. Replace `keycode-dictation.png` with a frame that visibly shows recognized demo text and a successful send. The current empty composer does not prove dictation.
-4. Record the optional 45–60 second demo below. It is recommended for Cursor Forum and required before trying Show HN or Product Hunt.
-5. Commit the final screenshots and text, then recreate the local `v0.5.0` tag on that final commit. Raw screenshot links in the release copy use this tag.
-6. Confirm the GitHub repository is public and all links work before posting elsewhere.
+1. Record a 45–60s demo video (script below). Recommended before Cursor Forum; required before Show HN / Product Hunt.
+2. Optional better screenshots: `keycode-hero.png` (deck beside clean Cursor chat), `keycode-phone.png` (phone + desktop, **no** QR / `#token=` / LAN IP), `keycode-dictation.png` (mic + recognized text + send).
+3. Post in Cursor Forum (and later Habr) from your account.
+4. Rotate the phone remote secret if any old screenshot with a token was ever shared.
 
-The unsafe phone image already exists in a local commit. Deleting it from the current tree does not remove it from Git history. Rotating the remote secret is mandatory. If the old image must not appear anywhere in the future public history, squash or rewrite the unpublished release commits before the first push.
+## Publishing order
 
-## Recommended publishing order
-
-1. Publish the source and binaries on GitHub Releases. This is the only official download location.
-2. On the same day, publish the English post below in the Cursor Forum category **Built for Cursor**, using the clean deck screenshot and the replacement phone screenshot.
-3. After collecting the first real feedback, publish a Russian article on Habr: explain the repetitive workflow that led to Keycode, show the implementation and security trade-offs, and link to GitHub. Do not repost the release notes unchanged.
-4. Consider Show HN or Product Hunt only after v0.5.0 has real-user feedback, one clear English demo video, matching version numbers, and no placeholder checksums.
+1. ~~GitHub Releases~~ — done for v0.5.0.
+2. Same day if possible: English post in Cursor Forum → **Built for Cursor** (copy below).
+3. After first real feedback: Russian Habr article (use the intro below; do not paste release notes unchanged).
+4. Show HN / Product Hunt only after feedback + demo video + matching version numbers.
 
 ## Cursor Forum
 
@@ -43,9 +40,9 @@ So I built **Keycode**, an open-source Windows companion for Cursor. It puts up 
 
 ![Keycode prompt deck](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
-The part I use most is the **phone remote**. When the PC and phone are on the same Wi‑Fi, I can open a secret QR link, see all open Cursor chats, select one, read its loaded transcript, and send a card or custom text from the phone.
+The part I use most is the **phone remote**. When the PC and phone are on the same Wi‑Fi, I can open a secret QR link, see all open Cursor chats, select one, read its loaded transcript, and send a card or custom text from the phone. (If you attach a phone screenshot, crop or blur any QR, URL, token, and local IP.)
 
-After replacing the unsafe phone screenshot, attach it directly below this paragraph. Do not publish a QR code, URL, token, local IP address, or personal transcript.
+![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
 
 Keycode v0.5.0 includes:
 
@@ -57,7 +54,7 @@ Keycode v0.5.0 includes:
 
 This is a public preview, not a polished 1.0. It is Windows-only, the phone remote is limited to the local Wi‑Fi network, and Cursor needs to be opened with Keycode’s local debugging shortcut. The first binaries are unsigned, so the release includes SHA-256 checksums.
 
-Source and downloads: https://github.com/DikoeNebo/keycode
+Source and downloads: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
 
 Issues and feedback: https://github.com/DikoeNebo/keycode/issues
 
@@ -77,7 +74,7 @@ Keycode turns recurring Cursor workflows into an always-on-top deck of prompt ca
 
 It can control any open Cursor chat from a phone on the same Wi‑Fi, send prompts without stealing desktop focus, and dictate tasks through its own GigaAM/Windows Speech path. Windows, MIT licensed, first public preview.
 
-Source and download: https://github.com/DikoeNebo/keycode
+Download: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
 
 I am open to work in vibe coding and automation: https://github.com/DikoeNebo
 
@@ -93,7 +90,7 @@ Keycode превращает повторяющуюся работу с Cursor �
 
 Приложение позволяет управлять любым открытым чатом Cursor с телефона в одной Wi‑Fi-сети, отправляет промпты без перехвата фокуса на компьютере и умеет надиктовывать задачи через собственный маршрут GigaAM/Windows Speech. Windows, лицензия MIT, первая публичная preview-версия.
 
-Исходники и скачивание: https://github.com/DikoeNebo/keycode
+Скачать: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
 
 Также ищу работу по вайбкодингу и автоматизации: https://github.com/DikoeNebo
 
@@ -102,6 +99,8 @@ Keycode превращает повторяющуюся работу с Cursor �
 Я заметил, что при работе с Cursor повторяю не только одни и те же промпты, но и целые цепочки: сначала проверить идею, затем сформулировать требования, попросить план, проконтролировать реализацию, тесты и релиз. Сами модели ускоряют написание кода, но управление этим процессом быстро превращается в отдельную рутину.
 
 Поэтому я сделал Keycode — открытое Windows-приложение с колодой готовых промптов, отдельной диктовкой и локальным пультом для Cursor с телефона. В статье разберу, какую проблему оно решает, почему для управления выбран локальный CDP, как устроена безопасность пульта в домашней сети и где первая preview-версия пока ограничена.
+
+Ссылка на релиз: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
 
 ## Demo video: 45–60 seconds
 
@@ -151,37 +150,28 @@ Use captions instead of narration if that produces a tighter video. Do not spend
 
 ## Screenshot plan
 
-Use now:
+Shipped with v0.5.0:
 
-1. `keycode-cycle.png` — clean view of the 3×3 idea-validation deck.
-   - Caption: `Repeatable Cursor workflows, one click away.`
-2. `keycode-decks.png` — deck and prompt editor.
-   - Caption: `Use the five bundled decks or edit your own.`
-3. `keycode-languages.png` — desktop language selector.
-   - Caption: `Desktop interface available in 10 languages.`
-4. `keycode-dictation-engine.png` — GigaAM and Windows Speech selector.
-   - Caption: `Dictation handled by Keycode through GigaAM or Windows Speech.`
+1. `keycode-cycle.png` — 3×3 idea-validation deck. Caption: `Repeatable Cursor workflows, one click away.`
+2. `keycode-decks.png` — deck and prompt editor. Caption: `Use the five bundled decks or edit your own.`
+3. `keycode-languages.png` — desktop language selector. Caption: `Desktop interface available in 10 languages.`
+4. `keycode-dictation-engine.png` — GigaAM / Windows Speech selector. Caption: `Dictation handled by Keycode.`
 
-Replace before launch:
+Nice-to-have replacements (you shoot → we can drop into README/release):
 
-1. `keycode-hero.png` — capture the deck beside a clean Cursor demo chat containing only a short, neutral task and response. Keep the destination chip and one highlighted card visible.
-   - Caption: `A complete Cursor workflow in a compact always-on-top deck.`
-2. `keycode-phone.png` — show a phone and desktop in one frame, but crop or blur the QR code, URL, token, local IP, account details, and notifications. Use a disposable chat.
-   - Caption: `Pick an open Cursor chat and send a card from your phone.`
-3. `keycode-dictation.png` — show the microphone state, recognized neutral text, and the resulting message in a disposable Cursor chat.
-   - Caption: `Dictate a task and send it through Keycode’s own path.`
+1. `keycode-hero.png` — deck beside a clean Cursor demo chat; destination chip + one highlighted card.
+2. `keycode-phone.png` — phone + desktop; blur QR, URL, token, LAN IP.
+3. `keycode-dictation.png` — mic + recognized text + successful send.
+4. Optional: `keycode-demo.mp4` or an external video link.
 
-Optional:
-
-- `docs/screenshots/keycode-demo.mp4` or an externally hosted video link;
-- keep `demo-deck.png` only as a legacy development image; do not use it in launch posts.
+Do not use legacy `demo-deck.png` in launch posts.
 
 ## Recording safety checklist
 
-- Create a disposable demo project and chats; never record real client code or conversation history.
+- Disposable demo project and chats; never record real client code or conversation history.
 - Turn off desktop and phone notifications.
 - Hide bookmarks, account email, user folders, local IP address, and machine name.
 - Never show the phone QR code, `#token=...` URL fragment, bearer token, API keys, or clipboard history.
 - Check every frame before publishing, including the first and last frame of cuts.
 - Do not demonstrate public internet access: the v0.5.0 phone remote is for the same private Wi‑Fi only.
-- Use the exact v0.5.0 binary that will be published so the video matches the release.
+- Prefer the published v0.5.0 binary so the video matches the release.

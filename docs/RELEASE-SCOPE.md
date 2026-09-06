@@ -22,4 +22,9 @@
 1. `npm test` and `npm run check` green
 2. Smoke [`docs/SMOKE.md`](SMOKE.md) on the portable exe
 3. Confirm `tmp-*`, `gigastt-bin/`, `gigastt-models/` are **not** staged
-4. Release assets: portable + Setup + `SHA256SUMS.txt` (see [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md))
+4. Release assets: portable + Setup + `SHA256SUMS.txt` (no UTF-8 BOM) + `latest.yml` + `.blockmap` — see [`PUBLISH.md`](PUBLISH.md) and [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md)
+
+## After v0.5.0 (public)
+
+- Community posts and demo video: [`LAUNCH.md`](LAUNCH.md)
+- Next product polish from feedback (first-run friction, paste reliability, phone UX) — patch releases, not scope expansion

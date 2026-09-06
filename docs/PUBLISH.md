@@ -1,51 +1,72 @@
 # Publish GitHub Release (manual)
 
-Repo remote is set to `https://github.com/DikoeNebo/keycode.git`.
+Repo: `https://github.com/DikoeNebo/keycode`  
+Remote: `origin` → that URL.
 
-## One-time: create the empty GitHub repo
+## Checklist (every public tag)
 
-1. Open https://github.com/new — name `keycode`, public, **no** README/license (we already have them).
-2. Or with GitHub CLI after install: `gh repo create DikoeNebo/keycode --public --source=. --remote=origin --push`
-
-## Push code (when ready to publish)
-
-```powershell
-git add -A
-git status   # confirm tmp-remote-qr.png is NOT listed
-git commit -m "chore: open-source release prep (MIT, icon, README)"
-git push -u origin master
-```
-
-## Build artefacts (this machine)
+1. `npm test` and `npm run check` green.
+2. Close any running Keycode / unlock `dist-release/` (Defender can lock `app.asar`; if build fails, use `--config.directories.output=dist-out` then copy artefacts).
+3. Build:
 
 ```powershell
 npm run build:all
 powershell -File scripts/release-checksums.ps1
 ```
 
-Expected in `dist-release/`:
+4. Expected in `dist-release/` (or your chosen output folder):
 
-- `Keycode-0.5.0-portable.exe`
-- `Keycode-Setup-0.5.0.exe`
-- `SHA256SUMS.txt`
+- `Keycode-X.Y.Z-portable.exe`
+- `Keycode-Setup-X.Y.Z.exe`
+- `Keycode-Setup-X.Y.Z.exe.blockmap`
+- `latest.yml`
+- `SHA256SUMS.txt` — **UTF-8 without BOM** (the script writes it that way; do not re-save with Notepad “UTF-8” if that adds a BOM)
 
-Smoke: follow `docs/SMOKE.md` on the portable exe.
+5. Smoke the **portable** exe with [`SMOKE.md`](SMOKE.md) (not `npm start`).
+6. Confirm no secrets in docs/screenshots (`#token=`, QR, LAN IP, real chats).
+7. Commit release notes + docs, then tag that commit.
 
-## Create Release v0.5.0
+## Push + GitHub Release (`gh`)
 
 ```powershell
-git tag v0.5.0
-git push origin v0.5.0
+# one-time if needed
+gh auth login --hostname github.com --git-protocol https --web
+
+git push origin master
+git tag -a vX.Y.Z -m "Keycode vX.Y.Z"
+git push origin vX.Y.Z
+
+gh release create vX.Y.Z `
+  dist-release/Keycode-X.Y.Z-portable.exe `
+  dist-release/Keycode-Setup-X.Y.Z.exe `
+  dist-release/Keycode-Setup-X.Y.Z.exe.blockmap `
+  dist-release/latest.yml `
+  dist-release/SHA256SUMS.txt `
+  --title "vX.Y.Z — …" `
+  --notes-file docs/RELEASE-NOTES-vX.Y.Z.md
 ```
 
-On GitHub → Releases → Draft a new release → tag `v0.5.0` → paste body from `docs/RELEASE-NOTES-v0.5.0.md` → upload the three `dist-release/` files → Publish.
-
-Or with `gh`:
+Update release body later without re-uploading binaries:
 
 ```powershell
-gh release create v0.5.0 dist-release/Keycode-0.5.0-portable.exe dist-release/Keycode-Setup-0.5.0.exe dist-release/SHA256SUMS.txt --title "v0.5.0" --notes-file docs/RELEASE-NOTES-v0.5.0.md
+gh release edit vX.Y.Z --notes-file docs/RELEASE-NOTES-vX.Y.Z.md
+```
+
+Replace one asset (example: checksums):
+
+```powershell
+gh release delete-asset vX.Y.Z SHA256SUMS.txt --yes
+gh release upload vX.Y.Z dist-release/SHA256SUMS.txt
+```
+
+## Verify after publish
+
+```powershell
+gh release view vX.Y.Z --json assets --jq ".assets[] | {name,size,state}"
+# Screenshot / download URLs should return HTTP 200
+# Local hashes must match SHA256SUMS.txt and GitHub asset digests
 ```
 
 ## After publish
 
-Use `docs/LAUNCH.md` for community posts.
+Community posts: [`LAUNCH.md`](LAUNCH.md).

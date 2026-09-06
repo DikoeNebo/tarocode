@@ -26,11 +26,14 @@ Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F
 
 Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR). Anyone on that Wi‑Fi with the link can control the remote — do not share the secret. Phone remote UI languages: English and Russian (desktop UI has 10 locales).
 
-Windows may show **Unknown publisher** (unsigned first builds). Compare the file hash with the release notes:
+Windows may show **Unknown publisher** (unsigned first builds). Compare the file hash with the release `SHA256SUMS.txt`:
 
 ```powershell
 Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
+# expected portable: 426c3a656047cf01ee948fa15578d1b427f87d0d3e2fedccdcbad480885c2484
 ```
+
+Launch posts and demo script: [`docs/LAUNCH.md`](docs/LAUNCH.md). Publish checklist: [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ---
 
@@ -38,7 +41,7 @@ Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
 
 Прозрачная колода из **до 9 карточек-промптов** поверх всех окон. Клик или **F1–F8** (если у карты есть горячая клавиша) вставляет текст в отмеченные чаты — в том числе в Cursor **без перехвата фокуса** (игра/другое окно остаются активными).
 
-**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) репозитория `DikoeNebo/keycode`. Сверяйте SHA-256 из `SHA256SUMS.txt`.
+**Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) репозитория `DikoeNebo/keycode`. Сверяйте SHA-256 из `SHA256SUMS.txt` (portable: `426c3a65…fba1e`).
 
 ## Запуск (разработка)
 
