@@ -1,76 +1,76 @@
 {
   "id": "validate-v1",
-  "name": "01 検証",
+  "name": "01 アイデア検証",
   "cards": [
     {
       "id": "problem",
-      "title": "問題",
-      "description": "Fool: who hurts, what breaks, testable hypothesis",
-      "prompt": "State the target audience, the observable problem, the current workaround, and a testable hypothesis. Analysis only — no product, no code.\n\nMark unknowns as assumptions. Do not invent users, quotes, or market size.\n\nOutput:\n- Who\n- Problem (observable)\n- Workaround today\n- Hypothesis (if we ship X, Y will happen)\n- Open questions\n\nNext card: Evidence plan.",
+      "title": "誰が困るか",
+      "description": "愚者：誰の痛みか、何を検証するか",
+      "prompt": "検証する問題が誰のものかを述べてください。分析のみ——製品なし、コードなし。\n\n出力：\n1. 対象者（具体的。「みんな」ではない）\n2. 観察可能な問題\n3. 今どう凌いでいるか\n4. 仮説：「Y に対して X をすれば、Z が変わる」\n5. 作る前に証明すべきこと\n6. 未解決の問い\n\n入力が薄い場合——質問は最大 3。未知は仮定と印す。\n禁止：ユーザー・引用・需要・市場の捏造；コードや機能の提案。\n\n次：カード「どう検証するか」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — enough input for a test plan\nor\nKEYCODE_STATUS: NEED_DATA — user answers required",
       "image": "fool",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evidence-plan",
-      "title": "検証計画",
-      "description": "Hierophant: cheapest proof, metric, stop rule",
-      "prompt": "Pick the cheapest way to test the hypothesis. Write the success metric, threshold, deadline, and stop/pivot rule BEFORE any experiment.\n\nDo not treat AI research as external proof. Interviews, waitlist signups, clicks, and preorders count. Opinions in this chat do not.\n\nOutput:\n- Method (interview / landing / fake door / preorder / other)\n- Metric + threshold + date\n- What FAIL means\n- What the human must do\n\nDo not start coding the product.",
+      "title": "どう検証するか",
+      "description": "教皇：最安の方法、指標、停止ルール",
+      "prompt": "「誰が困るか」の仮説を検証する最安の計画を書く。実験の前に計画を固定する。\n\nルール：\n- AI 調査とチャット意見は証拠ではない。証拠：インタビュー、登録、クリック、予約注文。\n- 方法は1つ：インタビュー / ランディング / フェイクドア / ウェイトリスト / 予約注文 / 投稿 / アンケート。\n- 既存製品が既に解決しているなら「何があるか」も実行。\n- 閾値のない計画は未準備。後から閾値を変えない。\n- 方法に金や広告が必要なら——先に警告。\n\n出力：仮説 · 方法 · 指標 · 閾値（数値） · 期限 · FAIL の意味 · 人がやること。\n閾値例：7日でインタビュー5件；5日で登録10件；予約注文または連絡2件。\n\n製品コードは書かない。数字を捏造しない。\n次：「人に聞く」または「小テスト」——選んだ方法に応じて。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — plan and threshold set\nor\nKEYCODE_STATUS: NEED_DATA — not enough data for a plan",
       "image": "hierophant",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "interview",
-      "title": "インタビュー",
-      "description": "Two of Cups: questions or real answers — no invented people",
-      "prompt": "Prepare non-leading interview questions, or analyze answers the user actually provided.\n\nForbidden: inventing respondents, quotes, or \"typical users\". If no real answers exist, output only the question list and how to run the talks.\n\nIf real notes exist: pains, current tools, willingness to pay, disconfirming evidence.\n\nNext: Market (if still missing) or Verdict (if enough talks exist).",
+      "title": "人に聞く",
+      "description": "聖杯の2：架空の人を作らないインタビュー",
+      "prompt": "モードは1つだけ。\n\nモード1 — 実インタビューメモがある。それだけ分析：痛み、回避策、頻度、支払い/行動意思の証拠、反証、何件話したか、「どう検証するか」の閾値を満たすか。\n\nモード2 — まだ回答なし。質問7–10と手順：前回はいつ、頻度、コスト、今の道具；「買いますか？」は聞かない；アイデアを売らない；実会話は最低3–5回。\n\n禁止：回答者や引用の捏造；モード混在；チャット意見を証拠扱い。\n\n回答が薄い——収集を続ける。仮説を殺すなら「アイデアを変える」。足りるなら「何があるか」または「判定」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — enough real answers for the next step\nor\nKEYCODE_STATUS: NEED_DATA — no or too few answers",
       "image": "cups_02",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "market",
-      "title": "市場",
-      "description": "Wheel: competitors, licenses, reuse — not a copy dump",
-      "prompt": "Map competitors, substitutes, licenses, and reusable references. Competitors are a market signal, not an automatic fail.\n\nIf you cannot browse the web, ask for sources instead of guessing GitHub/npm names.\n\nFor each reference: what it does, license, risk of reuse, what NOT to copy.\n\nDo not dump or paste third-party code.",
+      "title": "何があるか",
+      "description": "運命の輪：競合、OSS、再利用できるもの",
+      "prompt": "既にこの問題を解いているものを探す。車輪の再発明はしない。\n\n1. 競合（2–4）：何をしているか、弱点、需要の証拠。競合なしは疑わしい：ニッチ、新しい問題、または重要でない問題。競合あり=市場あり——失敗ではない。\n2. OSS（リポジトリ2–4）：再利用できるもの、ライセンス、鮮度、リスク、コピーしないもの。Web不可——リンクを求め、名前を推測しない。第三者コードを貼らない。\n3. 代替：表計算、チャット、手作業——何が効き、何が壊れるか。\n\n判定：既成品を再利用 / 一部再利用 / 市場不明。\n製品コードは書かない。次：「小テスト」または「判定」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — analysis based on data or user links\nor\nKEYCODE_STATUS: NEED_DATA — links or facts required",
       "image": "wheel_of_fortune",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "experiment",
-      "title": "実験",
-      "description": "Magician: smoke / fake door / waitlist; success bar already set",
-      "prompt": "Design the smallest smoke / fake-door / waitlist experiment using the threshold already written in the evidence plan. Do not invent a new success bar after the fact.\n\nChange files only if the user explicitly asked to create the landing/asset. Otherwise describe copy, layout, and how to count results.\n\nNo payment integration, no production deploy.",
+      "title": "小テスト",
+      "description": "魔術師：スモーク / フェイクドア / ウェイトリスト、閾値固定",
+      "prompt": "「どう検証するか」の閾値で最小の需要確認を作る。形式は1つ：フォーム付きランディング；フェイクドア；ウェイトリスト；予約注文；関連チャットでの投稿やアンケート。\n\n閾値は変えない。ランディングを明示的に求められたときだけファイル作成。それ以外はテキストのみ：見出し、CTA、数え方。決済なし、本番デプロイなし。存在しないものを約束しない；「近日」「早期アクセス」は可。\n\nクリックや登録を捏造しない。結果なし——テストを実行して数字を持って戻るよう指示。結果あり——「判定」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — results can be judged\nor\nKEYCODE_STATUS: NEED_DATA — the test still must be run",
       "image": "magician",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "evidence-review",
       "title": "判定",
-      "description": "Justice: only facts you have; PASS or FAIL",
-      "prompt": "Judge ONLY evidence the user actually provided (notes, counts, links). Missing evidence is a gap, not a pass.\n\nDo not invent subscriber counts. A number without a source is FAIL.\n\nEnd with exactly these two lines (choose PASS or FAIL, and a known stock id):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "description": "正義：実事実だけ → PASS または FAIL",
+      "prompt": "続行するかどうかを決める。ユーザーが実際に渡したものだけを判断：メモ、出典付き数字、リンク、スクショ、チャットログ。\n\nルールは1つ：「どう検証するか」の閾値と比較。\n- 閾値達成 → PASS；\n- 未達、事実なし、出典なしの数字、閾値なし、または別仮説のデータ → FAIL。\nチャット意見と AI 調査は証拠ではない。同情や「いいアイデア」で PASS しない。\n\n先に証拠・閾値・欠落を列挙——その後に決定。\nPASS → 仕様。FAIL →「アイデアを変える」。閾値なし →「どう検証するか」。\n\nプロジェクトは空でもよい——事実なし = PASS しない。\n禁止：証拠の捏造；同情や「いいアイデア」での PASS；お世辞。\n\nちょうど2行で終える：\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
       "image": "justice",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "pivot",
-      "title": "ピボット",
-      "description": "Hanged Man: keep facts, shrink audience / problem / channel",
-      "prompt": "Using the failed criterion, shrink audience, problem, or channel. Keep collected facts. Do not throw away interviews.\n\nOutput: what stays true · what changes · new hypothesis · next evidence plan.\n\nDo not write product code.",
+      "title": "アイデアを変える",
+      "description": "吊された男：対象 / 問題 / 経路を縮小；事実は残す",
+      "prompt": "検証は失敗した。一部分だけ変え、事実は残す。\n\n1つ選ぶ：対象を縮小；問題を縮小；経路を変更；自作せず既成品を再利用。\n新データなしでピボット2–3回——止める：続行は無意味。事実なし——「誰が困るか」に戻る。一度に全部変えたいなら——1つ選ばせる。\n\n出力：残る真実 · 変わる点 · 新仮説 · 次（「どう検証するか」/「人に聞く」/「何があるか」/「小テスト」）。\nコードは書かない。ピボット正当化のための事実捏造はしない。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — new hypothesis and next step are clear\nor\nKEYCODE_STATUS: BLOCKED — continuing is pointless; no new facts",
       "image": "hanged_man",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "validation-cycle",
-      "title": "全チェック",
-      "description": "World: run the check; stop where a human must act",
-      "prompt": "Run the validation loop with what is already known: problem → evidence plan → available interviews/market/experiment.\n\nStop and ask the human wherever real-world data is required. Do not fabricate that data.\n\nGive a final gate ONLY if real evidence exists. Then end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "title": "チェックリスト",
+      "description": "世界：計画どおり検証；実データなしなら停止",
+      "prompt": "既知の内容でアイデア検証を実行する。\n\n必須：\n1. 問題が述べられている（「誰が困るか」）；\n2. 閾値付き計画（「どう検証するか」）；\n3. 計画で選んだ方法が実際に実行された（インタビューおよび/または小テスト——両方必須ではない）；\n4. 判断に影響するなら競合/OSS；\n5. 閾値達成。\n\n必須項目に実データなし——PASS せず、そのカードへ戻す。データを捏造しない。同じ項目が2–3回失敗——方法変更、アイデア縮小、または停止。\n\n最終 PASS は閾値が事実で閉じられたときだけ。\n\nプロジェクトは空でもよい——事実なし = PASS しない。\n禁止：証拠の捏造；同情や「いいアイデア」での PASS；お世辞。\n\nちょうど2行で終える：\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/evidence-plan\n\n(if you know the missing card — replace evidence-plan with problem, interview, market, experiment, or pivot)",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "要約",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nReply in four short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step (name Problem / Evidence plan / Interview / Market / Experiment / Verdict / Pivot)\n\nNo KEYCODE_SCORE, KEYCODE_GATE, or KEYCODE_NEXT lines.",
+      "description": "女教皇：仮説 / 証拠 / 欠落 / 次",
+      "prompt": "このチャットを読む。コードの作成・変更はしない。証拠を捏造しない。\n\n短い4ブロック（各1–3箇条）：\n1. 仮説\n2. 証拠（あるものだけ）\n3. 欠落\n4. 次の一手——1枚：誰が困るか / どう検証するか / 人に聞く / 何があるか / 小テスト / 判定 / アイデアを変える / チェックリスト\n\nプロジェクトは空でもよい——チャットに見えることだけ書く。\n禁止：完了作業の捏造；コードの作成・変更；KEYCODE_SCORE、KEYCODE_GATE、KEYCODE_NEXT、KEYCODE_STATUS 行の追加。\n\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.",
       "image": "high_priestess",
       "hotkey": ""
     }

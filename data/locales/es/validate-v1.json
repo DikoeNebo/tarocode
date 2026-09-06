@@ -1,76 +1,76 @@
 {
   "id": "validate-v1",
-  "name": "01 Validación",
+  "name": "01 Comprobar la idea",
   "cards": [
     {
       "id": "problem",
-      "title": "Problema",
-      "description": "Fool: who hurts, what breaks, testable hypothesis",
-      "prompt": "State the target audience, the observable problem, the current workaround, and a testable hypothesis. Analysis only — no product, no code.\n\nMark unknowns as assumptions. Do not invent users, quotes, or market size.\n\nOutput:\n- Who\n- Problem (observable)\n- Workaround today\n- Hypothesis (if we ship X, Y will happen)\n- Open questions\n\nNext card: Evidence plan.",
+      "title": "A quién duele",
+      "description": "Loco: de quién es el dolor, qué estamos comprobando",
+      "prompt": "Indica de quién es el problema que estamos comprobando. Solo análisis — sin producto, sin código.\n\nSalida:\n1. Público objetivo (específico, no «todo el mundo»)\n2. Problema observable\n3. Cómo se las arreglan hoy\n4. Hipótesis: «Si hacemos X para Y, entonces Z cambia»\n5. Qué hay que demostrar antes de construir\n6. Preguntas abiertas\n\nSi la entrada es escasa — como máximo 3 preguntas. Marca lo desconocido como supuestos.\nProhibido: inventar usuarios, citas, demanda, mercado; sugerir código o funciones.\n\nSiguiente: carta «Cómo comprobar».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — enough input for a test plan\nor\nKEYCODE_STATUS: NEED_DATA — user answers required",
       "image": "fool",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evidence-plan",
-      "title": "Plan de pruebas",
-      "description": "Hierophant: cheapest proof, metric, stop rule",
-      "prompt": "Pick the cheapest way to test the hypothesis. Write the success metric, threshold, deadline, and stop/pivot rule BEFORE any experiment.\n\nDo not treat AI research as external proof. Interviews, waitlist signups, clicks, and preorders count. Opinions in this chat do not.\n\nOutput:\n- Method (interview / landing / fake door / preorder / other)\n- Metric + threshold + date\n- What FAIL means\n- What the human must do\n\nDo not start coding the product.",
+      "title": "Cómo comprobar",
+      "description": "Hierofante: método más barato, métrica, regla de parada",
+      "prompt": "Escribe el plan más barato para comprobar la hipótesis de «A quién duele». Fija el plan ANTES de cualquier experimento.\n\nReglas:\n- La investigación con IA y las opiniones del chat no son prueba. Prueba: entrevistas, registros, clics, preventas.\n- Un método: entrevista / landing / fake door / lista de espera / preventa / publicación / encuesta.\n- Si un producto existente ya lo resuelve — ejecuta también «Qué existe».\n- Sin umbral el plan no está listo. No cambies el umbral después.\n- Si el método necesita dinero o anuncios — avisa primero.\n\nSalida: hipótesis · método · métrica · umbral (número) · plazo · qué significa FAIL · qué hace la persona.\nEjemplos de umbral: 5 entrevistas en 7 días; 10 registros en 5 días; 2 preventas o contactos.\n\nNo escribas código de producto. No inventes números.\nSiguiente: «Preguntar a la gente» o «Mini prueba» — según el método elegido.\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — plan and threshold set\nor\nKEYCODE_STATUS: NEED_DATA — not enough data for a plan",
       "image": "hierophant",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "interview",
-      "title": "Entrevista",
-      "description": "Two of Cups: questions or real answers — no invented people",
-      "prompt": "Prepare non-leading interview questions, or analyze answers the user actually provided.\n\nForbidden: inventing respondents, quotes, or \"typical users\". If no real answers exist, output only the question list and how to run the talks.\n\nIf real notes exist: pains, current tools, willingness to pay, disconfirming evidence.\n\nNext: Market (if still missing) or Verdict (if enough talks exist).",
+      "title": "Preguntar a la gente",
+      "description": "Dos de Copas: entrevistas sin personas inventadas",
+      "prompt": "Trabaja en un solo modo.\n\nModo 1 — existen notas reales de entrevistas. Analiza solo esas: dolores, soluciones alternativas, frecuencia, indicios de disposición a pagar o actuar, hechos que desmienten, cuántas conversaciones, si se cumplió el umbral de «Cómo comprobar».\n\nModo 2 — aún no hay respuestas. Prepara 7–10 preguntas e instrucciones: pregunta por la última vez, frecuencia, coste, herramienta actual; no preguntes «¿lo comprarías?»; no vendas la idea; hacen falta al menos 3–5 conversaciones reales.\n\nProhibido: inventar encuestados o citas; mezclar modos; tratar opiniones del chat como prueba.\n\nSi las respuestas son escasas — sigue recogiendo. Si matan la hipótesis — «Cambiar la idea». Si hay suficiente — «Qué existe» o «Veredicto».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — enough real answers for the next step\nor\nKEYCODE_STATUS: NEED_DATA — no or too few answers",
       "image": "cups_02",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "market",
-      "title": "Mercado",
-      "description": "Wheel: competitors, licenses, reuse — not a copy dump",
-      "prompt": "Map competitors, substitutes, licenses, and reusable references. Competitors are a market signal, not an automatic fail.\n\nIf you cannot browse the web, ask for sources instead of guessing GitHub/npm names.\n\nFor each reference: what it does, license, risk of reuse, what NOT to copy.\n\nDo not dump or paste third-party code.",
+      "title": "Qué existe",
+      "description": "Rueda: competidores, código abierto, qué reutilizar",
+      "prompt": "Encuentra qué ya resuelve este problema. No reinventes la rueda.\n\n1. Competidores (2–4): qué hacen, punto débil, qué demuestra demanda. Sin competidores es sospechoso: nicho, problema nuevo o problema irrelevante. Que existan competidores = existe mercado — no es un fallo.\n2. Código abierto (2–4 repos): qué reutilizar, licencia, frescura, riesgo, qué NO copiar. Sin acceso web — pide enlaces; no adivines nombres. No pegues código de terceros.\n3. Sustitutos: hojas de cálculo, chats, trabajo manual — qué funciona y qué se rompe.\n\nVeredicto: reutilizar listo / reutilizar en parte / mercado poco claro.\nNo escribas código de producto. Siguiente: «Mini prueba» o «Veredicto».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — analysis based on data or user links\nor\nKEYCODE_STATUS: NEED_DATA — links or facts required",
       "image": "wheel_of_fortune",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "experiment",
-      "title": "Experimento",
-      "description": "Magician: smoke / fake door / waitlist; success bar already set",
-      "prompt": "Design the smallest smoke / fake-door / waitlist experiment using the threshold already written in the evidence plan. Do not invent a new success bar after the fact.\n\nChange files only if the user explicitly asked to create the landing/asset. Otherwise describe copy, layout, and how to count results.\n\nNo payment integration, no production deploy.",
+      "title": "Mini prueba",
+      "description": "Mago: smoke / fake door / lista de espera con umbral fijo",
+      "prompt": "Haz la comprobación de demanda más pequeña usando el umbral de «Cómo comprobar». Un formato: landing con formulario; fake door; lista de espera; preventa; publicación o encuesta en un chat relevante.\n\nNo cambies el umbral. Crea archivos solo si la persona pidió explícitamente una landing. Si no, solo texto: titular, CTA, cómo contar. Sin pagos, sin despliegue a producción. No prometas lo que no existe; «pronto» / «acceso anticipado» está bien.\n\nNo inventes clics ni registros. Sin resultados aún — diles que ejecuten la prueba y vuelvan con números. Si hay resultados — «Veredicto».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — results can be judged\nor\nKEYCODE_STATUS: NEED_DATA — the test still must be run",
       "image": "magician",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "evidence-review",
       "title": "Veredicto",
-      "description": "Justice: only facts you have; PASS or FAIL",
-      "prompt": "Judge ONLY evidence the user actually provided (notes, counts, links). Missing evidence is a gap, not a pass.\n\nDo not invent subscriber counts. A number without a source is FAIL.\n\nEnd with exactly these two lines (choose PASS or FAIL, and a known stock id):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "description": "Justicia: solo hechos reales → PASS o FAIL",
+      "prompt": "Decide: seguir o no. Juzga SOLO lo que la persona dio de verdad: notas, números con fuente, enlaces, capturas, registros de chat.\n\nUna regla: compara con el umbral de «Cómo comprobar».\n- umbral cumplido → PASS;\n- umbral fallido, sin hechos, número sin fuente, sin umbral, o datos de otra hipótesis → FAIL.\nLas opiniones del chat y la investigación con IA no son prueba. No des PASS por lástima ni porque «la idea es buena».\n\nLista primero evidencias, umbral y huecos — luego la decisión.\nPASS → especificación. FAIL → «Cambiar la idea». Sin umbral → «Cómo comprobar».\n\nEl proyecto puede estar vacío — sin hecho = no PASS.\nProhibido: inventar evidencias; dar PASS por lástima o porque «la idea es buena»; halagos.\n\nTermina con exactamente dos líneas:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
       "image": "justice",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "pivot",
-      "title": "Giro",
-      "description": "Hanged Man: keep facts, shrink audience / problem / channel",
-      "prompt": "Using the failed criterion, shrink audience, problem, or channel. Keep collected facts. Do not throw away interviews.\n\nOutput: what stays true · what changes · new hypothesis · next evidence plan.\n\nDo not write product code.",
+      "title": "Cambiar la idea",
+      "description": "Colgado: reduce público / problema / canal; conserva hechos",
+      "prompt": "La comprobación falló. Cambia solo una parte; conserva los hechos.\n\nElige uno: reducir público; reducir problema; cambiar canal; reutilizar algo listo en vez de construir.\nDos–tres pivotes sin datos nuevos — para: seguir no tiene sentido. Sin hechos — vuelve a «A quién duele». Si la persona quiere cambiarlo todo a la vez — pídele que elija uno.\n\nSalida: qué sigue siendo cierto · qué cambia · nueva hipótesis · siguiente paso («Cómo comprobar» / «Preguntar a la gente» / «Qué existe» / «Mini prueba»).\nNo escribas código. No inventes hechos para justificar el pivote.\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — new hypothesis and next step are clear\nor\nKEYCODE_STATUS: BLOCKED — continuing is pointless; no new facts",
       "image": "hanged_man",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "validation-cycle",
-      "title": "Ciclo completo",
-      "description": "World: run the check; stop where a human must act",
-      "prompt": "Run the validation loop with what is already known: problem → evidence plan → available interviews/market/experiment.\n\nStop and ask the human wherever real-world data is required. Do not fabricate that data.\n\nGive a final gate ONLY if real evidence exists. Then end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "title": "Lista de control",
+      "description": "Mundo: ejecuta la comprobación según el plan; para sin datos reales",
+      "prompt": "Ejecuta la comprobación de la idea con lo que ya se sabe.\n\nObligatorio:\n1. problema enunciado («A quién duele»);\n2. plan con umbral («Cómo comprobar»);\n3. el método elegido en el plan se hizo de verdad (entrevista y/o mini prueba — no hace falta ambas);\n4. competidores/código abierto si eso afecta la decisión;\n5. umbral cumplido.\n\nFaltan datos reales de un ítem obligatorio — no des PASS; envía de vuelta a esa carta. No inventes datos. El mismo ítem falla 2–3 veces — cambia método, reduce la idea o para.\n\nPASS final solo si el umbral se cierra con hechos.\n\nEl proyecto puede estar vacío — sin hecho = no PASS.\nProhibido: inventar evidencias; dar PASS por lástima o porque «la idea es buena»; halagos.\n\nTermina con exactamente dos líneas:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/evidence-plan\n\n(si conoces la carta que falta — sustituye evidence-plan por problem, interview, market, experiment o pivot)",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "Resumen",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nReply in four short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step (name Problem / Evidence plan / Interview / Market / Experiment / Verdict / Pivot)\n\nNo KEYCODE_SCORE, KEYCODE_GATE, or KEYCODE_NEXT lines.",
+      "description": "Sacerdotisa: hipótesis / evidencia / huecos / siguiente",
+      "prompt": "Lee este chat. No escribas ni cambies código. No inventes evidencias.\n\nCuatro bloques cortos (1–3 viñetas cada uno):\n1. Hipótesis\n2. Evidencia (solo lo que existe)\n3. Huecos\n4. Siguiente paso — una carta: A quién duele / Cómo comprobar / Preguntar a la gente / Qué existe / Mini prueba / Veredicto / Cambiar la idea / Lista de control\n\nEl proyecto puede estar vacío — escribe solo lo visible en el chat.\nProhibido: inventar trabajo hecho; escribir o cambiar código; añadir líneas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT o KEYCODE_STATUS.\n\nNo añadas líneas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ni KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

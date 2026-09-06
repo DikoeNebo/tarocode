@@ -22,11 +22,18 @@ const SETTINGS_WHITELIST = [
   "pauseMs",
   "showHotkey",
   "panelScale",
+  /** Deck chat pane controls/layout scale; independent of card panelScale */
+  "chatScale",
+  /** Independent desktop chat text sizes */
+  "chatMessageFontPx",
+  "chatComposerFontPx",
+  /** Migration revision for splitting text sizes from chatScale */
+  "chatFontRev",
   "editMode",
   "targets",
   "activeDeckId",
   "dock",
-  /** Side docks: "table" (3×4 grid, default) | "strip" (classic column) */
+  /** Side docks: "table" (3×3 grid, default) | "strip" (classic column) */
   "sideCardLayout",
   /** Desktop paste: "broadcast" (preset or enabled) | "solo" (activeTargetId) */
   "pasteMode",
@@ -35,10 +42,16 @@ const SETTINGS_WHITELIST = [
   "targetPresets",
   /** Deck strip chat pane: open/closed + height px */
   "deckTranscriptOpen",
+  /** Card strip on deck: open/closed (hotkeys still paste when closed) */
+  "deckCardsOpen",
+  /** Manual composer (type/mic/model) under transcript; default off */
+  "deckComposerOpen",
   "deckTranscriptHeightPx",
   "edgeHover",
   "edgeThreshold",
   "hideDelayMs",
+  "showDeckOnStartup",
+  "autoCheckUpdates",
   "uiOpacity",
   "titleOpacity",
   "showCardPreview",
@@ -51,6 +64,14 @@ const SETTINGS_WHITELIST = [
   "targetsWindowMaximized",
   "uiLocale",
   "arcanaLocale",
+  /** Dictation: "gigaam" | "windows" (UI language sets default) */
+  "dictationEngine",
+  /** Seconds of hush before auto-end (default 3.5) */
+  "dictationSilenceSec",
+  /** Max take length in seconds; 0 = unlimited (default) */
+  "dictationMaxSec",
+  /** After deck/chat-pick dictation: send immediately when true; insert only when false */
+  "deckDictateAutoSend",
   "remoteEnabled",
   "remotePort",
   "remoteToken",
@@ -66,6 +87,8 @@ const SETTINGS_WHITELIST = [
   "activeSdkProjectId",
   /** Bumps rewrite stock phase decks from locale packs (KEYCODE_SCORE etc.) */
   "stockDeckRev",
+  /** panelScale UI remapped: old 75% look = new 100% (rev 1) */
+  "panelScaleRev",
 ];
 
 const MAX_SDK_PROJECTS = 12;

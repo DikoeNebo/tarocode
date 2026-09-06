@@ -1,76 +1,76 @@
 {
   "id": "spec-v1",
-  "name": "02 仕様",
+  "name": "02 何を作るか",
   "cards": [
     {
       "id": "brief",
-      "title": "ブリーフ",
-      "description": "Emperor: goal, users, stories, measurable outcome",
-      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "title": "なぜ・誰のため",
+      "description": "皇帝：目標、ユーザー、シナリオ、測定可能な成果",
+      "prompt": "確認済み仮説を製品ブリーフに落とす。分析のみ——コードなし。\n\nアイデア検証が通っていないなら——「アイデア検証」デッキへ戻るよう伝える。未確認のアイデアでの仕様は早すぎる。\n\n出力：\n1. 目標（一文）\n2. ユーザーは誰か（具体）\n3. 主要シナリオ（3–5）\n4. 1か月で測定可能な成果\n5. v1 でやらないこと\n\n禁止：仮説外のユーザー/シナリオの捏造；「後で」機能の追加。\n次：「何をするか」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — brief is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "emperor",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "scope",
-      "title": "MVP",
-      "description": "Two of Swords: IN / OUT, one happy path, acceptance",
-      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "title": "何をするか",
+      "description": "剣の2：IN / OUT、1本のハッピーパス、受入",
+      "prompt": "最小の動く版を固定する。分析のみ——コードなし。\n\n出力：\n1. IN：v1 でやること\n2. OUT：やらないこと\n3. ハッピーパス1本——入口から結果まで\n4. 受入基準\n5. 延期するものと理由\n\nルール：最初のパスに不要なものは切る。IN が機能5超——切る。「後で要るかも」は足さない。ブリーフ外の要件を捏造しない。\n次：「見た目」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — scope is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "swords_02",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "ux",
-      "title": "画面",
-      "description": "Ace of Cups: screens, buttons, empty/error/loading",
-      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "title": "見た目",
+      "description": "聖杯のエース：画面、操作、空/読込/エラー状態",
+      "prompt": "UI を文章で記述する。コードなし、画像なし。\n\n出力：画面一覧；画面ごと——ボタンと欄；空 / 読込 / エラー / 成功状態；画面のつながり。\n\n画像・Figma・マークアップは生成しない。範囲外の画面を足さない。5画面超——統合を検討。簡単に作れること。\n次：「何を保存するか」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — UI described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "cups_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "data-contracts",
-      "title": "データ",
-      "description": "Ace of Pentacles: entities only if the project needs them",
-      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "title": "何を保存するか",
+      "description": "ペンタクルのエース：製品が必要ならエンティティのみ",
+      "prompt": "製品データを定義する。分析のみ——コードなし。\n\n出力：エンティティとフィールド；検証；保存先（ファイル、ローカル、DB、クラウド）；外部契約——必要なときだけ。\n\nデスクトップ/ローカルに不要な DB・REST・ORM を押し付けない。保存不要ならそう書く。範囲外のエンティティを捏造しない。\n次：「何で作るか」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — data defined or storage not needed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_ace",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "architecture",
-      "title": "設計",
-      "description": "Chariot: simplest fit after reading the repo",
-      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "title": "何で作るか",
+      "description": "戦車：リポジトリを読んだ後の最単純な構造とスタック",
+      "prompt": "まずリポジトリと現在の依存を読む。仕事に対する最単純な構造とスタックを提案する。\n\n出力：フォルダと主要ファイル；言語とライブラリ；ゼロから書かず OSS から再利用するもの；リスクとロールバック案。\n\n退屈でも動く方が流行アーキテクチャに勝る。単純プロジェクトにマイクロサービスやコンテナを足さない。欠けた依存を捏造しない。動くものを壊さない。\n次：「コード規約」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — structure and stack proposed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "chariot",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "project-rules",
-      "title": "ルール",
-      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
-      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "title": "コード規約",
+      "description": "教皇：AGENTS.md と .cursor/rules——レガシー .cursorrules は作らない",
+      "prompt": "既存のルールファイルを確認：AGENTS.md（プロジェクト規約）と .cursor/rules/*.mdc。最小で一貫した修正を提案。なければ基礎セットを出す。\n\nデフォルトでレガシー .cursorrules を作らない。既存ルールを重複させない。求められたときだけファイル変更。簡単なルール5–10で十分：スタイル、命名、禁止事項。\n次：「計画レビュー」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — rules checked or proposed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hierophant",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "risk-review",
-      "title": "レビュー",
-      "description": "Justice: clarity, YAGNI, safety, testability",
-      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "title": "計画レビュー",
+      "description": "正義：明確さ、過剰、セキュリティ、テスト可能性",
+      "prompt": "仕様を正直に採点する——お世辞なし。\n\n確認：目標が明確か；完全性（ブリーフ、範囲、UI、データ、アーキテクチャ、規約）；過剰；明白なセキュリティ穴；受入基準がテスト可能か。\n\nプロジェクト品質スコア 0–10：0–6 コード前に修正；7–8 開始可；9–10 優秀。水増ししない。9–10 には仕様が強い理由の事実を3つ。7未満——次の仕様カードを1枚名指し。\n\n返信：スコア N/10 · 判定 · 長所 · 短所 · 上位3修正。\nスコア ≥7 —「コードを書いてよいか？」。7未満 — 名指しカードを直す。\n\nプロジェクトは空でもよい——あるものだけ判断。\n禁止：事実や穴の捏造；同情でのスコア水増し；事実3つなしの9–10；データ不足なら推測せず質問。\n\nAlways end with this line (N = your 0-10 score):\nKEYCODE_SCORE: N\nIf you cannot score due to missing data, add a second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "readiness",
-      "title": "準備",
-      "description": "Judgement: gate to Hobby or Production work",
-      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "title": "コードを書いてよいか？",
+      "description": "審判：趣味または本番へのゲート",
+      "prompt": "コーディング準備を確認する。欠けがあれば PASS しない。成果物を捏造しない。\n\n必須：目標とユーザー；範囲とハッピーパス；状態付き UI；必要なデータ；アーキテクチャ；規約または基礎セット；受入基準；計画レビュー・スコア ≥7。\n\nモードを推測しない。未選択なら明示的に聞く：\n- Hobby — 速くて単純なプロジェクト；\n- Production — より厳しく、レビューとマージ準備付き。\n\nプロジェクトは空でもよい——事実なし = PASS しない。\n禁止：証拠の捏造；同情や「いいアイデア」での PASS；お世辞。\n\nちょうど2行で終える。\nHobby:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nProduction:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nNot ready (replace brief with the missing card id: scope, ux, data-contracts, architecture, project-rules, risk-review):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief",
       "image": "judgement",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "要約",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "description": "女教皇：目標、決定済み、未決、次",
+      "prompt": "このチャットを読む。コードの作成・変更はしない。\n\n短い4ブロック（各1–3箇条）：\n1. 目標\n2. 決定済み——どの成果物が用意できたか\n3. 未決——まだ欠けているもの\n4. 次の一手——1枚：なぜ・誰のため / 何をするか / 見た目 / 何を保存するか / 何で作るか / コード規約 / 計画レビュー / コードを書いてよいか？——または作業へ\n\n仕様が未準備なら——そう書く。\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\nプロジェクトは空でもよい——チャットに見えることだけ書く。\n禁止：完了作業の捏造；コードの作成・変更；KEYCODE_SCORE、KEYCODE_GATE、KEYCODE_NEXT、KEYCODE_STATUS 行の追加。",
       "image": "high_priestess",
       "hotkey": ""
     }

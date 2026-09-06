@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "plan",
-      "title": "Plano",
-      "description": "Hierofante: divida a tarefa em passos — ainda sem código",
-      "prompt": "Crie um plano passo a passo para a tarefa atual. Não escreva código.\n\nDo chat (pergunte só se faltar): resultado em uma frase; o que já existe; hobby simples sem complexidade desnecessária.\n\nRegras:\n1. Passos pequenos — um passo = uma coisa verificável.\n2. Por passo: o quê · \"pronto\" · como verificar.\n3. Bloqueios primeiro; riscos / o que adiar.\n\nNo fim lista numerada (uma linha por passo).",
+      "title": "Faça um plano",
+      "description": "Divida a tarefa em passos (sem código)",
+      "prompt": "Crie um plano passo a passo para a tarefa atual. Não escreva código.\n\nDo chat (pergunte só se faltar): resultado em uma frase; o que já existe; projeto de hobby simples, sem complexidade extra.\n\nRegras: um passo = uma coisa verificável; por passo — o que fazer · critério de pronto · como verificar; bloqueios e riscos primeiro; o que adiar — à parte. Simples que funciona vence arquitetura ideal. Não invente interfaces, bibliotecas ou comandos que não estão no repositório. Se existir bom open source — use-o em vez de escrever do zero.\nPoucos dados — no máximo 3 perguntas.\nSaída: lista numerada (uma linha por passo).\nEm seguida: «Avalie o feito».\n\nO projeto pode estar vazio; pode não ter regras. Não invente o que não existe.\nProibido: inventar fatos, nomes, números e arquivos; escrever código (esta carta é só análise); complicar «para o futuro»; bajular; se faltam dados — pergunte, não chute.\n\nTermine com uma linha:\nKEYCODE_STATUS: READY — plano pronto\nou\nKEYCODE_STATUS: NEED_DATA — precisa de mais informação",
       "image": "hierophant",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evaluate",
-      "title": "Avaliar",
+      "title": "Avalie o feito",
       "description": "Justiça: nota de qualidade do projeto 0–10 e veredito",
-      "prompt": "Avalie o plano atual ou o último resultado com honestidade — sem enrolação nem bajulação.\n\nNota de qualidade 0–10: 0–6 refazer; 7–8 aceitável; 9–10 excelente. Abaixo de 7 = refazer; ≥7 pode seguir.\n\nCheque: meta/pronto claros? buracos? overcomplicação hobby? o que quebra primeiro? top 3 fixes.\n\nResposta:\n- Project quality score: N/10\n- Veredito: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Prós · contras/riscos · fixes\n\nNão reescreva do zero se fixes pontuais bastam. Sem código até pedirem.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Avalie o plano atual ou o último resultado com honestidade, sem bajulação.\n\nNota de qualidade do projeto 0–10: 0–6 refazer; 7–8 aceitável; 9–10 excelente. Abaixo de 7 — obrigatório refazer.\nVerifique: meta e critério de pronto claros; buracos na lógica; complexidade demais para hobby; o que quebra primeiro; top-3 correções.\nNão inflacione. Para 9–10 precisa de 3 fatos. Meta pouco clara — não dê 7 ou mais.\n\nResposta: nota N/10 · veredito · prós · contras · correções.\nNão proponha recomeçar do zero se correções pontuais bastam. Não comece código até pedirem.\nAbaixo de 7 — «Programe» ou «Corrija bugs». 7 ou mais — «Programe».\n\nO projeto pode estar vazio — julgue só o que existe.\nProibido: inventar fatos e buracos; inflar a nota por pena; dar 9–10 sem três fatos; se faltam dados — pergunte, não chute.\n\nNo final da resposta, sempre acrescente esta linha (N = sua nota 0-10):\nKEYCODE_SCORE: N\nSe não der para avaliar por falta de dados, segunda linha:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "work",
-      "title": "Trabalhar",
-      "description": "Mago: implemente o próximo passo do plano em código",
-      "prompt": "Faça o próximo passo aberto do plano aprovado — só ele, não tudo de uma vez.\n\nRegras: nomeie o passo se não estiver claro; não quebre o que funciona; falta dado — pergunte breve, não invente. Depois: o quê · onde · como verificar.\n\nFeche com uma linha: status — done / partial / blocked (e por quê).",
+      "title": "Programe",
+      "description": "Mago: faça o próximo passo do plano em código",
+      "prompt": "Faça o próximo passo aberto do plano aprovado — só esse, não tudo de uma vez.\n\nNão quebre o que funciona. Sem dados — 1–3 perguntas curtas; não invente bibliotecas nem comandos. Antes de mudanças arriscadas (banco, migrações, configs, autenticação) — backup. Não acrescente funções novas fora do passo.\n\nDepois: o que mudou · onde verificar · riscos. Meta — nota de correção 7 ou mais.\nPronto — «Teste». Bloqueio — «Faça um plano».\n\nO projeto pode estar vazio; pode não ter regras. Não invente o que não existe.\nProibido: inventar bibliotecas, comandos e saída; fazer extras fora do passo; bajular e esconder quebras; comandos perigosos sem um «sim» explícito; se faltam dados — pergunte, não chute.\n\nTermine com uma linha:\nKEYCODE_STATUS: DONE — passo pronto para verificação\nou\nKEYCODE_STATUS: PARTIAL — passo iniciado, mas não concluído\nou\nKEYCODE_STATUS: BLOCKED — precisa de pessoa ou dados",
       "image": "magician",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "test",
-      "title": "Testar",
-      "description": "Estrela: verifique o resultado com fatos, não palavras",
-      "prompt": "Teste o que acabou de ser feito (último passo ou parte claramente nomeada).\n\nChecks relevantes (comandos/build/manual); mostre fatos; em fail — causa + fix mínimo; em OK — \"TEST PASSED\" + o que verificou. No vermelho não avance o plano.\n\nResultado: green / red + uma frase por quê. Score preliminar 0–10 (abaixo de 7 = não pronto).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Teste",
+      "description": "Estrela: verifique o resultado com fatos, não com palavras",
+      "prompt": "Verifique o que acabou de ser feito (último passo ou parte claramente nomeada).\n\nRode checagens relevantes (comandos, build, cenário manual). Mostre saída real. Caminho feliz + um caso extremo ou falha (ou por que não dá).\nNa falha — causa e a carta «Corrija bugs»; não corrija o código sozinho se não pediram. No sucesso — «TESTE APROVADO» e a lista de checagens. No vermelho não avance. Se não puder rodar de fato — não dê nota acima de 4. Se precisa de pessoa — dê um cenário curto; não marque «TESTE APROVADO».\nNão invente saída de comandos.\nResultado: verde / vermelho + nota de qualidade do projeto 0–10 (abaixo de 7 = não pronto).\n7 ou mais — «Programe» (próximo passo). Abaixo de 7 — «Corrija bugs».\n\nO projeto pode estar vazio — julgue só o que existe.\nProibido: inventar fatos e buracos; inflar a nota por pena; dar 9–10 sem três fatos; se faltam dados — pergunte, não chute.\n\nNo final da resposta, sempre acrescente esta linha (N = sua nota 0-10):\nKEYCODE_SCORE: N\nSe não der para avaliar por falta de dados, segunda linha:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "fix",
-      "title": "Corrigir",
-      "description": "Torre: conserte a quebra até nota aceitável (≥7)",
-      "prompt": "Corrija problemas do último teste, erro ou nota de qualidade do projeto abaixo de 7/10.\n\nSó fix mínimo — sem refactors nem features. Sintoma → causa → patch → verificar. Loop até score ≥ 7. Travado — blocker + 2 saídas. Breve: era → fiz → confirmei.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Corrija bugs",
+      "description": "Torre: conserte a quebra até nota aceitável (7 ou mais)",
+      "prompt": "Corrija o defeito do último teste, erro ou nota de qualidade do projeto abaixo de 7 em 10.\n\nSó o fix mínimo. Sem refatoração «já que estou aqui» nem funções novas. Antes de mudanças críticas — backup.\nCiclo: sintoma → causa → o que mais pode quebrar → patch → verificar do mesmo jeito. Enquanto a nota estiver abaixo de 7 — repita.\nApós 3 tentativas sem progresso — pare: o que não sai e por quê; 2 opções com trade-offs; lista onde precisa de pessoa.\nFormato: era → ficou → evidência.\n7 ou mais — «Teste».\n\nO projeto pode estar vazio; pode não ter regras. Não invente o que não existe.\nProibido: inventar bibliotecas, comandos e saída; fazer extras fora do passo; bajular e esconder quebras; comandos perigosos sem um «sim» explícito; se faltam dados — pergunte, não chute.\n\nNo final da resposta, sempre acrescente esta linha (N = sua nota 0-10):\nKEYCODE_SCORE: N\nSe o passo não for só «avaliado», segunda linha uma de:\nKEYCODE_STATUS: NEED_DATA — faltam dados\nKEYCODE_STATUS: BLOCKED — precisa de pessoa ou não dá para seguir",
       "image": "tower",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "polish",
-      "title": "Refinar",
-      "description": "Força: eleve a nota de qualidade do projeto a 9–10",
-      "prompt": "Modo «Refinar». Não pare até a nota de qualidade do projeto ser 9 ou 10 de 10.\n\n7–8 não basta para este card. Loop sem perguntar: score N/10 + buracos → fix só isso → verificar → rescore. Enquanto ≤ 8, repetir. Pare só em 9–10.\n\nDepois: score final · o que subiu · o que deixou.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Melhore",
+      "description": "Força: suba a nota de qualidade do projeto para 9–10",
+      "prompt": "Modo de acabamento alto. Meta — nota de qualidade do projeto 9 ou 10. Parar em 7–8 não é permitido.\n\nCiclo: nota N/10 → buracos críticos → correções só nesses (não amplie o escopo) → reverificar → nova nota. Enquanto 8 ou abaixo — repita.\nMáximo 2–3 iterações. Se a nota não sobe por dois ciclos seguidos — pare e explique o teto. Se o teto fica abaixo de 9 por limites externos — nomeie-os depois de esgotar correções no escopo.\nAntes de começar — backup.\nRelatório: nota final · o que elevou a qualidade · risco residual · o que não tocou.\n9 ou mais — «Salve».\n\nO projeto pode estar vazio; pode não ter regras. Não invente o que não existe.\nProibido: inventar bibliotecas, comandos e saída; fazer extras fora do passo; bajular e esconder quebras; comandos perigosos sem um «sim» explícito; se faltam dados — pergunte, não chute.\n\nNo final da resposta, sempre acrescente esta linha (N = sua nota 0-10):\nKEYCODE_SCORE: N\nSe o passo não for só «avaliado», segunda linha uma de:\nKEYCODE_STATUS: NEED_DATA — faltam dados\nKEYCODE_STATUS: BLOCKED — bateu no teto, não dá para seguir",
       "image": "strength",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "backup",
-      "title": "Backup",
+      "title": "Salve",
       "description": "Eremita: salve um ponto de rollback",
-      "prompt": "Crie um ponto de rollback seguro do estado atual do projeto.\n\n1. git status (ou equivalente).\n2. Commit com sentido ou comando pronto — sem force nem --no-verify sem pedido.\n3. Sem git — cópia datada dos arquivos-chave.\n4. Rollback em 1–2 comandos. Sem push sem pedido.\n\nFeche: \"Checkpoint saved\" + onde/como voltar.",
+      "prompt": "Crie um ponto de rollback seguro.\n\n1. Status do git (ou equivalente).\n2. Commit com sentido ou comando pronto — sem force e sem pular checagens sem pedido.\n3. Sem git — cópia dos arquivos-chave com data no nome.\n4. Rollback em 1–2 comandos.\n5. Não envie mudanças nem rode comandos perigosos (apagar, reset, produção) sem um «sim» explícito.\n\nTermine com: «Ponto salvo» + onde e como voltar. Não invente um commit bem-sucedido.\nEm seguida: «Faça tudo sozinho» ou «Programe» — conforme o contexto.\n\nO projeto pode estar vazio; pode não ter regras. Não invente o que não existe.\nProibido: inventar bibliotecas, comandos e saída; fazer extras fora do passo; bajular e esconder quebras; comandos perigosos sem um «sim» explícito; se faltam dados — pergunte, não chute.\n\nTermine com uma linha:\nKEYCODE_STATUS: SAVED — ponto salvo\nou\nKEYCODE_STATUS: FAILED — não foi possível salvar",
       "image": "hermit",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "fullcycle",
-      "title": "Ciclo completo",
-      "description": "Mundo: plano → trabalho → teste, cada passo ≥ 7 pontos",
-      "prompt": "Ciclo completo do plano do início ao fim — sem pular.\n\nFeche cada item só com score ≥ 7 (Polish para 9–10). Por item: nomear → fazer → verificar → score → se <7 fix até ≥7 → próximo. Sem inflar scope.\n\nSem plano — plano curto 5–8 passos primeiro (ou siga se já combinado).\n\nFinal: score global · done / not done · o que verificar na mão. Se global <7 não declare sucesso.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
+      "title": "Faça tudo sozinho",
+      "description": "Mundo: plano → trabalho → verificação, cada passo nota 7 ou mais",
+      "prompt": "Execute o plano do início ao fim. Antes de começar — backup; em passos críticos (banco, migrações, autenticação) — também.\n\nUm item só fecha com nota 7 ou mais (para 9–10 — «Melhore»). Por item: nomear → fazer → verificar com fatos → nota → se abaixo de 7, corrigir → seguir. Sem pular, inflar escopo ou mascarar testes vermelhos.\nSem plano — primeiro 5–8 passos com critérios de aceite. Mais de 8 passos — só a primeira etapa. Não invente bibliotecas nem comandos. Comandos perigosos — backup e «sim» explícito.\n\nSe a nota não sobe por 2–3 ciclos na mesma tarefa — simplifique ou mude o caminho. Precisa de pessoa — liste bloqueios, continue o resto. Três ciclos sem movimento — pare e dê status honesto.\nFinal: nota geral · feito / não feito · riscos · o que checar manualmente. Não declare sucesso abaixo de 7.\n\nO projeto pode estar vazio; pode não ter regras. Não invente o que não existe.\nProibido: inventar bibliotecas, comandos e saída; fazer extras fora do passo; bajular e esconder quebras; comandos perigosos sem um «sim» explícito; se faltam dados — pergunte, não chute.\n\nNo final, sempre:\nKEYCODE_SCORE: N\n\nSe o escopo aprovado está fechado e as checagens estão verdes:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nSe não está pronto ou as checagens estão vermelhas:\nKEYCODE_GATE: FAIL\nSe parou por bloqueios:\nKEYCODE_STATUS: BLOCKED",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Resumo",
-      "description": "Sacerdotisa: breve — tarefa, feito, pendente, próximo",
-      "prompt": "Leia este chat e o contexto do repositório. Não escreva nem altere código.\n\nResponda em exatamente quatro seções curtas (1–3 itens cada):\n1. Tarefa — o que buscamos (uma frase + escopo se conhecido).\n2. Feito — implementado ou verificado.\n3. Pendente — passos abertos, falhas, bloqueios, desconhecidos.\n4. Próximo passo — uma única melhor ação (nomeie Plano / Trabalhar / Teste / Corrigir se óbvio).\n\nSem plano — diga e recomende Plano. Marque o desconhecido — não invente. Sem linha KEYCODE_SCORE.",
+      "title": "Visão do resultado",
+      "description": "Sacerdotisa: em breve — tarefa, feito, não feito, em seguida",
+      "prompt": "Leia este chat e o contexto do repositório. Não escreva nem altere código. Não invente evidências.\n\nQuatro blocos curtos (1–3 itens em cada):\n1. Tarefa\n2. Feito\n3. Não feito — passos, falhas, bloqueios\n4. Próximo passo — uma carta: Faça um plano / Avalie o feito / Programe / Teste / Corrija bugs / Melhore / Salve / Faça tudo sozinho\n\nSe não há plano — recomende «Faça um plano». Se o trabalho parou — quinto bloco: motivo e opções (simplificar / voltar ao plano / perguntar a uma pessoa).\nNão acrescente linhas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT nem KEYCODE_STATUS.\n\nO projeto pode estar vazio — escreva só o que aparece no chat.\nProibido: inventar o que foi feito; escrever ou alterar código; acrescentar linhas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ou KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

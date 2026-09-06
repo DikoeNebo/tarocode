@@ -831,6 +831,17 @@ describe("remote composer endpoints", () => {
         lastModel = { targetId, model };
         return { ok: true, model, composer: { modelId: model, modelLabel: model } };
       },
+      listComposerModels: async (targetId) => {
+        lastModel = { targetId, model: "__list__" };
+        return {
+          ok: true,
+          models: [
+            { id: "Auto", label: "Auto" },
+            { id: "composer-2.5", label: "composer-2.5" },
+          ],
+          composer: { modelLabel: "Auto", models: [{ id: "Auto", label: "Auto" }] },
+        };
+      },
       answerClarification: async (targetId, payload) => {
         lastAnswer = { targetId, ...payload };
         return { ok: true, clicked: payload.text || payload.optionId };
@@ -879,6 +890,16 @@ describe("remote composer endpoints", () => {
     });
     assert.equal(r.status, 200);
     assert.equal(lastModel?.model, "composer-2.5");
+  });
+
+  it("lists composer models", async () => {
+    const r = await req(port, "GET", "/api/composer/models?targetId=t1", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.json?.ok, true);
+    assert.ok(Array.isArray(r.json?.models));
+    assert.ok(r.json.models.length >= 2);
   });
 
   it("answers clarification", async () => {

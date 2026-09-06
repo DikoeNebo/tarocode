@@ -20,7 +20,7 @@
     </header>
 
     <main class="settings-shell">
-      <nav class="settings-nav" aria-label="Settings sections">
+      <nav class="settings-nav" id="settings-nav" data-i18n-aria="settings.navAria" aria-label="Settings sections">
         <button type="button" class="settings-nav-btn active" data-settings-nav="general" aria-selected="true" data-i18n="settings.navGeneral">General</button>
         <button type="button" class="settings-nav-btn" data-settings-nav="appearance" aria-selected="false" data-i18n="settings.navAppearance">Appearance</button>
         <button type="button" class="settings-nav-btn" data-settings-nav="cursor" aria-selected="false" data-i18n="settings.navCursor">Cursor</button>
@@ -42,6 +42,47 @@
         </label>
         <p class="hint-text muted" data-i18n="settings.languageHint">
           Changing the interface language also refreshes the two standard decks.
+        </p>
+
+        <label class="field block">
+          <span data-i18n="settings.dictationEngine">Microphone dictation</span>
+          <select id="set-dictation-engine">
+            <option value="gigaam" data-i18n="settings.dictationGigaam">
+              GigaAM (local — Russian + English)
+            </option>
+            <option value="windows" data-i18n="settings.dictationWindows">
+              Windows Speech (installed language packs)
+            </option>
+          </select>
+        </label>
+        <p class="hint-text muted" data-i18n="settings.dictationHint">
+          Changing the interface language picks a default (Russian → GigaAM, otherwise Windows Speech). You can override it here anytime.
+        </p>
+        <label class="field block">
+          <span data-i18n="settings.dictationSilenceSec">Silence before auto-stop (sec)</span>
+          <input
+            type="number"
+            id="set-dictation-silence"
+            min="1"
+            max="15"
+            step="0.5"
+          />
+        </label>
+        <p class="hint-text muted" data-i18n="settings.dictationSilenceHint">
+          After you stop talking, wait this long before ending the take. Click the mic to finish earlier.
+        </p>
+        <label class="field block">
+          <span data-i18n="settings.dictationMaxSec">Max dictation length (sec)</span>
+          <input
+            type="number"
+            id="set-dictation-max"
+            min="0"
+            max="1800"
+            step="5"
+          />
+        </label>
+        <p class="hint-text muted" data-i18n="settings.dictationMaxHint">
+          0 = no limit. Stop earlier by clicking the mic again.
         </p>
 
         <label class="field block">
@@ -68,6 +109,14 @@
             <option value="Alt+Z">Alt + Z</option>
           </select>
         </label>
+        <label class="check block">
+          <input type="checkbox" id="set-show-deck-on-startup" />
+          <span data-i18n="settings.showDeckOnStartup">Show deck on startup</span>
+        </label>
+        <label class="check block">
+          <input type="checkbox" id="set-auto-check-updates" checked />
+          <span data-i18n="settings.autoCheckUpdates">Check for updates automatically</span>
+        </label>
 
         <div class="actions-row wrap">
           <button type="button" class="ghost-btn" id="btn-folder" data-i18n="settings.dataFolder">Data folder</button>
@@ -93,7 +142,7 @@
         <label class="field block">
           <span data-i18n="settings.sideCardLayout">Left/right card layout</span>
           <select id="set-side-card-layout">
-            <option value="table" data-i18n="settings.sideLayoutTable">Tarot table 3×4 (default)</option>
+            <option value="table" data-i18n="settings.sideLayoutTable">Tarot table 3×3 (default)</option>
             <option value="strip" data-i18n="settings.sideLayoutStrip">Classic strip</option>
           </select>
           <span class="hint" data-i18n="settings.sideCardLayoutHint">Only for left and right edges. Top and bottom stay a strip.</span>
@@ -108,9 +157,29 @@
           <input type="number" id="set-edge-threshold" min="6" max="40" step="1" value="14" />
         </label>
         <label class="field block">
-          <span data-i18n="settings.panelScale">Card and button size (%)</span>
-          <input type="range" id="set-panel-scale" min="75" max="150" step="5" value="100" />
+          <span data-i18n="settings.hideDelay">Hide delay (ms)</span>
+          <input type="range" id="set-hide-delay" min="100" max="2000" step="50" value="450" />
+          <span class="range-val" id="set-hide-delay-val">450ms</span>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.panelScale">Card size (%)</span>
+          <input type="range" id="set-panel-scale" min="30" max="300" step="5" value="100" />
           <span class="range-val" id="set-panel-scale-val">100%</span>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.chatScale">Chat size (%)</span>
+          <input type="range" id="set-chat-scale" min="75" max="150" step="5" value="100" />
+          <span class="range-val" id="set-chat-scale-val">100%</span>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.chatMessageFont">Message font (px)</span>
+          <input type="range" id="set-chat-message-font" min="8" max="20" step="1" value="10" />
+          <span class="range-val" id="set-chat-message-font-val">10px</span>
+        </label>
+        <label class="field block">
+          <span data-i18n="settings.chatComposerFont">Composer font (px)</span>
+          <input type="range" id="set-chat-composer-font" min="8" max="20" step="1" value="10" />
+          <span class="range-val" id="set-chat-composer-font-val">10px</span>
         </label>
         <label class="field block">
           <span data-i18n="settings.uiOpacity">Card transparency (%)</span>
@@ -236,11 +305,12 @@
         <p class="hint-text muted" id="cursor-diag"></p>
       </section>
 
-      <section class="settings-page" data-settings-page="phone">
+      <section class="settings-page" data-settings-page="phone" id="settings-phone-tour">
         <h2 class="block-title" data-i18n="settings.remoteTitle">Phone remote</h2>
         <p class="hint-text" data-i18n="settings.remoteHint">
           Opt-in web remote for Cursor chats on the same Wi‑Fi. Anyone on that network with the link can use it — keep the secret private.
         </p>
+        <div id="settings-phone-spotlight">
         <label class="check block">
           <input type="checkbox" id="set-remote-enabled" />
           <span data-i18n="settings.remoteEnable">Enable phone remote</span>
@@ -274,11 +344,12 @@
             Refresh status
           </button>
         </div>
-        <div class="remote-qr-wrap">
+        <div class="remote-qr-wrap" id="remote-qr-wrap">
           <img id="remote-qr" class="remote-qr hidden" alt="QR" />
           <p class="hint-text muted" id="remote-qr-hint" data-i18n="settings.remoteQrHint">
             QR uses your PC’s Wi‑Fi address. Secret stays in the link fragment. If the phone cannot open it, allow Keycode through Windows Firewall (private network).
           </p>
+        </div>
         </div>
         <details class="remote-later">
           <summary data-i18n="settings.remoteLaterTitle">Away from home later (Tailscale)</summary>
@@ -295,7 +366,7 @@
         </details>
       </section>
 
-      <section class="settings-page panel-decks" data-settings-page="decks">
+      <section class="settings-page panel-decks" data-settings-page="decks" id="settings-decks-tour">
         <h2 data-i18n="settings.decksTitle">Decks and cards</h2>
 
         <div class="deck-toolbar">
@@ -339,10 +410,6 @@
                 <span data-i18n="settings.cardDesc">Short on card</span>
                 <input type="text" id="card-desc" maxlength="80" />
               </label>
-              <label class="field block tarot-field">
-                <span data-i18n="settings.cardTarot">Tarot card</span>
-                <div id="card-image" class="tarot-picker" role="listbox" data-i18n-aria="settings.cardTarot" aria-label="Tarot card"></div>
-              </label>
               <label class="field block">
                 <span data-i18n="settings.cardHotkey">Hotkey</span>
                 <select id="card-hotkey">
@@ -359,10 +426,15 @@
               </label>
             </div>
 
-            <label class="field block">
-              <span data-i18n="settings.cardPrompt">Chat text (full prompt)</span>
-              <textarea id="card-prompt" rows="10"></textarea>
+            <label class="field block card-prompt-field">
+              <span data-i18n="settings.cardPrompt">Prompt (pasted into chat)</span>
+              <textarea id="card-prompt" rows="12"></textarea>
             </label>
+
+            <details class="card-tarot-details">
+              <summary data-i18n="settings.cardTarot">Tarot card</summary>
+              <div id="card-image" class="tarot-picker" role="listbox" data-i18n-aria="settings.cardTarot" aria-label="Tarot card"></div>
+            </details>
 
             <div class="actions-row">
               <button type="button" class="danger-btn" id="card-delete" disabled data-i18n="settings.deleteCard">Delete card</button>
@@ -446,6 +518,21 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
+
+    <div id="settings-onboarding" class="onboarding settings-onboarding hidden" role="dialog" aria-labelledby="settings-onboarding-title">
+      <div class="onboarding-hole" id="settings-onboarding-hole" aria-hidden="true"></div>
+      <div class="onboarding-card" id="settings-onboarding-card">
+        <div class="onboarding-arrow" id="settings-onboarding-arrow" aria-hidden="true"></div>
+        <div class="onboarding-top">
+          <span class="onboarding-kicker" data-i18n="onboarding.title">Quick start</span>
+          <button type="button" class="onboarding-skip" id="settings-onboarding-skip" data-i18n="onboarding.skip">Skip</button>
+        </div>
+        <h2 id="settings-onboarding-title"></h2>
+        <div class="onboarding-body" id="settings-onboarding-body"></div>
+        <div class="onboarding-dots" id="settings-onboarding-dots" role="tablist" aria-label="Steps"></div>
+        <button type="button" class="primary-btn onboarding-next-btn" id="settings-onboarding-next" data-i18n="onboarding.next">Next</button>
+      </div>
+    </div>
 
     <script src="i18n.js"></script>
     <script src="tarot.js"></script>

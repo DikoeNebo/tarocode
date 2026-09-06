@@ -31,6 +31,17 @@
                 <button
                   type="button"
                   class="corner-btn"
+                  id="btn-corner-help"
+                  data-i18n-title="deck.help"
+                  data-i18n-aria="deck.helpAria"
+                  title="Quick start"
+                  aria-label="Quick start"
+                >
+                  <span aria-hidden="true">?</span>
+                </button>
+                <button
+                  type="button"
+                  class="corner-btn"
                   id="btn-corner-settings"
                   data-i18n-title="deck.settings"
                   data-i18n-aria="deck.settings"
@@ -124,6 +135,36 @@
                 </div>
                 <button
                   type="button"
+                  class="dest-prune hidden"
+                  id="btn-dest-prune"
+                  data-i18n-title="dest.removeOthers"
+                  data-i18n-aria="dest.removeOthers"
+                  title="Remove other chats"
+                  aria-label="Remove other chats"
+                >💀</button>
+                <button
+                  type="button"
+                  class="dest-new-chat"
+                  id="btn-new-chat"
+                  data-i18n-title="deck.chatNew"
+                  data-i18n-aria="deck.chatNew"
+                  title="New Cursor chat"
+                  aria-label="New Cursor chat"
+                >+</button>
+                <button
+                  type="button"
+                  class="dest-cards-toggle"
+                  id="btn-cards-toggle"
+                  data-i18n-title="deck.cardsHide"
+                  data-i18n-aria="deck.cardsHide"
+                  title="Hide cards"
+                  aria-label="Hide cards"
+                  aria-pressed="true"
+                >
+                  <span aria-hidden="true">▦</span>
+                </button>
+                <button
+                  type="button"
                   class="dest-transcript-toggle"
                   id="btn-transcript-toggle"
                   data-i18n-title="deck.transcriptHide"
@@ -147,6 +188,74 @@
                 Pick a chat above to see its messages
               </p>
               <div class="deck-transcript-msgs" id="deck-transcript-msgs"></div>
+              <div class="deck-chat-controls hidden" id="deck-chat-controls">
+                <div class="deck-clarifications hidden" id="deck-clarifications"></div>
+                <div class="deck-composer-toolbar">
+                  <label class="deck-mode-wrap">
+                    <span class="sr-only" data-i18n="deck.chatMode">Mode</span>
+                    <select
+                      id="deck-mode"
+                      class="deck-mode-select"
+                      data-i18n-aria="deck.chatMode"
+                      aria-label="Mode"
+                    >
+                      <option value="agent">Agent</option>
+                      <option value="plan">Plan</option>
+                      <option value="ask">Ask</option>
+                      <option value="debug">Debug</option>
+                    </select>
+                  </label>
+                  <label class="deck-model-wrap">
+                    <span class="sr-only" data-i18n="deck.chatModel">Model</span>
+                    <span
+                      id="deck-model"
+                      class="deck-model-label"
+                      data-i18n-aria="deck.chatModel"
+                      aria-label="Model"
+                      title=""
+                    >—</span>
+                  </label>
+                </div>
+                <label class="sr-only" for="deck-composer-input" data-i18n="deck.chatMessage">Message</label>
+                <div class="deck-composer-shell">
+                  <textarea
+                    id="deck-composer-input"
+                    rows="2"
+                    maxlength="20000"
+                    data-i18n-placeholder="deck.chatPlaceholder"
+                    placeholder="Type a command…"
+                  ></textarea>
+                  <div class="deck-composer-footer">
+                    <span class="deck-composer-status" id="deck-composer-status" data-i18n="deck.chatReady">Enter to send</span>
+                    <div class="deck-composer-actions">
+                      <label
+                        class="deck-dictate-auto"
+                        data-i18n-title="deck.dictateAutoSendTitle"
+                        title="Send right after dictation"
+                      >
+                        <input
+                          type="checkbox"
+                          id="deck-dictate-auto-send"
+                          data-i18n-aria="deck.dictateAutoSendTitle"
+                          aria-label="Send right after dictation"
+                        />
+                        <span data-i18n="deck.dictateAutoSend">Send</span>
+                      </label>
+                      <button
+                        type="button"
+                        class="deck-mic"
+                        id="btn-deck-mic"
+                        data-i18n-title="deck.chatMicTitle"
+                        data-i18n-aria="deck.chatMicTitle"
+                        title="Dictate"
+                        aria-label="Dictate"
+                        aria-pressed="false"
+                      >🎤</button>
+                      <button type="button" class="deck-send" id="btn-deck-send">Send</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div
                 class="deck-transcript-resize"
                 id="deck-transcript-resize"
@@ -155,6 +264,21 @@
                 data-i18n-title="deck.transcriptResize"
                 title="Drag to resize"
               ></div>
+            </div>
+            <div class="deck-manual-bar hidden" id="deck-manual-bar">
+              <button
+                type="button"
+                class="deck-manual-toggle"
+                id="btn-deck-manual"
+                data-i18n-title="deck.manualShow"
+                data-i18n-aria="deck.manualShow"
+                title="Manual typing"
+                aria-label="Manual typing"
+                aria-pressed="false"
+              >
+                <span class="deck-manual-icon" aria-hidden="true">⌨</span>
+                <span class="deck-manual-label" data-i18n="deck.manualShow">Manual typing</span>
+              </button>
             </div>
             <section
               class="cards-zone"
@@ -181,16 +305,19 @@
         </div>
       </div>
       <div id="card-preview" class="card-preview hidden" aria-hidden="true"></div>
-      <div id="onboarding" class="onboarding hidden" role="dialog" aria-labelledby="onboarding-title">
-        <div class="onboarding-card">
-          <h2 id="onboarding-title" data-i18n="onboarding.title">Quick start</h2>
-          <ol class="onboarding-steps">
-            <li data-i18n-html="onboarding.step1"><kbd>F9</kbd> — show or hide cards</li>
-            <li data-i18n-html="onboarding.step2">◎ → close Cursor, then “Launch Cursor with CDP”</li>
-            <li data-i18n-html="onboarding.step3">💬 «Чаты» → «+ чат» or «+ поле»</li>
-            <li data-i18n-html="onboarding.step4">Enable a chat and click a card</li>
-          </ol>
-          <button type="button" class="primary-btn" id="onboarding-ok" data-i18n="onboarding.ok">Got it</button>
+      <div id="onboarding" class="onboarding hidden" role="dialog" aria-labelledby="onboarding-step-title">
+        <div class="onboarding-hole" id="onboarding-hole" aria-hidden="true"></div>
+        <div class="onboarding-card" id="onboarding-card">
+          <div class="onboarding-arrow" id="onboarding-arrow" aria-hidden="true"></div>
+          <div class="onboarding-top">
+            <span class="onboarding-kicker" data-i18n="onboarding.title">Quick start</span>
+            <button type="button" class="onboarding-skip" id="onboarding-skip" data-i18n="onboarding.skip">Skip</button>
+          </div>
+          <img id="onboarding-art" class="onboarding-art hidden" alt="" />
+          <h2 id="onboarding-step-title"></h2>
+          <div class="onboarding-body" id="onboarding-body"></div>
+          <div class="onboarding-dots" id="onboarding-dots" role="tablist" aria-label="Steps"></div>
+          <button type="button" class="primary-btn onboarding-next-btn" id="onboarding-next" data-i18n="onboarding.next">Next</button>
         </div>
       </div>
     </div>
@@ -207,10 +334,6 @@
             <span data-i18n="cardModal.short">Short on card</span>
             <input type="text" id="card-desc" maxlength="80" />
           </label>
-          <label class="field block tarot-field">
-            <span data-i18n="cardModal.tarot">Tarot card</span>
-            <div id="card-image" class="tarot-picker" role="listbox" data-i18n-aria="cardModal.tarot" aria-label="Tarot card"></div>
-          </label>
           <label class="field block">
             <span data-i18n="cardModal.hotkey">Hotkey</span>
             <select id="card-hotkey">
@@ -226,10 +349,14 @@
             </select>
           </label>
         </div>
-        <label class="field block">
-          <span data-i18n="cardModal.prompt">Chat text</span>
-          <textarea id="card-prompt" rows="8"></textarea>
+        <label class="field block card-prompt-field">
+          <span data-i18n="cardModal.prompt">Prompt (pasted into chat)</span>
+          <textarea id="card-prompt" rows="10"></textarea>
         </label>
+        <details class="card-tarot-details">
+          <summary data-i18n="cardModal.tarot">Tarot card</summary>
+          <div id="card-image" class="tarot-picker" role="listbox" data-i18n-aria="cardModal.tarot" aria-label="Tarot card"></div>
+        </details>
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="card-delete" data-i18n="cardModal.delete">Delete</button>
           <div class="spacer"></div>

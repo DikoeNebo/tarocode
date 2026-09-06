@@ -11,6 +11,20 @@ contextBridge.exposeInMainWorld("keycode", {
   addTargetWindow: (win) => ipcRenderer.invoke("add-target-window", win),
   pasteCard: (cardId) => ipcRenderer.invoke("paste-card", cardId),
   readDeckChat: (payload) => ipcRenderer.invoke("deck-read-chat", payload || {}),
+  deckChatStatuses: () => ipcRenderer.invoke("deck-chat-statuses"),
+  listDeckChatModels: (payload) =>
+    ipcRenderer.invoke("deck-list-models", payload || {}),
+  setDeckChatModel: (payload) =>
+    ipcRenderer.invoke("deck-set-model", payload || {}),
+  setDeckChatMode: (payload) =>
+    ipcRenderer.invoke("deck-set-mode", payload || {}),
+  answerDeckClarification: (payload) =>
+    ipcRenderer.invoke("deck-answer-clarification", payload || {}),
+  dictateOnce: (payload) => ipcRenderer.invoke("dictate-once", payload || {}),
+  dictateTranscribe: (payload) =>
+    ipcRenderer.invoke("dictate-transcribe", payload || {}),
+  dictateProbe: () => ipcRenderer.invoke("dictate-probe"),
+  dictateEnsureGigaam: () => ipcRenderer.invoke("dictate-ensure-gigaam"),
   setIgnoreMouse: (ignore) => ipcRenderer.invoke("set-ignore-mouse", ignore),
   getCursorClient: () => ipcRenderer.invoke("get-cursor-client"),
   getDeckFocused: () => ipcRenderer.invoke("get-deck-focused"),
@@ -86,10 +100,49 @@ contextBridge.exposeInMainWorld("keycode", {
   remoteRotateToken: () => ipcRenderer.invoke("remote-rotate-token"),
   remoteQrDataUrl: () => ipcRenderer.invoke("remote-qr-data-url"),
   remoteDiagnose: () => ipcRenderer.invoke("remote-diagnose"),
-  openSettings: () => ipcRenderer.invoke("open-settings"),
+  openSettings: (opts) => ipcRenderer.invoke("open-settings", opts || null),
   closeSettings: () => ipcRenderer.invoke("close-settings"),
-  openTargets: () => ipcRenderer.invoke("open-targets"),
+  settingsUiReady: () => ipcRenderer.invoke("settings-ui-ready"),
+  settingsFocusClear: () => ipcRenderer.invoke("settings-focus-clear"),
+  pointerMoveInWindow: (point) =>
+    ipcRenderer.invoke("pointer-move-in-window", point || null),
+  focusDeck: () => ipcRenderer.invoke("focus-deck"),
+  openTargets: (opts) => ipcRenderer.invoke("open-targets", opts || null),
   closeTargets: () => ipcRenderer.invoke("close-targets"),
+  settingsTourDone: () => ipcRenderer.invoke("settings-tour-done"),
+  settingsTourSkip: () => ipcRenderer.invoke("settings-tour-skip"),
+  tourHostAdvance: () => ipcRenderer.invoke("tour-host-advance"),
+  tourHostSkip: () => ipcRenderer.invoke("tour-host-skip"),
+  onSettingsFocus: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("settings-focus", handler);
+    return () => ipcRenderer.removeListener("settings-focus", handler);
+  },
+  onTargetsFocus: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("targets-focus", handler);
+    return () => ipcRenderer.removeListener("targets-focus", handler);
+  },
+  onTourHostAdvance: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on("tour-host-advance", handler);
+    return () => ipcRenderer.removeListener("tour-host-advance", handler);
+  },
+  onTourHostSkip: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on("tour-host-skip", handler);
+    return () => ipcRenderer.removeListener("tour-host-skip", handler);
+  },
+  onSettingsTourClear: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on("settings-tour-clear", handler);
+    return () => ipcRenderer.removeListener("settings-tour-clear", handler);
+  },
+  onTargetsTourClear: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on("targets-tour-clear", handler);
+    return () => ipcRenderer.removeListener("targets-tour-clear", handler);
+  },
   quitApp: () => ipcRenderer.invoke("quit-app"),
   pickClick: (screenX, screenY) =>
     ipcRenderer.invoke("pick-click", { screenX, screenY }),

@@ -174,8 +174,25 @@
       .task-actions .primary-btn {
         min-height: 36px;
       }
-      .mic-btn {
+      .task-dictate-auto {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin: 0;
         margin-right: auto;
+        font-size: 12px;
+        color: rgba(245, 234, 214, 0.78);
+        cursor: pointer;
+        user-select: none;
+      }
+      .task-dictate-auto input {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: rgba(201, 168, 255, 0.95);
+        cursor: pointer;
+      }
+      .mic-btn {
         min-width: 40px;
         padding: 8px 10px;
         border-radius: 8px;
@@ -296,6 +313,19 @@
           placeholder="Describe the task…"
         ></textarea>
         <div class="task-actions">
+          <label
+            class="task-dictate-auto"
+            data-i18n-title="deck.dictateAutoSendTitle"
+            title="Send right after dictation"
+          >
+            <input
+              type="checkbox"
+              id="task-dictate-auto-send"
+              data-i18n-aria="deck.dictateAutoSendTitle"
+              aria-label="Send right after dictation"
+            />
+            <span data-i18n="deck.dictateAutoSend">Send</span>
+          </label>
           <button type="button" class="mic-btn" id="btn-task-mic" data-i18n-title="chatPick.mic" title="Dictate">
             🎤
           </button>

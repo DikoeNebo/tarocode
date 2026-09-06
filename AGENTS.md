@@ -12,13 +12,13 @@
 
 **For whom:** Vibe-coders (primary) + programmers (second bundled deck); public open-source Windows app via GitHub Releases.
 
-**One-sentence goal:** Always-on-top transparent “tarot deck” of up to 9 prompt cards; one click (or F1–F8 for hotkeyed cards) pastes the card text into selected chat windows (optionally Enter).
+**One-sentence goal:** Always-on-top transparent “tarot deck” of up to 9 prompt cards; one click (or an optional card hotkey if the user assigned one) pastes the card text into selected chat windows (optionally Enter).
 
 **Success criteria:**
 
 1. Show/hide deck via on-screen eye button and global hotkey (default F9).
 2. Click card or bound key → text goes to all checked targets; optional Enter.
-3. Edit cards, change images, max 9 cards (F1–F8 hotkeys; 9th card click-only); switch decks; import/export file.
+3. Edit cards, change images, max 9 cards; optional per-card hotkeys (F1–F8) assignable in Settings → Decks (stock decks ship with none); switch decks; import/export file.
 4. Five bundled decks in four phases: Validation → Specification → Work (Hobby + Production) → Release; switch in settings or the deck pager.
 5. Evaluation uses a project quality score 0–10: &lt;7 = redo; 7–10 = acceptable; card «Доведи» loops until score 9–10. Score cards end with `KEYCODE_SCORE: N`. Gate cards may also end with `KEYCODE_GATE: PASS|FAIL` and `KEYCODE_NEXT: deck-id/card-id`. Hints never block paste.
 6. **Public readiness:** clean Windows 10/11 install → within ~2 minutes user adds a target and successfully sends a card; every failure shows a clear next action in the UI.
@@ -70,7 +70,7 @@ Settings window --> [Donate modal] (sticky coffee cup → purpose + pay links)
 Deck panel --> [Edit card modal] (quick edit)
 Chats window --> [Field pick overlay] or [Cursor chat list (CDP)]
 Phone browser --> [Mobile remote UI] (same Wi-Fi → LAN IP)
-First run --> [Short onboarding overlay on deck]
+First run --> [Short skippable tour on deck]
 ```
 
 ### Show / hide deck
@@ -83,28 +83,30 @@ First run --> [Short onboarding overlay on deck]
 
 **Purpose:** Cards + deck switch; Chats open as a separate Windows window.
 
-**Layout:** Transparent frameless always-on-top; only interactive chrome is opaque. **Side docks (`right` / `left`):** default **tarot table** — grid **3 columns × 4 rows** flush to the edge (up to 9 cards; incomplete rows pack toward the screen edge so empty cells sit inward); space above and below is click-through. Settings can switch to classic **strip**. **Top / bottom docks:** linear strip along that edge (unchanged).
+**Layout:** Transparent frameless always-on-top; only interactive chrome is opaque. **Side docks (`right` / `left`):** default **tarot table** — grid **3 columns × 3 rows** flush to the top and the side edge (up to 9 cards; incomplete rows pack toward the screen edge so empty cells sit inward); empty space below the stack is click-through. Settings can switch to classic **strip**. **Top / bottom docks:** linear strip of cards along that edge; controls + live chat sit under (top) or above (bottom) the cards and span the **full width of the card row**.
 
-**Side table:** All cards visible at once in the grid. Click any card → paste. F1–F8 paste the hotkeyed card; a 9th card (no hotkey) is click-only. Stack flush to the edge: **controls on top** (deck pager `‹ name ›`, destination bar, Chats, Settings, Hide, Quit), **card grid below**. Empty space above/below the stack is click-through.
+**Side table:** All cards visible at once in the grid. Click any card → paste. Cards with a user-assigned F1–F8 hotkey also paste on that key; by default stock cards have no hotkey (click-only). Stack flush to the top and the side edge: **controls on top** (deck pager `‹ name ›`, destination bar, Chats, Settings, Hide, Quit), **card grid below**. Empty space below the stack is click-through.
 
-**Destination bar (under deck pager):** Compact row of up to 4 named **presets** (broadcast sets) and chips for saved chats/fields. Click a preset → `pasteMode=broadcast` (card goes to that set). Click a chat chip → `pasteMode=solo` (card goes only there, like phone). Hidden when there are no saved targets.
+**Destination bar (under deck pager):** Compact row of up to 4 named **presets** (broadcast sets) and chips for saved chats/fields. CDP chat chips show a small status dot from Cursor’s sidebar (`running` / `needs-attention` / `done-unseen` / `done-seen` / `draft`) — same color language as Cursor. Click a preset → `pasteMode=broadcast` (card goes to that set). Click a chat chip → `pasteMode=solo` (card goes only there, like phone). Small **💀** button (solo mode, ≥2 targets): remove all saved destinations except the active chat chip; presets drop removed ids. **▦** toggles the card strip (`deckCardsOpen`, default on; hotkeys still paste when cards are hidden). **▴/▾** toggles the chat pane (`deckTranscriptOpen`). Hidden when there are no saved targets.
 
-**Chat transcript (under destination bar):** Compact live pane of messages already loaded in the selected Cursor chat (CDP), same idea as the phone remote. Toggle open/closed with the ▴/▾ button on the destination bar (cards shift up when closed — no empty gap). Drag the bottom edge to resize height (saved). Hidden when there are no saved targets. Hint text in broadcast mode; live messages in solo for CDP chats. No forced scroll for older history; updates while the deck is visible and the pane is open. Desktop has no free-text composer here — cards still paste.
+**Cursor chat (under destination bar):** Compact live pane for the selected solo Cursor chat (CDP): by default only loaded messages (plus destination chips / project chat). On top/bottom docks the pane matches the **card-row width**. A small **manual mode** button sits above the cards; only after it is pressed do plan-question chips, **mode** (Agent/Plan/Ask/Debug) + **read-only model label** + free-text composer (keyboard + mic + **Send-after-dictation** checkbox), and Send/Build appear — cards shift down to make room (`deckComposerOpen`, default off). Mic STT default follows UI language when it changes (Russian → **GigaAM ml_ctc**, otherwise **Windows System.Speech**); Settings can override to GigaAM or Windows Speech manually. **Dictation checkbox** (`deckDictateAutoSend`, default off): when on, recognized text is submitted immediately; when off, text is inserted into the composer for manual Send. Same checkbox on the new-chat task prompt. Whole chat pane toggles open/closed with the ▴/▾ button on the destination bar (no empty gap when closed). Drag the bottom edge to resize height (saved); card pixel size stays from Settings (`panelScale`) — taller chat does not shrink cards (column scrolls if needed). Hidden when there are no saved targets. Hint text in broadcast mode; live messages in solo for CDP chats. No forced scroll for older history; updates while the deck is visible and the pane is open. Enter sends, Shift+Enter inserts a newline; successful send clears the composer and failures preserve it. Mode/model switch via CDP (current Cursor: modes under the composer «+» menu + mode chip; model via Auto picker).
 
 **Controls:**
 
 | # | Control | Action |
 |---|---------|--------|
 | 1 | Hide (👁) | Hide deck panel |
+| 1b | Help (?) | Open the short skippable tour anytime |
 | 2 | Settings (⚙) | Open centered settings window |
 | 3 | CDP (◎) | If CDP is closed: centered dialog — close Cursor yourself, then big button «Launch Cursor with CDP». Does not kill Cursor. |
 | 4 | Chats (💬) | Open the Chats window — standard Windows frame (move / resize / minimize / maximize / close); badge = paste destination count (preset/enabled in broadcast, `1` in solo) |
 | 5 | Cards (≤9) | Side table / strip / top-bottom: click card. Paste to **resolved destinations** (active preset, or enabled targets, or solo chat). In solo CDP mode, up to 3 cards may glow (next-step hints) |
 | 6 | Quit (✕) | Exit or minimize to background |
 | 7 | Deck pager (‹ name ›) | Cycle active deck (wraps; Settings still has full select) |
-| 8 | Destination bar | Switch broadcast preset or solo active chat |
-| 9 | Chat transcript | Read-only live messages; ▴/▾ toggle; drag bottom edge to resize |
+| 8 | Destination bar | Switch broadcast preset or solo chat; CDP chips show Cursor status dots; 💀 removes other saved targets (solo, keep active); ▦ hide/show cards; ▴/▾ hide/show chat |
+| 9 | Cursor chat | Live messages by default (full card-row width on top/bottom); small manual-mode button above cards reveals plan answers + mode + current model label + typed Send/Build + mic + send-after-dictation checkbox; mic STT = GigaAM or Windows Speech (UI language sets default); ▴/▾ toggles whole pane; drag bottom edge to resize |
 | 10 | Next-card glow | Rule-based highlight from solo transcript + `KEYCODE_SCORE` (1 primary + ≤2 secondary); clears in broadcast / non-CDP |
+| 11 | New chat (+) | Open the existing project/chat picker; create a project chat, save it, and select it as the active solo destination |
 
 Edge hover on/off — только в Settings (на полосе карт отдельной кнопки нет).
 
@@ -118,7 +120,7 @@ Edge hover on/off — только в Settings (на полосе карт от�
 
 ### First-run onboarding
 
-Short overlay (not a multi-step wizard): F9 → if CDP is closed, centered dialog: close Cursor, then big button «Launch Cursor with CDP» → 💬 Chats → + чат / + поле → enable → click card. Flag `firstRunDone` in settings.json. On each app start, if CDP is closed, the same centered dialog is offered.
+Skippable **coach-mark tour** (~11 steps, Skip / Esc anytime): one zone at a time — dimmed overlay, bright cutout frame around the control, tip card with an arrow that points to that frame (tip must not cover the highlight). Top-to-bottom on the deck: (1) CDP circle green = app works / red = launch Cursor with CDP → (2) top buttons as a short list → (3) deck pager → (4) chat list strip (saved chats + status, +, prune) → (5) live Cursor chat pane → (6) manual mode (mic + Send) → (7) mid celebration card with art → (8) prompt cards (hover shows description) → (9) Settings → Phone remote only → (10) Settings → Decks editor → (11) finale celebration (fireworks + cat). Opens when `firstRunDone` is false; also via **?** next to the eye. Flag `firstRunDone` after dismiss/skip. CDP closed dialog still offered after the tour if needed.
 
 ### Screen: Chats (separate Windows window)
 
@@ -143,7 +145,7 @@ Short overlay (not a multi-step wizard): F9 → if CDP is closed, centered dialo
 
 **Flow (no-focus):** bind CDP chats from hierarchical project → chat list (Keycode expands Cursor sidebar sections + “See more” on refresh) → enable or pick a preset / solo chat on the strip → click card → for each resolved CDP target: select chat in DOM → insert text (+ Enter if on). No Alt+Tab.
 
-**New chat from pick:** in the project tree, **+** on a project creates a new Cursor agent/chat in that section via CDP DOM click, saves it to destinations, then opens a task prompt (text + Web Speech dictation). Enter/Send submits into that chat only (same paste queue as phone free text).
+**New chat from pick:** in the project tree, **+** on a project creates a new Cursor agent/chat in that section via CDP DOM click, saves it to destinations, then opens a task prompt (text + mic STT: GigaAM or Windows Speech, same as deck composer). Enter/Send submits into that chat only (same paste queue as phone free text).
 
 ### Screen: Settings (separate window)
 
@@ -155,31 +157,31 @@ Short overlay (not a multi-step wizard): F9 → if CDP is closed, centered dialo
 
 | Area | Controls |
 |------|----------|
-| General | **UI language** (system / 10 locales), **arcana name language** (English default / follow UI / locale), pause, Enter, hotkey, **Не забирать фокус**, data folder, logs folder, check for updates |
-| Appearance | Dock side, **side layout** (table 3×4 default / classic strip), edge hover, sizes, opacity, fonts, card preview |
+| General | **UI language** (system / 10 locales), **arcana name language** (English default / follow UI / locale), **dictation** (`gigaam` \| `windows`; changing UI language sets default), **silence before auto-stop** (`dictationSilenceSec`, default 3.5), **max dictation length** (`dictationMaxSec`, default 0 = unlimited), pause between targets, Enter, hotkey, **show deck on startup**, **check for updates automatically** (notify and ask before opening GitHub Releases; never download silently), **Не забирать фокус**, data folder, logs folder, manual update check |
+| Appearance | Dock side, **side layout** (table 3×3 default / classic strip), edge hover + **hide delay**, **card size** + **chat controls size** + independent **message font size** and **composer font size**, opacity, card fonts, card preview |
 | Cursor (CDP) | Optional cdpPort; probe debug port; **install permanent Start Menu + Desktop shortcut** with CDP flags (preferred); launch Cursor with CDP after the user closes it (Keycode does not kill Cursor); diagnostics; same dialog on deck (◎), Chats, and chat-pick when CDP is closed |
 | Cursor API / SDK (shelved) | Implemented but **not shown** in Settings; future finish: API key, sdkProjects (folder + chats), phone `Project · Chat`. Dev re-enable: `KEYCODE_ENABLE_SDK=1` |
 | Phone | Opt-in LAN server (`0.0.0.0`); show port + LAN IP URL; QR with secret in URL fragment; rotate secret; diagnose; Tailscale Serve UI marked “later” |
-| Decks | Select/rename deck; new / export / import / delete; card list (≤9); card editor (title, description, prompt, tarot image, hotkey F1–F8 or none for click-only) |
+| Decks | Select/rename deck; new / export / import / delete; card list (≤9); card editor (title, description, prompt, tarot image, optional hotkey F1–F8 or empty for click-only; stock defaults empty) |
 | Support | Sticky coffee-cup button (bottom-right, always visible). Opens centered modal: purpose switcher (`?` / coffee / beer / cats) with click-share stats (% by click count, only clicks older than 24h); pay via T-Bank collect, Lava.top, or crypto (copy address). Links local in config; no payment webhooks / no cloud |
 
 ### Screen: Phone remote (mobile browser)
 
 **Purpose:** Control one Cursor chat from a phone while away from the PC keyboard.
 
-**Layout:** Mobile-first single page — target picker, live transcript, free-text composer, card grid (≤9).
+**Layout:** Mobile-first single page — chat picker, live transcript, free-text composer, cards in **2 horizontal-scroll rows**. An unlabeled drag strip between transcript and bottom dock resizes the split (saved on the device). Card titles sit on the art like the Windows deck (no separate Cards/Message headers).
 
 **Controls:**
 
 | # | Control | Action |
 |---|---------|--------|
-| 1 | Chat select | Live list of open Cursor chats (CDP) |
+| 1 | Chat select | Button shows the active chat; tap opens a sheet with the live CDP chat list + refresh. **+** creates a new Cursor chat in a chosen project (same CDP path as desktop), then selects it. |
 | 2 | Transcript | Messages loaded in IDE chat; update live (SSE); no forced scroll for older history |
 | 3 | Free text | Type or dictate → Send/Build (label mirrors Cursor) into the active phone-selected chat/agent and always submit. Composer clears after a successful send. No prompt logging. |
-| 3b | Mode / model | Composer toolbar: Agent/Plan (and Ask/Edit if exposed by CDP). Model dropdown when Cursor exposes models. |
+| 3b | Mode / model | Composer toolbar: Agent / Plan / Ask / Debug (whatever Cursor’s mode menu exposes; defaults list these four). Model is read-only (shows Cursor’s current model; switching in Keycode later). |
 | 3c | Plan questions | When Cursor shows clarifying choices, phone shows option chips; tap answers via CDP click. |
 | 4 | Mic (dictation) | Tap mic → on-device speech-to-text into the composer (Web Speech API). Sends as text via the same paste path — not raw audio into Cursor. May be blocked on plain LAN `http://` (not a secure context); keyboard dictation still works. HTTPS/Tailscale later unlocks browser mic more reliably. |
-| 5 | Cards | Tap card → paste that card’s prompt into the **active** phone-selected chat/agent and **always submit** (same as free text; desktop strip still follows Settings → Enter). Primary CTA may read Send or Build. If Cursor keeps the draft (CDP), Keycode retries once and reports failure clearly. Same next-card glow as the desktop strip (`suggestions[]` with `rank` 1\|2 from chat SSE). |
+| 5 | Cards | Tap card → paste into the **active** phone-selected chat/agent and **always submit** (desktop still follows Settings → Enter). Cards show arcana + action labels on the image in **2 rows** with sideways scroll. Primary CTA may read Send or Build. Same next-card glow (`suggestions[]`). |2 from chat SSE). |
 | 6 | Status | Connection / Cursor working / task completed / CDP closed / chat missing / queue busy |
 
 **Access (current):** Keycode binds `0.0.0.0` (reachable on the home LAN). Phone and PC on the same Wi‑Fi. Auth = Keycode bearer secret only (secret in URL `#token=…`, sent as header; never logged). Warn in UI: anyone on that Wi‑Fi with the link can use the remote. **Later:** Tailscale Serve mode (identity header + token). Funnel / open internet remain out of scope.
@@ -212,13 +214,17 @@ New / rename / delete deck; export / import JSON — same as before, now inside 
 | Function | Trigger | Input | Output |
 |----------|---------|-------|--------|
 | Toggle deck | 👁 on strip / F9 (or Settings hotkey) / edge hover | — | Panel shown or hidden |
+| Open tour | ? next to eye / first launch | — | Short skippable tour |
 | Paste card | Click card / F-key | Card text; destinations from `pasteMode` (broadcast preset or enabled targets, or solo `activeTargetId`) | Text pasted (+ Enter if on); single queue |
 | Switch paste dest | Destination bar / Chats presets | preset id or target id | `pasteMode` + active preset/target; badge updates |
-| Deck chat transcript | Solo chat selected on strip | Saved CDP target id | Loaded DOM messages + live poll while deck visible |
+| Deck Cursor chat | Solo chat selected on strip | Saved CDP target id | Loaded DOM messages + live poll; plan answers / mode / model label / free text / mic only when manual mode is on; sent only to that chat |
+| Deck manual mode | Small button above cards | — | Shows/hides composer block; cards shift down when open (`deckComposerOpen`) |
 | Next-card hints | Solo CDP chat (deck or phone) | Transcript + active deck prompts | Up to 3 cards highlighted (`rank` 1 primary, 2 secondary); frozen while generating |
-| Phone list chats | Open remote / refresh | CDP probe + listChats | All open Cursor chats (ephemeral ids; not only saved Keycode targets) |
+| Phone list chats | Open remote / refresh / chat sheet | CDP probe + listChats | All open Cursor chats (ephemeral ids; not only saved Keycode targets) |
+| Phone new chat | + in chat sheet | Project name + Cursor window (CDP) | New chat created via CDP; selected as active phone target |
 | Phone paste | Tap card on remote UI | Card id + phone-selected live chat | Text pasted and submitted to that CDP chat only; same queue |
 | Phone free text | Type + Send on remote | Custom text + phone-selected live chat | Text pasted to that CDP chat only; same queue; text never logged; composer clears on success |
+| Phone split | Drag strip between transcript and bottom dock | localStorage pct | Bottom dock height changes; cards stay 2-row horizontal scroll |
 | Phone dictation | Mic on remote | On-device speech → text in composer | Same as free text after Send (or user edits first); raw audio not forwarded to Cursor |
 | Phone read chat | Select chat on remote | Live chat id | Loaded transcript messages + live SSE updates |
 | Phone task alert | Cursor generation changes `active → idle` | Selected Cursor target state | Foreground chime + vibration + visible «task completed» status |
@@ -228,7 +234,7 @@ New / rename / delete deck; export / import JSON — same as before, now inside 
 | New chat in project | + on project in chat-pick | Project name + Cursor window | New CDP chat saved; task modal (text/dictate) → paste+submit |
 | Switch deck | Pager on strip / remote; select in settings | Deck id | Cards reload (remote SSE `deck` when active deck changes) |
 | Import/export | Buttons | File | Deck JSON (validated; safe ids) |
-| First run | First launch | — | Short onboarding overlay |
+| First run | First launch | — | Short skippable tour (deck → CDP → chat → card → phone); Skip/Esc anytime |
 | Enable phone remote | Settings toggle | remoteEnabled | Localhost HTTP+SSE server start/stop |
 | Support donate | Sticky coffee cup in Settings | purpose + pay method | Opens T-Bank / Lava / copies crypto; records local click (stats after 24h) |
 
@@ -248,21 +254,21 @@ New / rename / delete deck; export / import JSON — same as before, now inside 
 | Card | id, title, description, prompt, image (preset id or path), hotkey |
 | Target | id, name, driver (`cdp`\|`uia-quiet`\|`uia`\|`win32-field`), enabled; cdp: `port`, `cdpTargetId`, `chatId`, `chatTitle`; quiet/win32/uia as before |
 | Target preset | id, name, targetIds[] (max 4 presets; snapshot of destinations for broadcast) |
-| Settings | … **sideCardLayout** (`table` default \| `strip`; legacy `wheel` → `table`), **pasteMode** (`broadcast` default \| `solo`), **activePresetId**, **activeTargetId**, **targetPresets**, **deckTranscriptOpen**, **deckTranscriptHeightPx**, **cursorBackend** forced `cdp` in product (sdk settings keys kept for future), cursorApiKey / sdkProjects / activeSdkProjectId (shelved), … |
+| Settings | … **sideCardLayout** (`table` default \| `strip`; legacy `wheel` → `table`), **pasteMode** (`broadcast` default \| `solo`), **activePresetId**, **activeTargetId**, **targetPresets**, **deckTranscriptOpen**, **deckCardsOpen** (card strip visible; default on), **deckComposerOpen** (manual typing/mic; default off), **deckDictateAutoSend** (submit after dictation; default off), **deckTranscriptHeightPx**, **showDeckOnStartup** (default false), **autoCheckUpdates** (default true; packaged app only), **hideDelayMs**, **panelScale** (cards), **chatScale** (chat controls/layout), **chatMessageFontPx** and **chatComposerFontPx** (independent desktop chat text sizes), **dictationEngine** (`gigaam` \| `windows`; UI language change updates default), **dictationSilenceSec** (default 3.5; hush before auto-end), **dictationMaxSec** (default 0 = no max; click mic to finish early), **cursorBackend** forced `cdp` in product (sdk settings keys kept for future), cursorApiKey / sdkProjects / activeSdkProjectId (shelved), … |
 
 **Bundled decks (seeded on first run; per-locale packs under `data/locales/{locale}/`):**
 
 | id | name (RU example) | Phase |
 |----|------|--------|
-| `validate-v1` | 01 Валидация | Evidence before code. New installs start here. |
-| `spec-v1` | 02 Спецификация | Brief, scope, UX, contracts, architecture, Cursor rules |
-| `lazy-v1` | 03 Работа · Хобби | Side projects / learning; keep it simple |
+| `validate-v1` | 01 Проверка идеи | Evidence before code |
+| `spec-v1` | 02 Что строим | Brief, scope, UX, contracts, architecture, Cursor rules |
+| `lazy-v1` | 03 Работа · Хобби | Side projects / learning; keep it simple. New installs start here; later launches restore `activeDeckId` |
 | `pro-v1` | 03 Работа · Продакшен | Work / production bar; stricter review |
 | `release-v1` | 04 Релиз | Quality, security, package, docs, gate, launch (no auto-publish) |
 
-Each stock deck ships **9 cards** (F1–F8 + click-only **`summary` / Recap**). Work decks keep the existing loop (plan → evaluate/review → work → test → fix → polish → backup/`improve`/fullcycle). Summary: short status — no code; no `KEYCODE_SCORE`.
+Each stock deck ships **9 cards** (all click-only by default; user may assign F1–F8 in the card editor). Work decks keep the existing loop (plan → evaluate/review → work → test → fix → polish → backup/`improve`/fullcycle). Summary: short status — no code; no `KEYCODE_SCORE`.
 
-**Score convention («балл оценки проекта» 0–10):** Below 7 → must redo. 7–10 acceptable to continue. Card «Доведи» does not stop until score is 9 or 10. Stock score cards must end with a final line `KEYCODE_SCORE: N` (N integer 0–10). Gate cards (`evidence-review`, `validation-cycle`, `readiness`, `release-gate`, and work `fullcycle` when scope is done) may add:
+**Score convention («балл оценки проекта» 0–10):** Below 7 → must redo. 7–10 acceptable to continue. Card «Доведи» does not stop until score is 9 or 10. Stock score cards must end with a final line `KEYCODE_SCORE: N` (N integer 0–10). Some cards may also end with `KEYCODE_STATUS: READY|NEED_DATA|DONE|PARTIAL|BLOCKED|SAVED|FAILED` — state of the step, not quality; hints do not parse it yet. Gate cards (`evidence-review`, `validation-cycle`, `readiness`, `release-gate`, and work `fullcycle` when scope is done) may add:
 
 ```
 KEYCODE_GATE: PASS
@@ -297,6 +303,7 @@ or `FAIL` plus a known stock `deck-id/card-id`. Unknown NEXT ids are ignored. `F
 | Updates | electron-updater / GitHub Releases; never silent-update mid-paste |
 | Tests | `node:test` for validation, import, paste routing, queue, remote auth/bind, card suggestions |
 | Localization | Tiny `t(key)` + JSON packs (`src/i18n/ui`, `src/i18n/tarot`); main + all renderers; live apply on settings change |
+| Desktop mic STT | GigaAM via `electron/gigaam-dictate.js` (`gigastt` ml_ctc) or Windows System.Speech; GigaAM keeps a warm loopback `gigastt serve` (port 18976) so phrases skip cold model reload; recording trims leading hush and auto-ends after `dictationSilenceSec` (default 3.5); optional hard cap `dictationMaxSec` (default 0 = unlimited); click mic to finish early |
 
 ---
 

@@ -1,76 +1,76 @@
 {
   "id": "validate-v1",
-  "name": "01 Validation",
+  "name": "01 Idea check",
   "cards": [
     {
       "id": "problem",
-      "title": "Problem",
-      "description": "Fool: who hurts, what breaks, testable hypothesis",
-      "prompt": "State the target audience, the observable problem, the current workaround, and a testable hypothesis. Analysis only — no product, no code.\n\nMark unknowns as assumptions. Do not invent users, quotes, or market size.\n\nOutput:\n- Who\n- Problem (observable)\n- Workaround today\n- Hypothesis (if we ship X, Y will happen)\n- Open questions\n\nNext card: Evidence plan.",
+      "title": "Who hurts",
+      "description": "Fool: whose pain, what we are testing",
+      "prompt": "State whose problem we are testing. Analysis only — no product, no code.\n\nOutput:\n1. Target audience (specific, not “everyone”)\n2. Observable problem\n3. How people cope today\n4. Hypothesis: “If we do X for Y, then Z changes”\n5. What must be proven before building\n6. Open questions\n\nIf input is thin — at most 3 questions. Mark unknowns as assumptions.\nForbidden: inventing users, quotes, demand, market; suggesting code or features.\n\nNext: card “How to test”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — enough input for a test plan\nor\nKEYCODE_STATUS: NEED_DATA — user answers required",
       "image": "fool",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evidence-plan",
-      "title": "Evidence plan",
-      "description": "Hierophant: cheapest proof, metric, stop rule",
-      "prompt": "Pick the cheapest way to test the hypothesis. Write the success metric, threshold, deadline, and stop/pivot rule BEFORE any experiment.\n\nDo not treat AI research as external proof. Interviews, waitlist signups, clicks, and preorders count. Opinions in this chat do not.\n\nOutput:\n- Method (interview / landing / fake door / preorder / other)\n- Metric + threshold + date\n- What FAIL means\n- What the human must do\n\nDo not start coding the product.",
+      "title": "How to test",
+      "description": "Hierophant: cheapest method, metric, stop rule",
+      "prompt": "Write the cheapest plan to test the hypothesis from “Who hurts”. Lock the plan BEFORE any experiment.\n\nRules:\n- AI research and chat opinions are not proof. Proof: interviews, signups, clicks, preorders.\n- One method: interview / landing / fake door / waitlist / preorder / post / survey.\n- If an existing product already solves it — also run “What exists”.\n- Without a threshold the plan is not ready. Do not change the threshold later.\n- If the method needs money or ads — warn first.\n\nOutput: hypothesis · method · metric · threshold (number) · deadline · what FAIL means · what the human does.\nExample thresholds: 5 interviews in 7 days; 10 signups in 5 days; 2 preorders or contacts.\n\nDo not write product code. Do not invent numbers.\nNext: “Ask people” or “Mini test” — per chosen method.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — plan and threshold set\nor\nKEYCODE_STATUS: NEED_DATA — not enough data for a plan",
       "image": "hierophant",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "interview",
-      "title": "Interview",
-      "description": "Two of Cups: questions or real answers — no invented people",
-      "prompt": "Prepare non-leading interview questions, or analyze answers the user actually provided.\n\nForbidden: inventing respondents, quotes, or \"typical users\". If no real answers exist, output only the question list and how to run the talks.\n\nIf real notes exist: pains, current tools, willingness to pay, disconfirming evidence.\n\nNext: Market (if still missing) or Verdict (if enough talks exist).",
+      "title": "Ask people",
+      "description": "Two of Cups: interviews without invented people",
+      "prompt": "Work in one mode only.\n\nMode 1 — real interview notes exist. Analyze only those: pains, workarounds, frequency, evidence of willingness to pay or act, disconfirming facts, how many talks, whether the “How to test” threshold is met.\n\nMode 2 — no answers yet. Prepare 7–10 questions and instructions: ask about the last time, frequency, cost, current tool; do not ask “would you buy?”; do not pitch the idea; need at least 3–5 real conversations.\n\nForbidden: inventing respondents or quotes; mixing modes; treating chat opinions as proof.\n\nIf answers are thin — keep collecting. If they kill the hypothesis — “Change the idea”. If enough — “What exists” or “Verdict”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — enough real answers for the next step\nor\nKEYCODE_STATUS: NEED_DATA — no or too few answers",
       "image": "cups_02",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "market",
-      "title": "Market",
-      "description": "Wheel: competitors, licenses, reuse — not a copy dump",
-      "prompt": "Map competitors, substitutes, licenses, and reusable references. Competitors are a market signal, not an automatic fail.\n\nIf you cannot browse the web, ask for sources instead of guessing GitHub/npm names.\n\nFor each reference: what it does, license, risk of reuse, what NOT to copy.\n\nDo not dump or paste third-party code.",
+      "title": "What exists",
+      "description": "Wheel: competitors, open source, what to reuse",
+      "prompt": "Find what already solves this problem. Do not reinvent the wheel.\n\n1. Competitors (2–4): what they do, weak spot, what proves demand. No competitors is suspicious: niche, new problem, or unimportant problem. Competitors exist = market exists — not a fail.\n2. Open source (2–4 repos): what to reuse, license, freshness, risk, what NOT to copy. No web access — ask for links; do not guess names. Do not paste third-party code.\n3. Substitutes: spreadsheets, chats, manual work — what works and what breaks.\n\nVerdict: reuse ready-made / reuse partly / market unclear.\nDo not write product code. Next: “Mini test” or “Verdict”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — analysis based on data or user links\nor\nKEYCODE_STATUS: NEED_DATA — links or facts required",
       "image": "wheel_of_fortune",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "experiment",
-      "title": "Experiment",
-      "description": "Magician: smoke / fake door / waitlist; success bar already set",
-      "prompt": "Design the smallest smoke / fake-door / waitlist experiment using the threshold already written in the evidence plan. Do not invent a new success bar after the fact.\n\nChange files only if the user explicitly asked to create the landing/asset. Otherwise describe copy, layout, and how to count results.\n\nNo payment integration, no production deploy.",
+      "title": "Mini test",
+      "description": "Magician: smoke / fake door / waitlist with a fixed threshold",
+      "prompt": "Build the smallest demand check using the threshold from “How to test”. One format: landing with a form; fake door; waitlist; preorder; post or survey in a relevant chat.\n\nDo not change the threshold. Create files only if the user explicitly asked for a landing. Otherwise text only: headline, CTA, how to count. No payments, no production deploy. Do not promise what does not exist; “soon” / “early access” is fine.\n\nDo not invent clicks or signups. No results yet — tell them to run the test and return with numbers. Results exist — “Verdict”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — results can be judged\nor\nKEYCODE_STATUS: NEED_DATA — the test still must be run",
       "image": "magician",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "evidence-review",
       "title": "Verdict",
-      "description": "Justice: only facts you have; PASS or FAIL",
-      "prompt": "Judge ONLY evidence the user actually provided (notes, counts, links). Missing evidence is a gap, not a pass.\n\nDo not invent subscriber counts. A number without a source is FAIL.\n\nEnd with exactly these two lines (choose PASS or FAIL, and a known stock id):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "description": "Justice: only real facts → PASS or FAIL",
+      "prompt": "Decide: continue or not. Judge ONLY what the user actually gave: notes, sourced numbers, links, screenshots, chat logs.\n\nOne rule: compare to the threshold from “How to test”.\n- threshold met → PASS;\n- threshold missed, no facts, number without source, no threshold, or data for the wrong hypothesis → FAIL.\nChat opinions and AI research are not proof. Do not PASS out of pity or because “the idea is good”.\n\nList evidence, threshold, and gaps first — then the decision.\nPASS → specification. FAIL → “Change the idea”. No threshold → “How to test”.\n\nThe project may be empty — no fact = not PASS.\nForbidden: inventing evidence; PASSing out of pity or because “the idea is good”; flattery.\n\nEnd with exactly two lines:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
       "image": "justice",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "pivot",
-      "title": "Pivot",
-      "description": "Hanged Man: keep facts, shrink audience / problem / channel",
-      "prompt": "Using the failed criterion, shrink audience, problem, or channel. Keep collected facts. Do not throw away interviews.\n\nOutput: what stays true · what changes · new hypothesis · next evidence plan.\n\nDo not write product code.",
+      "title": "Change the idea",
+      "description": "Hanged Man: shrink audience / problem / channel; keep facts",
+      "prompt": "The check failed. Change only one part; keep the facts.\n\nPick one: shrink audience; shrink problem; change channel; reuse ready-made instead of building.\nTwo–three pivots without new data — stop: continuing is pointless. No facts — go back to “Who hurts”. If the user wants to change everything at once — ask them to pick one.\n\nOutput: what stays true · what changes · new hypothesis · next step (“How to test” / “Ask people” / “What exists” / “Mini test”).\nDo not write code. Do not invent facts to justify the pivot.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — new hypothesis and next step are clear\nor\nKEYCODE_STATUS: BLOCKED — continuing is pointless; no new facts",
       "image": "hanged_man",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "validation-cycle",
-      "title": "Full check",
-      "description": "World: run the check; stop where a human must act",
-      "prompt": "Run the validation loop with what is already known: problem → evidence plan → available interviews/market/experiment.\n\nStop and ask the human wherever real-world data is required. Do not fabricate that data.\n\nGive a final gate ONLY if real evidence exists. Then end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "title": "Checklist",
+      "description": "World: run the check per plan; stop without real data",
+      "prompt": "Run the idea check with what is already known.\n\nRequired:\n1. problem stated (“Who hurts”);\n2. plan with threshold (“How to test”);\n3. the method chosen in the plan was actually done (interview and/or mini test — not both required);\n4. competitors/open source if that affects the decision;\n5. threshold met.\n\nMissing real data for a required item — do not PASS; send back to that card. Do not invent data. Same item fails 2–3 times — change method, shrink the idea, or stop.\n\nFinal PASS only if the threshold is closed with facts.\n\nThe project may be empty — no fact = not PASS.\nForbidden: inventing evidence; PASSing out of pity or because “the idea is good”; flattery.\n\nEnd with exactly two lines:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/evidence-plan\n\n(if you know the missing card — replace evidence-plan with problem, interview, market, experiment, or pivot)",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "Recap",
       "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nReply in four short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step (name Problem / Evidence plan / Interview / Market / Experiment / Verdict / Pivot)\n\nNo KEYCODE_SCORE, KEYCODE_GATE, or KEYCODE_NEXT lines.",
+      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nFour short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step — one card: Who hurts / How to test / Ask people / What exists / Mini test / Verdict / Change the idea / Checklist\n\nThe project may be empty — write only what is visible in chat.\nForbidden: inventing completed work; writing or changing code; adding KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.",
       "image": "high_priestess",
       "hotkey": ""
     }

@@ -1,76 +1,76 @@
 {
   "id": "spec-v1",
-  "name": "02 Specyfikacja",
+  "name": "02 Co budujemy",
   "cards": [
     {
       "id": "brief",
-      "title": "Brief",
-      "description": "Emperor: goal, users, stories, measurable outcome",
-      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "title": "Po co i dla kogo",
+      "description": "Cesarz: cel, użytkownicy, scenariusze, mierzalny wynik",
+      "prompt": "Zamień potwierdzoną hipotezę w brief produktu. Tylko analiza — bez kodu.\n\nJeśli sprawdzenie pomysłu nie przeszło — powiedz, by wrócić do talii „Sprawdzenie pomysłu”. Spec bez potwierdzonego pomysłu jest za wcześnie.\n\nWynik:\n1. Cel (jedno zdanie)\n2. Kim jest użytkownik (konkretnie)\n3. Kluczowe scenariusze (3–5)\n4. Mierzalny wynik w miesiąc\n5. Czego NIE robimy w v1\n\nZakazane: wymyślanie użytkowników/scenariuszy poza hipotezą; dodawanie funkcji „na później”.\nDalej: „Co robimy”.\n\nProjekt może być pusty; reguł może nie być. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb lub plików; pisanie kodu (ta karta to tylko analiza); komplikowanie „na później”; pochlebstwa; brak danych — pytaj, nie zgaduj.\n\nZakończ jedną linią:\nKEYCODE_STATUS: READY — brief gotowy\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "emperor",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "scope",
-      "title": "MVP",
-      "description": "Two of Swords: IN / OUT, one happy path, acceptance",
-      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "title": "Co robimy",
+      "description": "Dwójka Mieczy: IN / OUT, jeden happy path, akceptacja",
+      "prompt": "Ustal najmniejszą działającą wersję. Tylko analiza — bez kodu.\n\nWynik:\n1. IN: co robimy w v1\n2. OUT: czego NIE robimy\n3. Jeden happy path — od wejścia do wyniku\n4. Kryteria akceptacji\n5. Co odkładamy i dlaczego\n\nReguły: wytnij wszystko, czego pierwsza ścieżka nie potrzebuje. Jeśli IN ma więcej niż 5 funkcji — skróć. Nie dodawaj „może się przydać później”. Nie wymyślaj wymagań poza briefem.\nDalej: „Jak wygląda”.\n\nProjekt może być pusty; reguł może nie być. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb lub plików; pisanie kodu (ta karta to tylko analiza); komplikowanie „na później”; pochlebstwa; brak danych — pytaj, nie zgaduj.\n\nZakończ jedną linią:\nKEYCODE_STATUS: READY — zakres gotowy\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "swords_02",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "ux",
-      "title": "Interfejs",
-      "description": "Ace of Cups: screens, buttons, empty/error/loading",
-      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "title": "Jak wygląda",
+      "description": "As Kielichów: ekrany, sterowanie, puste/ładowanie/błąd",
+      "prompt": "Opisz UI tekstem. Bez kodu, bez obrazów.\n\nWynik: lista ekranów; na każdy — przyciski i pola; stany puste / ładowanie / błąd / sukces; jak ekrany się łączą.\n\nNie generuj obrazów, Figmy ani znaczników. Nie dodawaj ekranów poza zakresem. Więcej niż 5 ekranów — rozważ scalenie. Ma dać się zbudować prostymi środkami.\nDalej: „Co przechowujemy”.\n\nProjekt może być pusty; reguł może nie być. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb lub plików; pisanie kodu (ta karta to tylko analiza); komplikowanie „na później”; pochlebstwa; brak danych — pytaj, nie zgaduj.\n\nZakończ jedną linią:\nKEYCODE_STATUS: READY — UI opisane\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "cups_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "data-contracts",
-      "title": "Dane",
-      "description": "Ace of Pentacles: entities only if the project needs them",
-      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "title": "Co przechowujemy",
+      "description": "As Monet: encje tylko jeśli produkt ich potrzebuje",
+      "prompt": "Zdefiniuj dane produktu. Tylko analiza — bez kodu.\n\nWynik: encje i pola; walidacja; gdzie przechowywane (plik, lokalnie, DB, chmura); kontrakty zewnętrzne — tylko jeśli potrzebne.\n\nNie wymuszaj DB, REST ani ORM na aplikacji desktop/lokalnej bez potrzeby. Jeśli przechowywanie zbędne — powiedz. Nie wymyślaj encji poza zakresem.\nDalej: „Czym budujemy”.\n\nProjekt może być pusty; reguł może nie być. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb lub plików; pisanie kodu (ta karta to tylko analiza); komplikowanie „na później”; pochlebstwa; brak danych — pytaj, nie zgaduj.\n\nZakończ jedną linią:\nKEYCODE_STATUS: READY — dane zdefiniowane lub przechowywanie zbędne\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "pentacles_ace",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "architecture",
-      "title": "Architektura",
-      "description": "Chariot: simplest fit after reading the repo",
-      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "title": "Czym budujemy",
+      "description": "Rydwan: najprostsza struktura i stack po przeczytaniu repo",
+      "prompt": "Najpierw przeczytaj repozytorium i bieżące zależności. Zaproponuj najprostszą strukturę i stack do zadania.\n\nWynik: foldery i kluczowe pliki; język i biblioteki; co wziąć z open source zamiast pisać od zera; ryzyka i pomysł rollbacku.\n\nNudne i działające bije modną architekturę. Nie dodawaj mikroserwisów ani kontenerów do prostego projektu. Nie wymyślaj brakujących zależności. Nie psuj tego, co już działa.\nDalej: „Reguły kodu”.\n\nProjekt może być pusty; reguł może nie być. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb lub plików; pisanie kodu (ta karta to tylko analiza); komplikowanie „na później”; pochlebstwa; brak danych — pytaj, nie zgaduj.\n\nZakończ jedną linią:\nKEYCODE_STATUS: READY — struktura i stack zaproponowane\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "chariot",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "project-rules",
-      "title": "Zasady",
-      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
-      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "title": "Reguły kodu",
+      "description": "Hierofant: AGENTS.md i .cursor/rules — bez legacy .cursorrules",
+      "prompt": "Sprawdź istniejące pliki reguł: AGENTS.md (reguły projektu) i .cursor/rules/*.mdc. Zaproponuj minimalne spójne poprawki lub bazowy zestaw, jeśli ich brak.\n\nDomyślnie nie twórz legacy .cursorrules. Nie duplikuj istniejących reguł. Zmieniaj pliki tylko na prośbę. 5–10 prostych reguł wystarczy: styl, nazewnictwo, co zabronione.\nDalej: „Przegląd planu”.\n\nProjekt może być pusty; reguł może nie być. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb lub plików; pisanie kodu (ta karta to tylko analiza); komplikowanie „na później”; pochlebstwa; brak danych — pytaj, nie zgaduj.\n\nZakończ jedną linią:\nKEYCODE_STATUS: READY — reguły sprawdzone lub zaproponowane\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "hierophant",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "risk-review",
-      "title": "Przegląd",
-      "description": "Justice: clarity, YAGNI, safety, testability",
-      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "title": "Przegląd planu",
+      "description": "Sprawiedliwość: jasność, nadmiar, bezpieczeństwo, testowalność",
+      "prompt": "Oceń specyfikację uczciwie — bez pochlebstw.\n\nSprawdź: jasny cel; kompletność (brief, zakres, UI, dane, architektura, reguły); nadmiar; oczywiste dziury bezpieczeństwa; czy kryteria akceptacji są testowalne.\n\nOcena jakości projektu 0–10: 0–6 popraw przed kodem; 7–8 można startować; 9–10 świetnie. Nie zawyżaj. Dla 9–10 podaj 3 fakty, dlaczego spec jest mocna. Poniżej 7 — wskaż jedną kartę specyfikacji jako następną.\n\nOdpowiedź: ocena N/10 · werdykt · plusy · minusy · top-3 poprawki.\nOcena ≥7 — „Gotowi do kodu?”. Poniżej 7 — popraw wskazaną kartę.\n\nProjekt może być pusty — oceniaj tylko to, co jest.\nZakazane: wymyślanie faktów lub dziur; zawyżanie oceny ze współczucia; dawanie 9–10 bez trzech faktów; brak danych — pytaj, nie zgaduj.\n\nZawsze kończ tą linią (N = twoja ocena 0–10):\nKEYCODE_SCORE: N\nJeśli nie możesz ocenić z braku danych, dodaj drugą linię:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "readiness",
-      "title": "Gotowe?",
-      "description": "Judgement: gate to Hobby or Production work",
-      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "title": "Gotowi do kodu?",
+      "description": "Sąd: brama do Hobby lub Produkcji",
+      "prompt": "Sprawdź gotowość do kodu. Nie dawaj PASS, jeśli czegoś brakuje. Nie wymyślaj artefaktów.\n\nWymagane: cel i użytkownicy; zakres i happy path; UI ze stanami; dane gdzie potrzeba; architektura; reguły lub bazowy zestaw; kryteria akceptacji; ocena przeglądu planu ≥7.\n\nNie zgaduj trybu. Pytaj wprost, jeśli nie wybrano:\n- Hobby — szybki prosty projekt;\n- Produkcja — ostrzej, z review i gotowością do merge.\n\nProjekt może być pusty — brak faktu = nie PASS.\nZakazane: wymyślanie dowodów; PASS ze współczucia lub dlatego, że „pomysł jest dobry”; pochlebstwa.\n\nZakończ dokładnie dwoma liniami.\nHobby:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nProdukcja:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nNie gotowe (zamień brief na id brakującej karty: scope, ux, data-contracts, architecture, project-rules, risk-review):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief",
       "image": "judgement",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Skrót",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "title": "Podsumowanie",
+      "description": "Kapłanka: cel, ustalone, otwarte, dalej",
+      "prompt": "Przeczytaj ten czat. Nie pisz ani nie zmieniaj kodu.\n\nCztery krótkie bloki (po 1–3 punkty):\n1. Cel\n2. Ustalono — które artefakty są gotowe\n3. Otwarte — czego jeszcze brakuje\n4. Następny krok — jedna karta: Po co i dla kogo / Co robimy / Jak wygląda / Co przechowujemy / Czym budujemy / Reguły kodu / Przegląd planu / Gotowi do kodu? — lub przejście do Pracy\n\nJeśli specyfikacja nie jest gotowa — powiedz.\nNie dodawaj linii KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ani KEYCODE_STATUS.\n\nProjekt może być pusty — pisz tylko to, co widać w czacie.\nZakazane: wymyślanie ukończonej pracy; pisanie lub zmiana kodu; dodawanie linii KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT lub KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

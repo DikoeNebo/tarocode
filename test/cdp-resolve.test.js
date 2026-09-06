@@ -5,6 +5,7 @@ const {
   pickCdpWindow,
   scoreChatMatch,
   transcriptFailHint,
+  normalizeAgentStatus,
 } = require("../electron/cdp-resolve");
 
 describe("pickCdpWindow", () => {
@@ -67,6 +68,31 @@ describe("findBestChat", () => {
   it("returns null when nothing is close", () => {
     assert.equal(findBestChat(chats, { chatTitle: "Unrelated", projectName: "keycode" }), null);
   });
+
+  it("matches the same a#N slot after Cursor renames the chat", () => {
+    const m = findBestChat(chats, {
+      chatId: "p:keycode|a#1:старое длинное название чата",
+      chatTitle: "старое длинное название чата",
+      projectName: "keycode",
+    });
+    assert.equal(m.title, "Review");
+    assert.equal(m.id, "p:keycode|a#1:Review");
+  });
+
+  it("does not use a#N from another project", () => {
+    const m = findBestChat(
+      [
+        { id: "p:keycode|a#1:Review", title: "Review", project: "keycode" },
+        { id: "p:other|a#0:Other zero", title: "Other zero", project: "other" },
+      ],
+      {
+        chatId: "p:other|a#1:старое",
+        chatTitle: "старое",
+        projectName: "other",
+      }
+    );
+    assert.equal(m, null);
+  });
 });
 
 describe("transcriptFailHint", () => {
@@ -78,5 +104,18 @@ describe("transcriptFailHint", () => {
     assert.equal(transcriptFailHint("chat_not_found"), "chat_missing");
     assert.equal(transcriptFailHint("ECONNREFUSED"), "cdp_closed");
     assert.equal(transcriptFailHint("CDP connect timeout"), "cdp_closed");
+  });
+});
+
+describe("normalizeAgentStatus", () => {
+  it("maps Cursor sidebar labels to stable ids", () => {
+    assert.equal(normalizeAgentStatus("running"), "running");
+    assert.equal(normalizeAgentStatus("needs-attention"), "needs-attention");
+    assert.equal(normalizeAgentStatus("done_unseen"), "done-unseen");
+    assert.equal(normalizeAgentStatus("done-seen"), "done-seen");
+    assert.equal(normalizeAgentStatus("draft"), "draft");
+    assert.equal(normalizeAgentStatus("generating"), "running");
+    assert.equal(normalizeAgentStatus(""), "");
+    assert.equal(normalizeAgentStatus("mystery"), "");
   });
 });

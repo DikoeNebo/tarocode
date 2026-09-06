@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "plan",
-      "title": "Plan",
-      "description": "Hierofant: podziel zadanie na kroki — na razie bez kodu",
-      "prompt": "Stwórz plan krok po kroku dla bieżącego zadania. Nie pisz kodu.\n\nZ czatu (pytaj tylko gdy brak): wynik w jednym zdaniu; co już jest; prosty projekt hobby bez zbędnej złożoności.\n\nZasady:\n1. Małe kroki — jeden krok = jedna weryfikowalna rzecz.\n2. Na krok: co · „gotowe” · jak sprawdzić.\n3. Najpierw blokery; ryzyka / co odłożyć.\n\nNa końcu numerowana lista kroków (jedna linia na krok).",
+      "title": "Ułóż plan",
+      "description": "Podziel zadanie na kroki (bez kodu)",
+      "prompt": "Ułóż plan krok po kroku dla bieżącego zadania. Nie pisz kodu.\n\nZ czatu (pytaj tylko, gdy brakuje): wynik jednym zdaniem; co już jest; prosty projekt hobby bez zbędnej złożoności.\n\nZasady: jeden krok = jedna rzecz do sprawdzenia; w kroku — co zrobić · kryterium gotowości · jak sprawdzić; najpierw blokery i ryzyka; co odłożyć — osobno. Proste i działające lepsze niż idealna architektura. Nie wymyślaj interfejsów, bibliotek ani poleceń, których nie ma w repozytorium. Jeśli jest dobry open source — użyj go zamiast pisać od zera.\nMało danych — najwyżej 3 pytania.\nWynik: numerowana lista (jedna linia na krok).\nDalej: «Oceń stworzone».\n\nProjekt może być pusty i może nie mieć reguł. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie faktów, nazw, liczb i plików; pisanie kodu (ta karta to tylko analiza); komplikowanie «na później»; przypodobanie się; brak danych — pytaj, nie zgaduj.\n\nNa końcu jedna linia:\nKEYCODE_STATUS: READY — plan gotowy\nlub\nKEYCODE_STATUS: NEED_DATA — potrzeba więcej informacji",
       "image": "hierophant",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evaluate",
-      "title": "Oceń",
+      "title": "Oceń stworzone",
       "description": "Sprawiedliwość: ocena jakości projektu 0–10 i werdykt",
-      "prompt": "Oceń bieżący plan lub ostatni wynik uczciwie — bez lania wody i pochlebstw.\n\nOcena jakości 0–10: 0–6 przerobić; 7–8 akceptowalne; 9–10 świetnie. Poniżej 7 — przerobić; ≥7 można iść dalej.\n\nSprawdź: cel/gotowe jasne? luki? nadmierna złożoność hobby? co padnie pierwsze? top 3 poprawki pod wynik.\n\nOdpowiedź:\n- Project quality score: N/10\n- Werdykt: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Plusy · minusy/ryzyka · konkretne poprawki\n\nNie proponuj od zera, jeśli wystarczą punktowe poprawki. Bez kodu aż poproszą.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Oceń bieżący plan lub ostatni wynik uczciwie, bez pochlebstw.\n\nOcena jakości projektu 0–10: 0–6 przerobić; 7–8 akceptowalne; 9–10 doskonałe. Poniżej 7 — trzeba przerobić.\nSprawdź: cel i kryterium gotowości są jasne; luki w logice; zbędna złożoność jak na hobby; co padnie pierwsze; top-3 poprawki.\nNie zawyżaj. Na 9–10 potrzeba 3 faktów. Cel niejasny — nie stawiaj 7 ani wyżej.\n\nOdpowiedź: ocena N/10 · werdykt · plusy · minusy · poprawki.\nNie proponuj wszystkiego od zera, jeśli wystarczą punktowe poprawki. Nie zaczynaj kodu, dopóki nie poproszą.\nPoniżej 7 — «Programuj» lub «Napraw bugi». 7 lub wyżej — «Programuj».\n\nProjekt może być pusty — oceniaj tylko to, co jest.\nZakazane: wymyślanie faktów i luk; zawyżanie oceny z litości; stawianie 9–10 bez trzech faktów; brak danych — pytaj, nie zgaduj.\n\nNa samym końcu odpowiedzi zawsze dodaj linię (N = twoja ocena 0-10):\nKEYCODE_SCORE: N\nJeśli nie da się ocenić z braku danych, druga linia:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "work",
-      "title": "Pracuj",
-      "description": "Mag: zrób następny krok planu w kodzie",
-      "prompt": "Zrób następny otwarty krok zatwierdzonego planu — tylko ten, nie wszystko naraz.\n\nZasady: nazwij krok jeśli niejasny; nie psuj działającego; brak danych — krótko pytaj, nie wymyślaj. Potem: co · gdzie · jak sprawdzić.\n\nZakończ jedną linią: status — done / partial / blocked (i dlaczego).",
+      "title": "Programuj",
+      "description": "Mag: zrób kolejny krok planu w kodzie",
+      "prompt": "Zrób kolejny otwarty krok zatwierdzonego planu — tylko ten, nie wszystko naraz.\n\nNie psuj tego, co działa. Brak danych — 1–3 krótkie pytania; nie wymyślaj bibliotek ani poleceń. Przed ryzykownymi zmianami (baza, migracje, konfiguracje, autoryzacja) — kopia zapasowa. Nie dodawaj nowych funkcji poza krokiem.\n\nPotem: co się zmieniło · gdzie sprawdzić · ryzyka. Cel — ocena poprawności 7 lub wyżej.\nGotowe — «Przetestuj». Bloker — «Ułóż plan».\n\nProjekt może być pusty i może nie mieć reguł. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie bibliotek, poleceń i wyjścia; robienie zbędnych rzeczy poza krokiem; przypodobanie się i ukrywanie awarii; niebezpieczne polecenia bez wyraźnego «tak»; brak danych — pytaj, nie zgaduj.\n\nNa końcu jedna linia:\nKEYCODE_STATUS: DONE — krok gotowy do sprawdzenia\nlub\nKEYCODE_STATUS: PARTIAL — krok rozpoczęty, ale niedokończony\nlub\nKEYCODE_STATUS: BLOCKED — potrzeba człowieka lub danych",
       "image": "magician",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "test",
-      "title": "Test",
+      "title": "Przetestuj",
       "description": "Gwiazda: sprawdź wynik faktami, nie słowami",
-      "prompt": "Przetestuj to, co właśnie zrobiono (ostatni krok lub wyraźnie nazwana część).\n\nRelewantne checki (komendy/build/ręcznie); pokaż fakty; przy fail — przyczyna + minimalny fix; przy OK — \"TEST PASSED\" + co sprawdzono. Na czerwonym nie idź dalej w planie.\n\nWynik: green / red + jedno zdanie dlaczego. Wstępna ocena 0–10 (poniżej 7 = niegotowe).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Sprawdź to, co właśnie zrobiono (ostatni krok lub wyraźnie wskazaną część).\n\nUruchom odpowiednie sprawdzenia (polecenia, build, scenariusz ręczny). Pokaż prawdziwe wyjście. Ścieżka szczęśliwa + jeden przypadek brzegowy lub awaria (albo dlaczego nie można).\nPrzy awarii — przyczyna i karta «Napraw bugi»; nie naprawiaj kodu sam, jeśli nie poproszono. Przy sukcesie — «TEST ZALICZONY» i lista sprawdzeń. Na czerwonym nie idź dalej. Jeśli nie możesz realnie uruchomić — nie stawiaj oceny powyżej 4. Potrzeba człowieka — podaj krótki scenariusz; nie stawiaj «TEST ZALICZONY».\nNie wymyślaj wyjścia poleceń.\nWynik: zielony / czerwony + ocena jakości projektu 0–10 (poniżej 7 = niegotowe).\n7 lub wyżej — «Programuj» (kolejny krok). Poniżej 7 — «Napraw bugi».\n\nProjekt może być pusty — oceniaj tylko to, co jest.\nZakazane: wymyślanie faktów i luk; zawyżanie oceny z litości; stawianie 9–10 bez trzech faktów; brak danych — pytaj, nie zgaduj.\n\nNa samym końcu odpowiedzi zawsze dodaj linię (N = twoja ocena 0-10):\nKEYCODE_SCORE: N\nJeśli nie da się ocenić z braku danych, druga linia:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "fix",
-      "title": "Napraw",
-      "description": "Wieża: napraw awarię do akceptowalnej oceny (≥7)",
-      "prompt": "Napraw problemy z ostatniego testu, błędu lub oceny jakości projektu poniżej 7/10.\n\nTylko minimalny fix — bez refaktorów i nowych ficzerów. Objaw → przyczyna → patch → weryfikacja. Pętla do wyniku ≥ 7. Jeśli ściana — bloker + 2 wyjścia. Krótko: było → zrobiłem → potwierdziłem.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Napraw bugi",
+      "description": "Wieża: napraw awarię do akceptowalnej oceny (7 lub wyżej)",
+      "prompt": "Napraw defekt z ostatniego testu, błędu lub oceny jakości projektu poniżej 7 na 10.\n\nTylko minimalna poprawka. Bez refaktoru «przy okazji» i nowych funkcji. Przed krytycznymi zmianami — kopia zapasowa.\nPętla: objaw → przyczyna → co jeszcze może paść → łatka → sprawdzenie w ten sam sposób. Dopóki ocena poniżej 7 — powtarzaj.\nPo 3 próbach bez postępu — zatrzymaj się: co nie wychodzi i dlaczego; 2 warianty z kompromisami; lista, gdzie potrzeba człowieka.\nFormat: było → jest → dowód.\n7 lub wyżej — «Przetestuj».\n\nProjekt może być pusty i może nie mieć reguł. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie bibliotek, poleceń i wyjścia; robienie zbędnych rzeczy poza krokiem; przypodobanie się i ukrywanie awarii; niebezpieczne polecenia bez wyraźnego «tak»; brak danych — pytaj, nie zgaduj.\n\nNa samym końcu odpowiedzi zawsze dodaj linię (N = twoja ocena 0-10):\nKEYCODE_SCORE: N\nJeśli krok nie jest tylko «oceniony», druga linia jedna z:\nKEYCODE_STATUS: NEED_DATA — brakuje danych\nKEYCODE_STATUS: BLOCKED — potrzeba człowieka lub nie da się iść dalej",
       "image": "tower",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "polish",
       "title": "Dopracuj",
       "description": "Siła: podnieś ocenę jakości projektu do 9–10",
-      "prompt": "Tryb „Dopracuj”. Nie zatrzymuj się, dopóki ocena jakości projektu nie będzie 9 lub 10 z 10.\n\n7–8 nie wystarczy dla tej karty. Pętla bez pytań: wynik N/10 + główne luki → popraw tylko je → sprawdź → nowy wynik. Dopóki ≤ 8 — powtarzaj. Stop tylko na 9–10.\n\nPotem: wynik końcowy · co podniosło · czego nie ruszałeś.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Tryb wysokiego dopracowania. Cel — ocena jakości projektu 9 lub 10. Zatrzymanie na 7–8 jest niedozwolone.\n\nPętla: ocena N/10 → krytyczne luki → poprawki tylko do nich (nie rozszerzaj zakresu) → ponowne sprawdzenie → nowa ocena. Dopóki 8 lub mniej — powtarzaj.\nMaksimum 2–3 iteracje. Jeśli ocena nie rośnie przez dwie rundy z rzędu — zatrzymaj się i wyjaśnij sufit. Jeśli sufit poniżej 9 przez zewnętrzne ograniczenia — nazwij je po wyczerpaniu poprawek w zakresie.\nPrzed startem — kopia zapasowa.\nRaport: końcowa ocena · co podniosło jakość · ryzyko resztkowe · czego nie ruszałeś.\n9 lub wyżej — «Zapisz».\n\nProjekt może być pusty i może nie mieć reguł. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie bibliotek, poleceń i wyjścia; robienie zbędnych rzeczy poza krokiem; przypodobanie się i ukrywanie awarii; niebezpieczne polecenia bez wyraźnego «tak»; brak danych — pytaj, nie zgaduj.\n\nNa samym końcu odpowiedzi zawsze dodaj linię (N = twoja ocena 0-10):\nKEYCODE_SCORE: N\nJeśli krok nie jest tylko «oceniony», druga linia jedna z:\nKEYCODE_STATUS: NEED_DATA — brakuje danych\nKEYCODE_STATUS: BLOCKED — osiągnięto sufit, nie da się iść dalej",
       "image": "strength",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "backup",
-      "title": "Backup",
-      "description": "Pustelnik: zapisz punkt rollbacku",
-      "prompt": "Utwórz bezpieczny punkt rollbacku bieżącego stanu projektu.\n\n1. git status (lub równoważne).\n2. Sensowny commit lub gotowa komenda — bez force i --no-verify bez prośby.\n3. Brak git — kopia kluczowych plików z datą w nazwie.\n4. Rollback 1–2 komendami. Bez push bez prośby.\n\nKoniec: \"Checkpoint saved\" + gdzie/jak wrócić.",
+      "title": "Zapisz",
+      "description": "Pustelnik: zapisz punkt przywracania",
+      "prompt": "Zrób bezpieczny punkt przywracania.\n\n1. Status git (lub odpowiednik).\n2. Sensowny commit albo gotowa komenda — bez force i bez pomijania sprawdzeń bez prośby.\n3. Bez git — kopia kluczowych plików z datą w nazwie.\n4. Cofnięcie w 1–2 poleceniach.\n5. Nie wysyłaj zmian i nie uruchamiaj niebezpiecznych poleceń (usuwanie, reset, produkcja) bez wyraźnego «tak».\n\nNa końcu: «Punkt zapisany» + gdzie i jak wrócić. Nie wymyślaj udanego commita.\nDalej: «Zrób wszystko» lub «Programuj» — według kontekstu.\n\nProjekt może być pusty i może nie mieć reguł. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie bibliotek, poleceń i wyjścia; robienie zbędnych rzeczy poza krokiem; przypodobanie się i ukrywanie awarii; niebezpieczne polecenia bez wyraźnego «tak»; brak danych — pytaj, nie zgaduj.\n\nNa końcu jedna linia:\nKEYCODE_STATUS: SAVED — punkt zapisany\nlub\nKEYCODE_STATUS: FAILED — nie udało się zapisać",
       "image": "hermit",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "fullcycle",
-      "title": "Pełny cykl",
-      "description": "Świat: plan → praca → test, każdy krok ≥ 7 punktów",
-      "prompt": "Pełny cykl przez plan od początku do końca — bez przeskakiwania.\n\nZamykaj punkt tylko przy wyniku ≥ 7 (Polish na 9–10). Na punkt: nazwij → zrób → sprawdź → wynik → jeśli <7 popraw do ≥7 → dalej. Bez rozdymania scope.\n\nBrak planu — najpierw krótki 5–8 kroków (lub od razu jeśli uzgodnione).\n\nFinał: wynik łączny · done / not done · co sprawdzić ręcznie. Przy łącznym <7 nie ogłaszaj sukcesu.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
+      "title": "Zrób wszystko",
+      "description": "Świat: plan → praca → test, każdy krok ocena 7 lub wyżej",
+      "prompt": "Wykonaj plan od początku do końca. Przed startem — kopia zapasowa; na krytycznych krokach (baza, migracje, autoryzacja) — też.\n\nPunkt zamykasz tylko przy ocenie 7 lub wyżej (dla 9–10 — «Dopracuj»). Na punkt: nazwać → zrobić → sprawdzić faktami → ocena → jeśli poniżej 7, naprawić → dalej. Bez przeskoków, rozdymania zakresu i maskowania czerwonych testów.\nBrak planu — najpierw 5–8 kroków z kryteriami akceptacji. Więcej niż 8 kroków — tylko pierwszy etap. Nie wymyślaj bibliotek ani poleceń. Niebezpieczne polecenia — kopia zapasowa i wyraźne «tak».\n\nJeśli ocena nie rośnie 2–3 rundy przy jednym zadaniu — uprość lub zmień drogę. Potrzeba człowieka — lista blokerów, resztę rób. Trzy rundy bez ruchu — zatrzymaj się i podaj uczciwy status.\nFinał: ocena ogólna · zrobione / nie zrobione · ryzyka · co sprawdzić ręcznie. Poniżej 7 nie ogłaszaj sukcesu.\n\nProjekt może być pusty i może nie mieć reguł. Nie wymyślaj tego, czego nie ma.\nZakazane: wymyślanie bibliotek, poleceń i wyjścia; robienie zbędnych rzeczy poza krokiem; przypodobanie się i ukrywanie awarii; niebezpieczne polecenia bez wyraźnego «tak»; brak danych — pytaj, nie zgaduj.\n\nNa samym końcu obowiązkowo:\nKEYCODE_SCORE: N\n\nJeśli zatwierdzony zakres jest zamknięty i sprawdzenia są zielone:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nJeśli niegotowe lub sprawdzenia czerwone:\nKEYCODE_GATE: FAIL\nJeśli zatrzymałeś się przez blokery:\nKEYCODE_STATUS: BLOCKED",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Podsumowanie",
-      "description": "Kapłanka: krótko — zadanie, zrobione, nie, dalej",
-      "prompt": "Przeczytaj ten czat i kontekst repozytorium. Nie pisz ani nie zmieniaj kodu.\n\nOdpowiedź dokładnie w czterech krótkich sekcjach (1–3 punkty każda):\n1. Zadanie — cel (jedno zdanie + scope jeśli znany).\n2. Zrobione — zaimplementowane lub zweryfikowane.\n3. Niezrobione — otwarte kroki, padnięcia, blokery, niewiadome.\n4. Następny krok — jedna najlepsza akcja (nazwij Plan / Pracuj / Test / Napraw jeśli oczywiste).\n\nBrak planu — napisz to i poleć Plan. Niewiadome oznacz jawnie — nie zmyślaj. Bez linii KEYCODE_SCORE.",
+      "title": "Przegląd wyniku",
+      "description": "Kapłanka: krótko — zadanie, zrobione, nie zrobione, dalej",
+      "prompt": "Przeczytaj ten czat i kontekst repozytorium. Nie pisz ani nie zmieniaj kodu. Nie wymyślaj dowodów.\n\nCztery krótkie bloki (w każdym 1–3 punkty):\n1. Zadanie\n2. Zrobione\n3. Nie zrobione — kroki, awarie, blokery\n4. Następny krok — jedna karta: Ułóż plan / Oceń stworzone / Programuj / Przetestuj / Napraw bugi / Dopracuj / Zapisz / Zrób wszystko\n\nJeśli nie ma planu — poleć «Ułóż plan». Jeśli praca stanęła — piąty blok: przyczyna i warianty (uprościć / wrócić do planu / zapytać człowieka).\nNie dodawaj linii KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ani KEYCODE_STATUS.\n\nProjekt może być pusty — pisz tylko to, co widać w czacie.\nZakazane: wymyślanie zrobionego; pisanie lub zmiana kodu; dodawanie linii KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT i KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

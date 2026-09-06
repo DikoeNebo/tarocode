@@ -1,76 +1,76 @@
 {
   "id": "spec-v1",
-  "name": "02 Spécification",
+  "name": "02 Ce que nous construisons",
   "cards": [
     {
       "id": "brief",
-      "title": "Brief",
-      "description": "Emperor: goal, users, stories, measurable outcome",
-      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "title": "Pourquoi et pour qui",
+      "description": "Empereur : objectif, utilisateurs, scénarios, résultat mesurable",
+      "prompt": "Transforme l’hypothèse confirmée en brief produit. Analyse seule — pas de code.\n\nSi la validation de l’idée n’a pas passé — dis de revenir au deck « Vérifier l’idée ». Spec sans idée confirmée, c’est trop tôt.\n\nSortie :\n1. Objectif (une phrase)\n2. Qui est l’utilisateur (précis)\n3. Scénarios clés (3–5)\n4. Résultat mesurable en un mois\n5. Ce que nous NE ferons PAS en v1\n\nInterdit : inventer des utilisateurs/scénarios hors de l’hypothèse ; ajouter des fonctions « pour plus tard ».\nSuite : « Ce que nous faisons ».\n\nLe projet peut être vide ; il peut n’avoir aucune règle. N’invente pas ce qui n’est pas là.\nInterdit : inventer des faits, noms, chiffres ou fichiers ; écrire du code (cette carte est analyse seule) ; sur-ingénierie « pour plus tard » ; flatterie ; s’il manque des données — demande, ne devine pas.\n\nTermine par une ligne :\nKEYCODE_STATUS: READY — le brief est prêt\nou\nKEYCODE_STATUS: NEED_DATA — plus d’informations nécessaires",
       "image": "emperor",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "scope",
-      "title": "MVP",
-      "description": "Two of Swords: IN / OUT, one happy path, acceptance",
-      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "title": "Ce que nous faisons",
+      "description": "Deux d’Épées : IN / OUT, un happy path, acceptation",
+      "prompt": "Fixe la plus petite version qui fonctionne. Analyse seule — pas de code.\n\nSortie :\n1. IN : ce que nous faisons en v1\n2. OUT : ce que nous ne faisons PAS\n3. Un happy path — de l’entrée au résultat\n4. Critères d’acceptation\n5. Ce que nous reportons et pourquoi\n\nRègles : coupe tout ce dont le premier parcours n’a pas besoin. Si IN a plus de 5 fonctions — coupe. N’ajoute pas « on pourrait en avoir besoin plus tard ». N’invente pas d’exigences hors du brief.\nSuite : « À quoi ça ressemble ».\n\nLe projet peut être vide ; il peut n’avoir aucune règle. N’invente pas ce qui n’est pas là.\nInterdit : inventer des faits, noms, chiffres ou fichiers ; écrire du code (cette carte est analyse seule) ; sur-ingénierie « pour plus tard » ; flatterie ; s’il manque des données — demande, ne devine pas.\n\nTermine par une ligne :\nKEYCODE_STATUS: READY — le périmètre est prêt\nou\nKEYCODE_STATUS: NEED_DATA — plus d’informations nécessaires",
       "image": "swords_02",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "ux",
-      "title": "Interface",
-      "description": "Ace of Cups: screens, buttons, empty/error/loading",
-      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "title": "À quoi ça ressemble",
+      "description": "As de Coupes : écrans, contrôles, états vide/chargement/erreur",
+      "prompt": "Décris l’UI en texte. Pas de code, pas d’images.\n\nSortie : liste d’écrans ; par écran — boutons et champs ; états vide / chargement / erreur / succès ; comment les écrans se connectent.\n\nNe génère pas d’images, de Figma ni de maquette. N’ajoute pas d’écrans hors périmètre. Plus de 5 écrans — envisage de fusionner. Doit être réalisable avec des moyens simples.\nSuite : « Ce que nous stockons ».\n\nLe projet peut être vide ; il peut n’avoir aucune règle. N’invente pas ce qui n’est pas là.\nInterdit : inventer des faits, noms, chiffres ou fichiers ; écrire du code (cette carte est analyse seule) ; sur-ingénierie « pour plus tard » ; flatterie ; s’il manque des données — demande, ne devine pas.\n\nTermine par une ligne :\nKEYCODE_STATUS: READY — UI décrite\nou\nKEYCODE_STATUS: NEED_DATA — plus d’informations nécessaires",
       "image": "cups_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "data-contracts",
-      "title": "Données",
-      "description": "Ace of Pentacles: entities only if the project needs them",
-      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "title": "Ce que nous stockons",
+      "description": "As de Deniers : entités seulement si le produit en a besoin",
+      "prompt": "Définis les données produit. Analyse seule — pas de code.\n\nSortie : entités et champs ; validation ; où c’est stocké (fichier, local, BDD, cloud) ; contrats externes — seulement si nécessaire.\n\nN’impose pas une BDD, REST ou ORM à une app desktop/locale sans besoin. Si le stockage est inutile — dis-le. N’invente pas d’entités hors périmètre.\nSuite : « Avec quoi on construit ».\n\nLe projet peut être vide ; il peut n’avoir aucune règle. N’invente pas ce qui n’est pas là.\nInterdit : inventer des faits, noms, chiffres ou fichiers ; écrire du code (cette carte est analyse seule) ; sur-ingénierie « pour plus tard » ; flatterie ; s’il manque des données — demande, ne devine pas.\n\nTermine par une ligne :\nKEYCODE_STATUS: READY — données définies ou stockage inutile\nou\nKEYCODE_STATUS: NEED_DATA — plus d’informations nécessaires",
       "image": "pentacles_ace",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "architecture",
-      "title": "Architecture",
-      "description": "Chariot: simplest fit after reading the repo",
-      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "title": "Avec quoi on construit",
+      "description": "Chariot : structure et stack les plus simples après lecture du dépôt",
+      "prompt": "Lis d’abord le dépôt et les dépendances actuelles. Propose la structure et la stack les plus simples pour le travail.\n\nSortie : dossiers et fichiers clés ; langage et bibliothèques ; quoi réutiliser de l’open source plutôt que d’écrire from scratch ; risques et idée de rollback.\n\nEnnuyeux qui marche bat l’architecture à la mode. N’ajoute pas de microservices ni de conteneurs pour un projet simple. N’invente pas de dépendances manquantes. Ne casse pas ce qui marche déjà.\nSuite : « Règles de code ».\n\nLe projet peut être vide ; il peut n’avoir aucune règle. N’invente pas ce qui n’est pas là.\nInterdit : inventer des faits, noms, chiffres ou fichiers ; écrire du code (cette carte est analyse seule) ; sur-ingénierie « pour plus tard » ; flatterie ; s’il manque des données — demande, ne devine pas.\n\nTermine par une ligne :\nKEYCODE_STATUS: READY — structure et stack proposées\nou\nKEYCODE_STATUS: NEED_DATA — plus d’informations nécessaires",
       "image": "chariot",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "project-rules",
-      "title": "Règles",
-      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
-      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "title": "Règles de code",
+      "description": "Hiérophante : AGENTS.md et .cursor/rules — pas de .cursorrules legacy",
+      "prompt": "Vérifie les fichiers de règles existants : AGENTS.md (règles du projet) et .cursor/rules/*.mdc. Propose des edits minimales cohérentes, ou un jeu de base s’il n’y en a pas.\n\nNe crée pas de .cursorrules legacy par défaut. Ne duplique pas les règles existantes. Modifie les fichiers seulement sur demande. 5–10 règles simples suffisent : style, nommage, ce qui est interdit.\nSuite : « Revue du plan ».\n\nLe projet peut être vide ; il peut n’avoir aucune règle. N’invente pas ce qui n’est pas là.\nInterdit : inventer des faits, noms, chiffres ou fichiers ; écrire du code (cette carte est analyse seule) ; sur-ingénierie « pour plus tard » ; flatterie ; s’il manque des données — demande, ne devine pas.\n\nTermine par une ligne :\nKEYCODE_STATUS: READY — règles vérifiées ou proposées\nou\nKEYCODE_STATUS: NEED_DATA — plus d’informations nécessaires",
       "image": "hierophant",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "risk-review",
-      "title": "Revue",
-      "description": "Justice: clarity, YAGNI, safety, testability",
-      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "title": "Revue du plan",
+      "description": "Justice : clarté, excès, sécurité, testabilité",
+      "prompt": "Note la spécification honnêtement — sans flatterie.\n\nVérifie : objectif clair ; complétude (brief, périmètre, UI, données, architecture, règles) ; excès ; failles de sécurité évidentes ; si les critères d’acceptation sont testables.\n\nScore de qualité du projet 0–10 : 0–6 corriger avant le code ; 7–8 on peut commencer ; 9–10 excellent. N’infle pas. Pour 9–10 donne 3 faits pourquoi la spec est solide. En dessous de 7 — nomme une carte de spécification comme suite.\n\nRéponse : score N/10 · verdict · pour · contre · top-3 corrections.\nScore ≥7 — « Prêt à coder ? ». En dessous de 7 — corrige la carte nommée.\n\nLe projet peut être vide — juge seulement ce qui existe.\nInterdit : inventer des faits ou des failles ; infler le score par pitié ; donner 9–10 sans trois faits ; s’il manque des données — demande, ne devine pas.\n\nTermine toujours par cette ligne (N = ton score 0-10) :\nKEYCODE_SCORE: N\nSi tu ne peux pas noter faute de données, ajoute une deuxième ligne :\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "readiness",
-      "title": "Prêt ?",
-      "description": "Judgement: gate to Hobby or Production work",
-      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "title": "Prêt à coder ?",
+      "description": "Jugement : porte vers Hobby ou Production",
+      "prompt": "Vérifie la préparation au code. Ne donne pas PASS s’il manque quelque chose. N’invente pas d’artefacts.\n\nObligatoire : objectif et utilisateurs ; périmètre et happy path ; UI avec états ; données là où besoin ; architecture ; règles ou jeu de base ; critères d’acceptation ; score de revue du plan ≥7.\n\nNe devine pas le mode. Demande explicitement s’il n’est pas choisi :\n- Hobby — projet rapide et simple ;\n- Production — plus strict, avec revue et préparation au merge.\n\nLe projet peut être vide — aucun fait = pas de PASS.\nInterdit : inventer des preuves ; donner PASS par pitié ou parce que « l’idée est bonne » ; flatterie.\n\nTermine par exactement deux lignes.\nHobby :\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nProduction :\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nPas prêt (remplace brief par l’id de la carte manquante : scope, ux, data-contracts, architecture, project-rules, risk-review) :\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief",
       "image": "judgement",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "Récap",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "description": "Grande Prêtresse : objectif, décidé, ouvert, suite",
+      "prompt": "Lis ce chat. N’écris ni ne modifie pas de code.\n\nQuatre courts blocs (1–3 puces chacun) :\n1. Objectif\n2. Décidé — quels artefacts sont prêts\n3. Ouvert — ce qui manque encore\n4. Prochaine étape — une carte : Pourquoi et pour qui / Ce que nous faisons / À quoi ça ressemble / Ce que nous stockons / Avec quoi on construit / Règles de code / Revue du plan / Prêt à coder ? — ou passer au Travail\n\nSi la spécification n’est pas prête — dis-le.\nN’ajoute pas de lignes KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ou KEYCODE_STATUS.\n\nLe projet peut être vide — écris seulement ce qui est visible dans le chat.\nInterdit : inventer du travail terminé ; écrire ou modifier du code ; ajouter des lignes KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ou KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

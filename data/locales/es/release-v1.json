@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "release-plan",
-      "title": "Perfil",
-      "description": "Three of Wands: product type, channel, what needs a yes",
-      "prompt": "Choose a release profile from the actual project: desktop / web / mobile / open source (or say unknown).\n\nList channel, release criteria, and actions that need an explicit human yes (publish, signing, production migrate, store upload).\n\nDo not assume Vercel, Stripe, Docker, or npm.",
+      "title": "Qué producto",
+      "description": "Tres de Bastos: tipo de producto, canal, qué necesita un sí explícito",
+      "prompt": "Define el perfil de lanzamiento. Solo análisis — sin código, sin despliegue.\n\nSalida:\n1. Tipo: desktop / web / mobile / CLI / library / open source\n2. Canal: tienda, despliegue web, GitHub Releases, gestor de paquetes, otro\n3. Criterios de lanzamiento\n4. Qué necesita un sí explícito: publicar, firma, migración de producción, subida a tienda\n5. Si el trabajo fue Hobby o Production — si se sabe\n\nTipo desconocido — pregunta. No asumas servicios, pagos, contenedores ni gestores de paquetes sin contexto del repo.\nSiguiente: «¿Funciona?».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — profile is clear\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "wands_03",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "quality-audit",
-      "title": "Calidad",
-      "description": "Star: run existing tests/builds only",
-      "prompt": "Find and run only existing relevant builds/tests/linters in this repo. Do not invent npm/Docker/CI.\n\nShow real command output. Score 0–10 from those facts.\n\nAlways end with:\nKEYCODE_SCORE: N\n\nIf red or score < 7, say the next step is Production work card Fix.",
+      "title": "¿Funciona?",
+      "description": "Estrella: solo builds y tests existentes",
+      "prompt": "Encuentra y ejecuta solo builds, tests y linters existentes en este repositorio. No inventes comandos.\n\nMuestra la salida real. Puntúa 0–10 con hechos: 0–6 rojo, no se puede publicar; 7–8 publicable con notas; 9–10 limpio. Sin tests — dilo; calidad no verificada. No se puede ejecutar de verdad — no puntués por encima de 4. No añadas tests nuevos salvo que se pida.\n\nBajo 7 — siguiente es «Arreglar» en el mazo Production. ≥7 — «¿Hay agujeros?».\n\nEl proyecto puede estar vacío — juzga solo lo que existe.\nProhibido: inventar hechos o huecos; inflar la puntuación por lástima; dar 9–10 sin tres hechos; si faltan datos — pregunta, no adivines.\n\nTermina siempre con esta línea (N = tu puntuación 0-10):\nKEYCODE_SCORE: N\nSi no se pueden ejecutar las comprobaciones, añade una segunda línea:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "security-audit",
-      "title": "Seguridad",
-      "description": "Ace of Swords: secrets, inputs, deps — report, don't patch",
-      "prompt": "Read-only security review: secrets, input validation, dependency risk, privacy. Prioritize findings with evidence.\n\nDo not apply patches. Do not print secret values.\n\nIf a critical issue exists, end with:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\n\nOtherwise say no critical blockers and continue to Package.",
+      "title": "¿Hay agujeros?",
+      "description": "As de Espadas: secretos, entrada, deps — informe, no parche",
+      "prompt": "Solo lectura: revisa la seguridad. No apliques parches. No imprimas valores secretos — solo dónde se encontraron.\n\nRevisa: claves y contraseñas en código; validación de entrada; agujeros conocidos en dependencias si se puede comprobar; si se registran datos personales.\nNo inventes vulnerabilidades. Sin acceso a comprobaciones de dependencias — dilo.\n\nSalida: crítico (bloquea el lanzamiento) · importante · puede esperar — con evidencia de cada uno.\nSin críticos — «Montar el paquete».\n\nEl proyecto puede estar vacío — sin hecho = no PASS.\nProhibido: inventar evidencias; dar PASS por lástima o porque «la idea es buena»; halagos.\nSi hay algo crítico:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\nKEYCODE_STATUS: BLOCKED\n\nSi no, di que no hay bloqueos críticos, y:\nKEYCODE_STATUS: READY",
       "image": "swords_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "package",
-      "title": "Paquete",
-      "description": "Three of Pentacles: artifact + rollback; wait before publish",
-      "prompt": "Prepare the package/deploy artifact and rollback for the chosen profile.\n\nInstalls, DB migrations, code signing, store upload, and production commands require an explicit user yes. Stop and ask. Do not publish.",
+      "title": "Montar el paquete",
+      "description": "Tres de Oros: artefacto y rollback; publicar solo tras sí explícito",
+      "prompt": "Prepara un paquete o artefacto para el perfil de «Qué producto».\n\nDesktop — instalador; web — estático o imagen; mobile — paquete de app; CLI — binario; library — paquete; open source — etiqueta.\nDescribe los comandos de build, pero no los ejecutes sin sí. Plan de rollback — cómo volver a la versión anterior. Instalaciones, migraciones de BD, firma, tienda y producción — solo tras sí explícito. No publiques. No inventes comandos que faltan en el repo.\nSiguiente: «Instrucciones».\n\nEl proyecto puede estar vacío — no inventes servicios ni comandos.\nProhibido: publicar, firmar, desplegar o subir a tienda sin sí explícito; inventar comandos que faltan; halagos y afirmar «ya se publicó».\n\nTermina con una línea:\nKEYCODE_STATUS: READY — artifact or build plan is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_03",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "docs",
-      "title": "Docs",
-      "description": "Hermit: README / notes / install / rollback that exist",
-      "prompt": "Update only relevant README, release notes, install/upgrade/rollback text. Do not create extra documents nobody asked for.",
+      "title": "Instrucciones",
+      "description": "Ermitaño: README / notas / instalación / rollback que importan",
+      "prompt": "Actualiza la documentación de lanzamiento. No crees archivos de más. Cambia archivos solo cuando se pida.\n\nHace falta lo que importa: README (qué es, instalar, ejecutar); notas de lanzamiento; cómo actualizar; cómo hacer rollback. Proyecto simple — README y notas cortos. Complejo — añade instalación y rollback. Library o CLI — ejemplos.\nNo inventes comandos que faltan en el repo. Sin relleno de marketing.\nSiguiente: «Cómo vigilar».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — docs described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hermit",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "operations",
-      "title": "Ops",
-      "description": "Temperance: logs, backup, support, incident",
-      "prompt": "Minimal ops: logs, errors, backups, support, incident response. Suggest external services only after the user picks them.",
+      "title": "Cómo vigilar",
+      "description": "Templanza: logs, copia de seguridad, soporte, fallo",
+      "prompt": "Describe las operaciones mínimas tras el lanzamiento.\n\nLogs: dónde mirar. Copias de seguridad: cada cuánto, dónde, cómo restaurar. Respuesta ante fallo — 3 pasos. Cómo reportan problemas los usuarios. Rollback. Producto local o de escritorio — solo copias y rollback; no hace falta monitorización. Open source — cómo se gestionan issues y PRs.\nServicios externos — solo después de que la persona elija. No inventes teatro de procesos. Un proyecto simple necesita 3–5 viñetas.\nSiguiente: «¿Listo para publicar?».\n\nEl proyecto puede estar vacío; puede no tener reglas. No inventes lo que no está.\nProhibido: inventar hechos, nombres, números o archivos; escribir código (esta carta es solo análisis); sobreingeniería «para después»; halagos; si faltan datos — pregunta, no adivines.\n\nTermina con una línea:\nKEYCODE_STATUS: READY — operations described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "temperance",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "release-gate",
-      "title": "Puerta",
-      "description": "Justice: ship only if checks pass",
-      "prompt": "Check build/tests, critical security, docs, rollback, and remaining manual steps.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
+      "title": "¿Listo para publicar?",
+      "description": "Justicia: publica solo si las comprobaciones están en verde",
+      "prompt": "Comprueba si el lanzamiento está listo. No des PASS si falta algo. No inventes artefactos.\n\nObligatorio: builds y tests en verde; sin agujeros críticos; artefacto listo; docs actualizadas; plan de ops existe; rollback posible; pasos manuales conocidos; la persona confirmó que está listo.\nTests en rojo o agujeros críticos — FAIL automático.\nProblema de código — «Arreglar» en Production. Docs — «Instrucciones». Build — «Montar el paquete».\n\nEl proyecto puede estar vacío — sin hecho = no PASS.\nProhibido: inventar evidencias; dar PASS por lástima o porque «la idea es buena»; halagos.\n\nTermina con exactamente dos líneas.\nSi está listo:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nSi no está listo (sustituye fix por quality-audit, security-audit, package, docs u operations cuando el problema esté ahí):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "launch",
-      "title": "Lanzar",
-      "description": "Sun: show plan first; publish only after a clear yes",
-      "prompt": "First list the launch actions, risks, and rollback. Do not publish, upload, or ship until the user clearly says to do it.\n\nAfter a confirmed launch, verify the artifact/availability if possible.\n\nThen recommend Validation → Verdict using real feedback (not a new invented idea). If launch happened, you may end with:\nKEYCODE_NEXT: validate-v1/evidence-review",
+      "title": "Publicar",
+      "description": "Sol: primero el plan; publicar solo tras sí explícito",
+      "prompt": "Prepara el plan de lanzamiento. No publiques, subas ni envíes hasta que la persona diga explícitamente que lo hagas.\n\nPrimero: lista ordenada de acciones; riesgos; rollback; qué necesita sí. Tras la confirmación, haz solo lo confirmado, verifica el artefacto y la disponibilidad si es posible, registra el resultado.\nNo inventes comandos de despliegue. No asumas servicios sin contexto.\n\nTras el lanzamiento, recomienda el mazo «Comprobar la idea», carta «Veredicto» — con feedback real, no con una idea inventada nueva.\n\nSi el lanzamiento ocurrió, termina con:\nKEYCODE_NEXT: validate-v1/evidence-review\n\nEl proyecto puede estar vacío — no inventes servicios ni comandos.\nProhibido: publicar, firmar, desplegar o subir a tienda sin sí explícito; inventar comandos que faltan; halagos y afirmar «ya se publicó».\n\nTambién termina con una línea de estado:\nKEYCODE_STATUS: READY — plan ready or launch done\nor\nKEYCODE_STATUS: NEED_DATA — need user yes or more data",
       "image": "sun",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "Resumen",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not publish anything. Do not change production.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step\n\nNo KEYCODE_SCORE line.",
+      "description": "Sacerdotisa: listo / bloqueos / rollback / siguiente",
+      "prompt": "Lee este chat. No publiques nada ni cambies producción. No inventes evidencias.\n\nCuatro bloques cortos:\n1. Listo\n2. Bloqueos\n3. Rollback\n4. Siguiente paso — una carta: Qué producto / ¿Funciona? / ¿Hay agujeros? / Montar el paquete / Instrucciones / Cómo vigilar / ¿Listo para publicar? / Publicar\n\nSi el lanzamiento no está listo — dilo.\nNo añadas líneas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ni KEYCODE_STATUS.\n\nEl proyecto puede estar vacío — escribe solo lo visible en el chat.\nProhibido: inventar trabajo hecho; escribir o cambiar código; añadir líneas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT o KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

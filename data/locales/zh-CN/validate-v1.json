@@ -1,76 +1,76 @@
 {
   "id": "validate-v1",
-  "name": "01 验证",
+  "name": "01 验证想法",
   "cards": [
     {
       "id": "problem",
-      "title": "问题",
-      "description": "Fool: who hurts, what breaks, testable hypothesis",
-      "prompt": "State the target audience, the observable problem, the current workaround, and a testable hypothesis. Analysis only — no product, no code.\n\nMark unknowns as assumptions. Do not invent users, quotes, or market size.\n\nOutput:\n- Who\n- Problem (observable)\n- Workaround today\n- Hypothesis (if we ship X, Y will happen)\n- Open questions\n\nNext card: Evidence plan.",
+      "title": "谁在痛",
+      "description": "愚者：谁的痛点，我们在测什么",
+      "prompt": "说明我们要验证的是谁的问题。只做分析——不做产品、不写代码。\n\n输出：\n1. 目标受众（具体，不是「所有人」）\n2. 可观察到的问题\n3. 人们现在如何应对\n4. 假设：「如果我们对 Y 做 X，则 Z 会改变」\n5. 动手做之前必须证明什么\n6. 未决问题\n\n若输入不足——最多 3 个问题。未知标为假设。\n禁止：编造用户、引用、需求、市场；建议代码或功能。\n\n下一步：卡片「如何验证」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — enough input for a test plan\nor\nKEYCODE_STATUS: NEED_DATA — user answers required",
       "image": "fool",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evidence-plan",
-      "title": "验证计划",
-      "description": "Hierophant: cheapest proof, metric, stop rule",
-      "prompt": "Pick the cheapest way to test the hypothesis. Write the success metric, threshold, deadline, and stop/pivot rule BEFORE any experiment.\n\nDo not treat AI research as external proof. Interviews, waitlist signups, clicks, and preorders count. Opinions in this chat do not.\n\nOutput:\n- Method (interview / landing / fake door / preorder / other)\n- Metric + threshold + date\n- What FAIL means\n- What the human must do\n\nDo not start coding the product.",
+      "title": "如何验证",
+      "description": "教皇：最便宜的方法、指标、停止规则",
+      "prompt": "写出验证「谁在痛」中假设的最便宜计划。在任何实验之前先锁定计划。\n\n规则：\n- AI 调研和聊天意见不算证据。证据：访谈、注册、点击、预购。\n- 一种方法：访谈 / 落地页 / 假门 / 候补名单 / 预购 / 帖子 / 问卷。\n- 若已有产品能解决——同时跑「已有什么」。\n- 没有阈值的计划不算就绪。之后不要改阈值。\n- 方法需要花钱或广告——先警告。\n\n输出：假设 · 方法 · 指标 · 阈值（数字） · 截止日 · FAIL 意味着什么 · 人要做什么。\n阈值示例：7 天内 5 次访谈；5 天内 10 个注册；2 次预购或联系。\n\n不要写产品代码。不要编造数字。\n下一步：「问人」或「小试验」——按所选方法。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — plan and threshold set\nor\nKEYCODE_STATUS: NEED_DATA — not enough data for a plan",
       "image": "hierophant",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "interview",
-      "title": "访谈",
-      "description": "Two of Cups: questions or real answers — no invented people",
-      "prompt": "Prepare non-leading interview questions, or analyze answers the user actually provided.\n\nForbidden: inventing respondents, quotes, or \"typical users\". If no real answers exist, output only the question list and how to run the talks.\n\nIf real notes exist: pains, current tools, willingness to pay, disconfirming evidence.\n\nNext: Market (if still missing) or Verdict (if enough talks exist).",
+      "title": "问人",
+      "description": "圣杯二：访谈，不编造受访者",
+      "prompt": "只在一种模式下工作。\n\n模式 1 — 已有真实访谈笔记。只分析这些：痛点、变通办法、频率、愿付费或行动的证据、反证、谈了多少次、「如何验证」的阈值是否达到。\n\n模式 2 — 尚无回答。准备 7–10 个问题和说明：问上次是何时、频率、成本、当前工具；不要问「你会买吗？」；不要推销想法；至少需要 3–5 次真实对话。\n\n禁止：编造受访者或引用；混用模式；把聊天意见当证据。\n\n若回答不足——继续收集。若推翻假设——「改想法」。若足够——「已有什么」或「裁决」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — enough real answers for the next step\nor\nKEYCODE_STATUS: NEED_DATA — no or too few answers",
       "image": "cups_02",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "market",
-      "title": "市场",
-      "description": "Wheel: competitors, licenses, reuse — not a copy dump",
-      "prompt": "Map competitors, substitutes, licenses, and reusable references. Competitors are a market signal, not an automatic fail.\n\nIf you cannot browse the web, ask for sources instead of guessing GitHub/npm names.\n\nFor each reference: what it does, license, risk of reuse, what NOT to copy.\n\nDo not dump or paste third-party code.",
+      "title": "已有什么",
+      "description": "命运之轮：竞品、开源、可复用什么",
+      "prompt": "找出已经解决此问题的东西。不要重复造轮子。\n\n1. 竞品（2–4）：做什么、弱点、什么证明有需求。没有竞品很可疑：小众、新问题，或不重要。有竞品=有市场——不是失败。\n2. 开源（2–4 个仓库）：可复用什么、许可证、新鲜度、风险、什么不要抄。无网络——向用户要链接；不要猜名字。不要粘贴第三方代码。\n3. 替代品：表格、聊天、手工——什么管用、什么会坏。\n\n结论：复用现成 / 部分复用 / 市场不明。\n不要写产品代码。下一步：「小试验」或「裁决」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — analysis based on data or user links\nor\nKEYCODE_STATUS: NEED_DATA — links or facts required",
       "image": "wheel_of_fortune",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "experiment",
-      "title": "实验",
-      "description": "Magician: smoke / fake door / waitlist; success bar already set",
-      "prompt": "Design the smallest smoke / fake-door / waitlist experiment using the threshold already written in the evidence plan. Do not invent a new success bar after the fact.\n\nChange files only if the user explicitly asked to create the landing/asset. Otherwise describe copy, layout, and how to count results.\n\nNo payment integration, no production deploy.",
+      "title": "小试验",
+      "description": "魔术师：冒烟 / 假门 / 候补，固定阈值",
+      "prompt": "用「如何验证」中的阈值做最小需求检查。一种形式：带表单的落地页；假门；候补名单；预购；相关群聊里的帖子或问卷。\n\n不要改阈值。仅当用户明确要求落地页时才创建文件。否则只要文字：标题、CTA、如何计数。不接支付、不部署生产。不要承诺不存在的东西；「即将」/「早期访问」可以。\n\n不要编造点击或注册。尚无结果——让他们跑测试再带数字回来。有结果——「裁决」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — results can be judged\nor\nKEYCODE_STATUS: NEED_DATA — the test still must be run",
       "image": "magician",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "evidence-review",
       "title": "裁决",
-      "description": "Justice: only facts you have; PASS or FAIL",
-      "prompt": "Judge ONLY evidence the user actually provided (notes, counts, links). Missing evidence is a gap, not a pass.\n\nDo not invent subscriber counts. A number without a source is FAIL.\n\nEnd with exactly these two lines (choose PASS or FAIL, and a known stock id):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "description": "正义：只用真实事实 → PASS 或 FAIL",
+      "prompt": "决定：继续与否。只根据用户实际提供的内容判断：笔记、有来源的数字、链接、截图、聊天记录。\n\n一条规则：与「如何验证」的阈值比较。\n- 达到阈值 → PASS；\n- 未达阈值、无事实、无来源的数字、无阈值、或数据对应错误假设 → FAIL。\n聊天意见和 AI 调研不算证据。不要因同情或「想法不错」而 PASS。\n\n先列证据、阈值和缺口——再给决定。\nPASS → 规格。FAIL →「改想法」。无阈值 →「如何验证」。\n\n项目可能为空——无事实 = 不 PASS。\n禁止：编造证据；因同情或「想法不错」而 PASS；奉承。\n\n以恰好两行结束：\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
       "image": "justice",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "pivot",
-      "title": "转向",
-      "description": "Hanged Man: keep facts, shrink audience / problem / channel",
-      "prompt": "Using the failed criterion, shrink audience, problem, or channel. Keep collected facts. Do not throw away interviews.\n\nOutput: what stays true · what changes · new hypothesis · next evidence plan.\n\nDo not write product code.",
+      "title": "改想法",
+      "description": "倒吊人：缩小受众 / 问题 / 渠道；保留事实",
+      "prompt": "验证失败了。只改一部分；保留事实。\n\n选一个：缩小受众；缩小问题；换渠道；复用现成而不自建。\n两三次转向仍无新数据——停下：继续无意义。无事实——回到「谁在痛」。若用户想一次全改——请他们只选一个。\n\n输出：仍成立的 · 要改的 · 新假设 · 下一步（「如何验证」/「问人」/「已有什么」/「小试验」）。\n不要写代码。不要编造事实来合理化转向。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — new hypothesis and next step are clear\nor\nKEYCODE_STATUS: BLOCKED — continuing is pointless; no new facts",
       "image": "hanged_man",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "validation-cycle",
-      "title": "完整检查",
-      "description": "World: run the check; stop where a human must act",
-      "prompt": "Run the validation loop with what is already known: problem → evidence plan → available interviews/market/experiment.\n\nStop and ask the human wherever real-world data is required. Do not fabricate that data.\n\nGive a final gate ONLY if real evidence exists. Then end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "title": "清单",
+      "description": "世界：按计划跑验证；无真实数据就停",
+      "prompt": "用已知内容跑一遍想法验证。\n\n必需：\n1. 问题已陈述（「谁在痛」）；\n2. 有阈值的计划（「如何验证」）；\n3. 计划中所选方法已实际执行（访谈和/或小试验——不必两者都做）；\n4. 若影响决定则有竞品/开源；\n5. 阈值已达到。\n\n某必需项缺真实数据——不要 PASS；退回该卡。不要编造数据。同一项失败 2–3 次——换方法、缩小想法，或停下。\n\n最终 PASS 仅当阈值被事实关闭。\n\n项目可能为空——无事实 = 不 PASS。\n禁止：编造证据；因同情或「想法不错」而 PASS；奉承。\n\n以恰好两行结束：\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/evidence-plan\n\n(if you know the missing card — replace evidence-plan with problem, interview, market, experiment, or pivot)",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "摘要",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nReply in four short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step (name Problem / Evidence plan / Interview / Market / Experiment / Verdict / Pivot)\n\nNo KEYCODE_SCORE, KEYCODE_GATE, or KEYCODE_NEXT lines.",
+      "title": "回顾",
+      "description": "女祭司：假设 / 证据 / 缺口 / 下一步",
+      "prompt": "阅读本聊天。不要写或改代码。不要编造证据。\n\n四个短块（各 1–3 条）：\n1. 假设\n2. 证据（仅已有）\n3. 缺口\n4. 下一步——一张卡：谁在痛 / 如何验证 / 问人 / 已有什么 / 小试验 / 裁决 / 改想法 / 清单\n\n项目可能为空——只写聊天里可见的内容。\n禁止：编造已完成工作；写或改代码；添加 KEYCODE_SCORE、KEYCODE_GATE、KEYCODE_NEXT 或 KEYCODE_STATUS 行。\n\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.",
       "image": "high_priestess",
       "hotkey": ""
     }

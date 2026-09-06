@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "release-plan",
-      "title": "プロファイル",
-      "description": "Three of Wands: product type, channel, what needs a yes",
-      "prompt": "Choose a release profile from the actual project: desktop / web / mobile / open source (or say unknown).\n\nList channel, release criteria, and actions that need an explicit human yes (publish, signing, production migrate, store upload).\n\nDo not assume Vercel, Stripe, Docker, or npm.",
+      "title": "何の製品か",
+      "description": "杖の3：製品タイプ、経路、明示的な同意が要るもの",
+      "prompt": "リリースプロファイルを定義する。分析のみ——コードなし、デプロイなし。\n\n出力：\n1. タイプ：デスクトップ / Web / モバイル / CLI / ライブラリ / OSS\n2. 経路：ストア、Web デプロイ、GitHub Releases、パッケージマネージャ、その他\n3. リリース基準\n4. 明示的な同意が要るもの：公開、署名、本番マイグレーション、ストアアップロード\n5. 作業が Hobby か Production か——分かれば\n\nタイプ不明——聞く。リポジトリ文脈なしにサービス・決済・コンテナ・パッケージマネージャを仮定しない。\n次：「動くか」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — profile is clear\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "wands_03",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "quality-audit",
-      "title": "品質",
-      "description": "Star: run existing tests/builds only",
-      "prompt": "Find and run only existing relevant builds/tests/linters in this repo. Do not invent npm/Docker/CI.\n\nShow real command output. Score 0–10 from those facts.\n\nAlways end with:\nKEYCODE_SCORE: N\n\nIf red or score < 7, say the next step is Production work card Fix.",
+      "title": "動くか",
+      "description": "星：既存のテストとビルドだけ",
+      "prompt": "このリポジトリにある既存のビルド・テスト・リンタだけを見つけて実行する。コマンドを捏造しない。\n\n実出力を示す。事実から0–10採点：0–6 赤、出荷不可；7–8 注記付きで出荷可；9–10 きれい。テストなし——そう書く；品質未検証。実実行できない——4超で採点しない。依頼なしに新テストを足さない。\n\n7未満——次は本番デッキの「修正」。≥7——「穴はあるか」。\n\nプロジェクトは空でもよい——あるものだけ判断。\n禁止：事実や穴の捏造；同情でのスコア水増し；事実3つなしの9–10；データ不足なら推測せず質問。\n\nAlways end with this line (N = your 0-10 score):\nKEYCODE_SCORE: N\nIf checks cannot be run, add a second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "security-audit",
-      "title": "セキュリティ",
-      "description": "Ace of Swords: secrets, inputs, deps — report, don't patch",
-      "prompt": "Read-only security review: secrets, input validation, dependency risk, privacy. Prioritize findings with evidence.\n\nDo not apply patches. Do not print secret values.\n\nIf a critical issue exists, end with:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\n\nOtherwise say no critical blockers and continue to Package.",
+      "title": "穴はあるか",
+      "description": "剣のエース：秘密、入力、依存——報告のみ、パッチしない",
+      "prompt": "読み取りのみ：セキュリティを確認。パッチは適用しない。秘密の値は印刷せず——見つかった場所だけ。\n\n確認：ハードコードされた鍵とパスワード；入力検証；可能なら既知の依存の穴；個人データのログ有無。\n脆弱性を捏造しない。依存チェックにアクセスできない——そう書く。\n\n出力：重大（リリース阻止）· 重要 · 待てる——各々に証拠。\n重大なし——「パッケージを作る」。\n\nプロジェクトは空でもよい——事実なし = PASS しない。\n禁止：証拠の捏造；同情や「いいアイデア」での PASS；お世辞。\nIf something critical exists:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\nKEYCODE_STATUS: BLOCKED\n\nOtherwise say there are no critical blockers, and:\nKEYCODE_STATUS: READY",
       "image": "swords_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "package",
-      "title": "パッケージ",
-      "description": "Three of Pentacles: artifact + rollback; wait before publish",
-      "prompt": "Prepare the package/deploy artifact and rollback for the chosen profile.\n\nInstalls, DB migrations, code signing, store upload, and production commands require an explicit user yes. Stop and ask. Do not publish.",
+      "title": "パッケージを作る",
+      "description": "ペンタクルの3：成果物とロールバック；明示同意後のみ公開",
+      "prompt": "「何の製品か」のプロファイル向けにパッケージまたは成果物を準備する。\n\nデスクトップ——インストーラ；Web——静的またはイメージ；モバイル——アプリパッケージ；CLI——バイナリ；ライブラリ——パッケージ；OSS——タグ。\nビルドコマンドは説明するが、同意なしに実行しない。ロールバック計画——前版への戻し方。インストール、DBマイグレーション、署名、ストア、本番——明示同意後のみ。公開しない。リポジトリにないコマンドを捏造しない。\n次：「手順」。\n\nプロジェクトは空でもよい——サービスやコマンドを捏造しない。\n禁止：明示同意なしの公開・署名・デプロイ・ストアアップロード；欠けたコマンドの捏造；お世辞と「もう出荷した」主張。\n\n1行で終える：\nKEYCODE_STATUS: READY — artifact or build plan is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_03",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "docs",
-      "title": "文書",
-      "description": "Hermit: README / notes / install / rollback that exist",
-      "prompt": "Update only relevant README, release notes, install/upgrade/rollback text. Do not create extra documents nobody asked for.",
+      "title": "手順",
+      "description": "隠者：意味のある README / ノート / インストール / ロールバック",
+      "prompt": "リリース文書を更新する。余分なファイルを増やさない。求められたときだけ変更。\n\n必要なもの：README（何か、インストール、実行）；リリースノート；アップグレード方法；ロールバック方法。単純プロジェクト——短い README とノート。複雑——インストールとロールバックを追加。ライブラリや CLI——例。\nリポジトリにないコマンドを捏造しない。宣伝文言なし。\n次：「どう見守るか」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — docs described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hermit",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "operations",
-      "title": "運用",
-      "description": "Temperance: logs, backup, support, incident",
-      "prompt": "Minimal ops: logs, errors, backups, support, incident response. Suggest external services only after the user picks them.",
+      "title": "どう見守るか",
+      "description": "節制：ログ、バックアップ、サポート、障害",
+      "prompt": "リリース後の最小運用を記述する。\n\nログ：どこを見るか。バックアップ：頻度、場所、復元方法。障害対応——3ステップ。ユーザーの報告方法。ロールバック。ローカル/デスクトップ——バックアップとロールバックのみ；監視は必須でない。OSS——Issue と PR の扱い。\n外部サービス——ユーザーが選んだ後のみ。プロセス劇を捏造しない。単純プロジェクトは3–5箇条で足りる。\n次：「出荷してよいか？」。\n\nプロジェクトは空でもよく、ルールがなくてもよい。ないものを捏造しない。\n禁止：事実・名前・数字・ファイルの捏造；コード作成（このカードは分析のみ）；「後のため」の過剰設計；お世辞；データ不足なら推測せず質問。\n\n1行で終える：\nKEYCODE_STATUS: READY — operations described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "temperance",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "release-gate",
-      "title": "ゲート",
-      "description": "Justice: ship only if checks pass",
-      "prompt": "Check build/tests, critical security, docs, rollback, and remaining manual steps.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
+      "title": "出荷してよいか？",
+      "description": "正義：チェックが緑のときだけ出荷",
+      "prompt": "リリース準備を確認する。欠けがあれば PASS しない。成果物を捏造しない。\n\n必須：ビルドとテストが緑；重大な穴なし；成果物準備済み；文書更新済み；運用計画あり；ロールバック可能；手動手順が既知；ユーザーが準備を確認。\n赤テストまたは重大な穴——自動 FAIL。\nコード問題——本番の「修正」。文書——「手順」。ビルド——「パッケージを作る」。\n\nプロジェクトは空でもよい——事実なし = PASS しない。\n禁止：証拠の捏造；同情や「いいアイデア」での PASS；お世辞。\n\nちょうど2行で終える。\nIf ready:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nIf not ready (replace fix with quality-audit, security-audit, package, docs, or operations when the problem is there):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "launch",
-      "title": "公開",
-      "description": "Sun: show plan first; publish only after a clear yes",
-      "prompt": "First list the launch actions, risks, and rollback. Do not publish, upload, or ship until the user clearly says to do it.\n\nAfter a confirmed launch, verify the artifact/availability if possible.\n\nThen recommend Validation → Verdict using real feedback (not a new invented idea). If launch happened, you may end with:\nKEYCODE_NEXT: validate-v1/evidence-review",
+      "title": "出荷する",
+      "description": "太陽：先に計画；明示同意後のみ公開",
+      "prompt": "ローンチ計画を準備する。ユーザーが明示的にやれと言うまで、公開・アップロード・出荷はしない。\n\nまず：順序付き行動リスト；リスク；ロールバック；同意が要るもの。確認後は確認されたことだけ実行し、可能なら成果物と可用性を検証し、結果を記録。\nデプロイコマンドを捏造しない。文脈なしにサービスを仮定しない。\n\nローンチ後、「アイデア検証」デッキの「判定」カードを推奨——新しい捏造アイデアではなく実フィードバックに基づく。\n\nIf launch happened, end with:\nKEYCODE_NEXT: validate-v1/evidence-review\n\nプロジェクトは空でもよい——サービスやコマンドを捏造しない。\n禁止：明示同意なしの公開・署名・デプロイ・ストアアップロード；欠けたコマンドの捏造；お世辞と「もう出荷した」主張。\n\nAlso end with one status line:\nKEYCODE_STATUS: READY — plan ready or launch done\nor\nKEYCODE_STATUS: NEED_DATA — need user yes or more data",
       "image": "sun",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "要約",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not publish anything. Do not change production.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step\n\nNo KEYCODE_SCORE line.",
+      "description": "女教皇：準備 / ブロッカー / ロールバック / 次",
+      "prompt": "このチャットを読む。何も公開せず、本番も変えない。証拠を捏造しない。\n\n短い4ブロック：\n1. 準備\n2. ブロッカー\n3. ロールバック\n4. 次の一手——1枚：何の製品か / 動くか / 穴はあるか / パッケージを作る / 手順 / どう見守るか / 出荷してよいか？ / 出荷する\n\nリリースが未準備なら——そう書く。\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\nプロジェクトは空でもよい——チャットに見えることだけ書く。\n禁止：完了作業の捏造；コードの作成・変更；KEYCODE_SCORE、KEYCODE_GATE、KEYCODE_NEXT、KEYCODE_STATUS 行の追加。",
       "image": "high_priestess",
       "hotkey": ""
     }

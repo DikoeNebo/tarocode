@@ -1,76 +1,76 @@
 {
   "id": "lazy-v1",
-  "name": "Tarocode · Hobby",
+  "name": "03 Work · Hobby",
   "cards": [
     {
       "id": "plan",
-      "title": "Plan",
-      "description": "Hierophant: break the task into steps — no code yet",
-      "prompt": "Create a step-by-step plan for the current task. Do not write code.\n\nFrom chat context (ask only if missing): outcome in one sentence; what already exists; keep it a simple hobby project.\n\nRules:\n1. Small steps — one step = one verifiable thing.\n2. Per step: what · done means · how to verify.\n3. Blockers first; note risks / what to defer.\n\nEnd with a numbered list of steps (one line each).",
+      "title": "Make a plan",
+      "description": "Break the task into steps (no code)",
+      "prompt": "Create a step-by-step plan for the current task. Do not write code.\n\nFrom chat (ask only if missing): outcome in one sentence; what already exists; keep it a simple hobby project without extra complexity.\n\nRules: one step = one verifiable thing; per step — what to do · done criteria · how to verify; blockers and risks first; what to defer — separately. Working simple beats ideal architecture. Do not invent interfaces, libraries, or commands that are not in the repo. If good open source exists — use it instead of writing from scratch.\nLittle data — at most 3 questions.\nOutput: numbered list (one line per step).\nNext: «Evaluate the work».\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, and files; writing code (this card is analysis only); over-engineering “for later”; people-pleasing; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — plan is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hierophant",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evaluate",
-      "title": "Evaluate",
+      "title": "Evaluate the work",
       "description": "Justice: project quality score 0–10 and verdict",
-      "prompt": "Evaluate the current plan or latest result honestly — no filler, no flattery.\n\nProject quality score 0–10: 0–6 redo; 7–8 acceptable; 9–10 excellent. Below 7 must redo; ≥7 can continue.\n\nCheck: clear goal/done? gaps? hobby overcomplexity? what breaks first? top 3 score-raising fixes.\n\nReply:\n- Project quality score: N/10\n- Verdict: redo (<7) / acceptable (7–8) / excellent (9–10)\n- Pros · cons/risks · specific fixes\n\nNo rewrite-from-scratch if targeted fixes work. No code until asked.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Evaluate the current plan or latest result honestly, without flattery.\n\nProject quality score 0–10: 0–6 redo; 7–8 acceptable; 9–10 excellent. Below 7 — must redo.\nCheck: goal and done criteria are clear; logic gaps; hobby overcomplexity; what breaks first; top-3 fixes.\nDo not inflate. For 9–10 you need 3 facts. If the goal is unclear — do not score 7 or above.\n\nReply: score N/10 · verdict · pros · cons · fixes.\nDo not propose starting from scratch if targeted fixes are enough. Do not start code until asked.\nBelow 7 — «Code it» or «Fix bugs». 7 or above — «Code it».\n\nThe project may be empty — judge only what exists.\nForbidden: inventing facts and gaps; inflating the score out of pity; scoring 9–10 without three facts; if data is missing — ask, do not guess.\n\nAt the very end of the reply always add this line (N = your score 0-10):\nKEYCODE_SCORE: N\nIf you cannot evaluate due to missing data, second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "work",
-      "title": "Work",
-      "description": "Magician: implement the next plan step in code",
-      "prompt": "Do the next open step of the approved plan — only that step, not everything at once.\n\nRules: name the step if unclear; don't break working code; ask briefly if data missing — don't invent. After: what · where · how to verify.\n\nEnd with one line: step status — done / partial / blocked (and why).",
+      "title": "Code it",
+      "description": "Magician: do the next plan step in code",
+      "prompt": "Do the next open step of the approved plan — only that step, not everything at once.\n\nDo not break what works. No data — 1–3 short questions; do not invent libraries or commands. Before risky changes (database, migrations, configs, auth) — backup. Do not add new features outside the step.\n\nAfter: what changed · where to check · risks. Goal — correctness score 7 or above.\nDone — «Test it». Blocker — «Make a plan».\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing libraries, commands, and output; doing extras outside the step; people-pleasing and hiding breakage; dangerous commands without an explicit “yes”; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: DONE — step ready for verification\nor\nKEYCODE_STATUS: PARTIAL — step started but not finished\nor\nKEYCODE_STATUS: BLOCKED — need a human or data",
       "image": "magician",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "test",
-      "title": "Test",
+      "title": "Test it",
       "description": "Star: verify the result with facts, not words",
-      "prompt": "Test what was just done (the last step or a clearly named part).\n\nDo: relevant checks (commands/build/manual); show facts; on fail — cause + minimal fix; on OK — \"TEST PASSED\" + what was verified. Do not advance the plan on red.\n\nResult: green / red + one sentence why. Add preliminary project quality score 0–10 (below 7 = not ready).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "Verify what was just done (the last step or a clearly named part).\n\nRun relevant checks (commands, build, manual scenario). Show real output. Happy path + one edge case or failure (or why you cannot).\nOn failure — cause and the «Fix bugs» card; do not fix code yourself unless asked. On success — «TEST PASSED» and the checklist. Do not advance on red. If you cannot actually run checks — do not score above 4. If a human is needed — give a short scenario; do not mark «TEST PASSED».\nDo not invent command output.\nResult: green / red + project quality score 0–10 (below 7 = not ready).\n7 or above — «Code it» (next step). Below 7 — «Fix bugs».\n\nThe project may be empty — judge only what exists.\nForbidden: inventing facts and gaps; inflating the score out of pity; scoring 9–10 without three facts; if data is missing — ask, do not guess.\n\nAt the very end of the reply always add this line (N = your score 0-10):\nKEYCODE_SCORE: N\nIf you cannot evaluate due to missing data, second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "fix",
-      "title": "Fix",
-      "description": "Tower: fix the breakage until acceptable score (≥7)",
-      "prompt": "Fix issues from the last test, error, or project quality score below 7/10.\n\nMinimal fix only — no drive-by refactors or new features. Symptom → cause → patch → verify. Loop until score ≥ 7. If stuck — blocker + 2 exits. Brief: was → did → confirmed.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Fix bugs",
+      "description": "Tower: fix the breakage until acceptable score (7 or above)",
+      "prompt": "Fix the defect from the last test, error, or project quality score below 7 out of 10.\n\nMinimal fix only. No drive-by refactors or new features. Before critical changes — backup.\nLoop: symptom → cause → what else may break → patch → verify the same way. While score is below 7 — repeat.\nAfter 3 attempts with no progress — stop: what fails and why; 2 options with trade-offs; list where a human is needed.\nFormat: was → became → evidence.\n7 or above — «Test it».\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing libraries, commands, and output; doing extras outside the step; people-pleasing and hiding breakage; dangerous commands without an explicit “yes”; if data is missing — ask, do not guess.\n\nAt the very end of the reply always add this line (N = your score 0-10):\nKEYCODE_SCORE: N\nIf the step is not merely “scored”, second line one of:\nKEYCODE_STATUS: NEED_DATA — not enough data\nKEYCODE_STATUS: BLOCKED — need a human or cannot go further",
       "image": "tower",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "polish",
-      "title": "Polish",
+      "title": "Polish it",
       "description": "Strength: raise project quality score to 9–10",
-      "prompt": "\"Polish\" mode. Do not stop until the project quality score is 9 or 10 out of 10.\n\n7–8 is not enough for this card. Loop without asking: score N/10 + top gaps → fix only those → verify → rescore. While ≤ 8, repeat. Stop only at 9–10.\n\nThen: final score · what raised it · what you left alone.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "prompt": "High polish mode. Goal — project quality score 9 or 10. Stopping at 7–8 is not allowed.\n\nLoop: score N/10 → critical gaps → fixes only for those (do not expand scope) → recheck → new score. While 8 or below — repeat.\nMaximum 2–3 iterations. If the score does not rise for two rounds in a row — stop and explain the ceiling. If the ceiling is below 9 due to external limits — name them after exhausting in-scope fixes.\nBefore starting — backup.\nReport: final score · what raised quality · residual risk · what you left alone.\n9 or above — «Save it».\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing libraries, commands, and output; doing extras outside the step; people-pleasing and hiding breakage; dangerous commands without an explicit “yes”; if data is missing — ask, do not guess.\n\nAt the very end of the reply always add this line (N = your score 0-10):\nKEYCODE_SCORE: N\nIf the step is not merely “scored”, second line one of:\nKEYCODE_STATUS: NEED_DATA — not enough data\nKEYCODE_STATUS: BLOCKED — hit the ceiling, cannot go further",
       "image": "strength",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "backup",
-      "title": "Backup",
+      "title": "Save it",
       "description": "Hermit: save a rollback point",
-      "prompt": "Create a safe rollback point for the current project state.\n\n1. git status (or equivalent).\n2. Meaningful commit or ready commit command — no force, no --no-verify unless asked.\n3. No git — dated backup copy of key files.\n4. Rollback in 1–2 commands. No push without request.\n\nEnd with: \"Checkpoint saved\" + where/how to roll back.",
+      "prompt": "Create a safe rollback point.\n\n1. git status (or equivalent).\n2. Meaningful commit or ready command — no force and no skipping checks unless asked.\n3. No git — copy of key files with a date in the name.\n4. Rollback in 1–2 commands.\n5. Do not push changes or run dangerous commands (delete, reset, production) without an explicit “yes”.\n\nEnd with: «Checkpoint saved» + where and how to roll back. Do not invent a successful commit.\nNext: «Do it all» or «Code it» — by context.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing libraries, commands, and output; doing extras outside the step; people-pleasing and hiding breakage; dangerous commands without an explicit “yes”; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: SAVED — checkpoint saved\nor\nKEYCODE_STATUS: FAILED — could not save",
       "image": "hermit",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "fullcycle",
-      "title": "Full Cycle",
-      "description": "World: plan → work → test, each step ≥ 7 points",
-      "prompt": "Full cycle through the plan from start to finish — no skipping.\n\nClose each item only at project quality score ≥ 7 (use Polish for 9–10). Per item: name → implement → verify → score → if <7 fix until ≥7 → next. No scope inflation.\n\nNo plan — short 5–8 step plan first (or proceed if already agreed).\n\nFinal: overall score · done / not done · what to verify manually. Don't declare success if overall <7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Do it all",
+      "description": "World: plan → work → verify, each step score 7 or above",
+      "prompt": "Execute the plan from start to finish. Before starting — backup; on critical steps (database, migrations, auth) — also.\n\nAn item is closed only at score 7 or above (for 9–10 — «Polish it»). Per item: name → do → verify with facts → score → if below 7, fix → continue. No skipping, scope inflation, or masking red tests.\nNo plan — first 5–8 steps with acceptance criteria. More than 8 steps — only the first stage. Do not invent libraries or commands. Dangerous commands — backup and explicit “yes”.\n\nIf the score does not rise for 2–3 rounds on one task — simplify or change path. Need a human — list blockers, keep doing the rest. Three rounds with no movement — stop and give an honest status.\nFinale: overall score · done / not done · risks · what to check manually. Do not declare success below 7.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing libraries, commands, and output; doing extras outside the step; people-pleasing and hiding breakage; dangerous commands without an explicit “yes”; if data is missing — ask, do not guess.\n\nAt the very end always:\nKEYCODE_SCORE: N\n\nIf the approved scope is closed and checks are green:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not ready or checks are red:\nKEYCODE_GATE: FAIL\nIf you stopped due to blockers:\nKEYCODE_STATUS: BLOCKED",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Recap",
-      "description": "High Priestess: short chat/task status — done vs not done",
-      "prompt": "Read this chat and the repo context. Do not write or change code.\n\nReply in exactly four short sections (1–3 bullets each):\n1. Task — what we aim for (one sentence + scope if known).\n2. Done — implemented or verified.\n3. Not done — open steps, failures, blockers, unknowns.\n4. Next step — single best action (name Plan / Work / Test / Fix if obvious).\n\nIf there is no plan, say so and recommend Plan. Mark unknowns explicitly — do not invent. No KEYCODE_SCORE line.",
+      "title": "Result overview",
+      "description": "High Priestess: briefly — task, done, not done, next",
+      "prompt": "Read this chat and the repo context. Do not write or change code. Do not invent evidence.\n\nFour short blocks (1–3 items each):\n1. Task\n2. Done\n3. Not done — steps, failures, blockers\n4. Next step — one card: Make a plan / Evaluate the work / Code it / Test it / Fix bugs / Polish it / Save it / Do it all\n\nIf there is no plan — recommend «Make a plan». If work stalled — fifth block: reason and options (simplify / return to plan / ask a human).\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\nThe project may be empty — write only what is visible in the chat.\nForbidden: inventing what was done; writing or changing code; adding KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.",
       "image": "high_priestess",
       "hotkey": ""
     }

@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "plan",
-      "title": "Plan",
-      "description": "Hierophant: Plan für merge-fähige Änderung, kein Entwurf",
-      "prompt": "Erstelle einen Umsetzungsplan für die aktuelle Aufgabe. Kein Code. Kein Fülltext.\n\nAus Kontext: Acceptance Criteria; Scope IN/OUT; Risiken (Daten, API, Races, Kompatibilität, Regressionen).\n\nRegeln: kleine prüfbare Schritte mit Deliverable + Verify; Tests/Errors/Edges/Rollback; einfach arbeitend > Idealarchitektur; Annahmen und offene Fragen.\n\nOutput: nummerierter Plan + kurze Risikoliste + definition of done.",
+      "title": "Erstelle einen Plan",
+      "description": "Hierophant: Plan für eine merge-reife Änderung, kein Entwurf",
+      "prompt": "Erstelle einen Umsetzungsplan für die aktuelle Aufgabe. Schreibe keinen Code. Ohne Fülltext.\n\nAus dem Kontext (falls vorhanden): Abnahmekriterien; Scope rein / raus; Risiken — Daten, Interfaces, Race Conditions, Kompatibilität, Regressionen. Wenig Kontext — höchstens 3 Fragen. Keine Antworten erfinden.\n\nRegeln: ein Schritt = eine prüfbare Sache; pro Schritt — was tun · Fertig-Kriterium · wie prüfen; Tests, Fehler, Ränder, Rollback einplanen. Einfach und funktionsfähig schlägt ideale Architektur. Annahmen — explizit. Erfinde keine Interfaces, Bibliotheken oder Befehle, die nicht im Repo sind. Gibt es guten Open Source — nutze ihn.\n\nAusgabe: nummerierter Plan · Risiken · Fertig-Kriterien.\nWeiter: «Bewerte das Ergebnis».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Fakten, Namen, Zahlen und Dateien erfinden; Code schreiben (diese Karte ist nur Analyse); für später überkomplex machen; gefallen wollen; fehlen Daten — fragen, nicht raten.\n\nAm Ende eine Zeile:\nKEYCODE_STATUS: READY — Plan ist fertig\noder\nKEYCODE_STATUS: NEED_DATA — mehr Informationen nötig",
       "image": "hierophant",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evaluate",
-      "title": "Review",
-      "description": "Gerechtigkeit: Review mit Projektqualitäts-Score 0–10",
-      "prompt": "Strenges Review des aktuellen Plans oder Diff/Ergebnisses.\n\nProjektqualitäts-Score 0–10: 0–6 block; 7–8 akzeptabel mit Vorbehalten; 9–10 hohe Latte. Unter 7 = Blocker.\n\nPrüfe: Korrektheit/Edges; Regressionen; Komplexität; Tests/Errors; Security/Daten falls relevant; Top-3 PR-Fixes.\n\nFormat:\n- Projektqualitäts-Score: N/10\n- Urteil: block (<7) / akzeptabel (7–8) / strong (9–10)\n- Findings: Critical / Major / Minor\n- Konkrete Fixes\n\nKein großes Refactor ohne Bitte. Unter 7 nicht akzeptieren.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Bewerte das Ergebnis",
+      "description": "Gerechtigkeit: strenges Review mit Projektbewertung 0–10",
+      "prompt": "Strenges Review des aktuellen Plans oder der Änderung. Ehrlich, ohne Schmeichelei.\n\nProjektbewertung 0–10: 0–6 Block; 7–8 akzeptabel mit Vorbehalten; 9–10 hohe Latte. Unter 7 nicht annehmen.\nPrüfe: Korrektheit und Ränder; Regressionen; Komplexität; Tests und Fehler; Sicherheit und Daten wenn relevant; Top-3-Korrekturen für einen Merge-Request.\nNicht aufblasen. Für 9–10 brauchst du 3 Fakten. Ziel unklar oder Scope aufgeblasen — keine 7 oder höher.\n\nAntwort: Note N/10 · Urteil · kritisch / ernst / klein · Korrekturen.\nGroßer Refactor nur auf Bitte.\nUnter 7 — «Straffe den Plan». 7 oder höher — «Programmiere».\n\nDas Projekt kann leer sein — urteile nur nach dem, was da ist.\nVerboten: Fakten und Lücken erfinden; Note aus Mitleid aufblasen; 9–10 ohne drei Fakten; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn Bewertung wegen fehlender Daten unmöglich ist, zweite Zeile:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "improve",
-      "title": "Verfeinern",
-      "description": "Mäßigung: Plan auf Minimum für Umsetzung trimmen",
-      "prompt": "Verbessere den aktuellen Plan oder das Design auf umsetzungsreifes Niveau.\n\nAlles außerhalb Acceptance Criteria streichen; Interfaces/Daten/Errors/Tests klären; wenn aufgeblasen — einfacher mit Trade-offs; Schritte + Verify behalten. Kein Code bis gebeten.\n\nOutput: aktualisierter Plan + Changelog (3–7) + Readiness-Score 0–10.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Straffe den Plan",
+      "description": "Mäßigkeit: komprimiere den Plan auf das Minimum zur Umsetzung",
+      "prompt": "Bringe den Plan auf Code-Reife. Nur Analyse — kein Code.\n\nSchneide alles außerhalb der Abnahmekriterien weg. Kläre Interfaces, Daten, Fehler, Tests. Wenn aufgeblasen — schlichteres mit Kompromissen vorschlagen. Schritte und Prüfmethode behalten. Keine Anforderungen erfinden. Nichts „für später“ hinzufügen.\n\nAusgabe: aktualisierter Plan · Änderungsprotokoll (3–7 Punkte) · Plan-Bereitschaftsnote 0–10.\n7 oder höher — «Programmiere». Unter 7 — nochmal straffen.\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Fakten, Namen, Zahlen und Dateien erfinden; Code schreiben (diese Karte ist nur Analyse); für später überkomplex machen; gefallen wollen; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn Bewertung wegen fehlender Daten unmöglich ist, zweite Zeile:\nKEYCODE_STATUS: NEED_DATA",
       "image": "temperance",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "work",
-      "title": "Codieren",
+      "title": "Programmiere",
       "description": "Magier: nächster Schritt — prüfbarer Code ohne Regressionen",
-      "prompt": "Setze den nächsten offenen Schritt des genehmigten Plans um.\n\nNur dieser Schritt; keine Regressionen; Errors explizit; fehlende Daten — 1–3 präzise Fragen, keine erfundenen APIs. Danach: was geändert · wie prüfen · Risiken.\n\nStatus: done / partial / blocked + warum. Ziel Korrektheit ≥ 7/10.",
+      "prompt": "Setze den nächsten offenen Schritt des genehmigten Plans um. Nur diesen Schritt.\n\nMach nichts kaputt, was funktioniert. Fehler explizit behandeln. Keine Daten — 1–3 präzise Fragen; erfinde keine Interfaces oder Bibliotheken. Vor kritischen Änderungen — Backup. Keine neuen Features außerhalb des Schritts. Gefährliche Befehle (Löschen, Reset, Produktion) — nur nach klarem „ja“.\n\nDanach: was sich geändert hat · wie prüfen · Risiken. Ziel — Korrektheitsnote 7 oder höher.\nFertig — «Teste es». Blocker — «Erstelle einen Plan».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nAm Ende eine Zeile:\nKEYCODE_STATUS: DONE — Schritt bereit zur Prüfung\noder\nKEYCODE_STATUS: PARTIAL — Schritt begonnen, aber nicht fertig\noder\nKEYCODE_STATUS: BLOCKED — Mensch oder Daten nötig",
       "image": "magician",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "test",
-      "title": "Test",
-      "description": "Stern: mit grünem Lauf beweisen, nicht versprechen",
-      "prompt": "Prüfe das Gerade-Gemachte wie in CI, nicht „sollte funktionieren“.\n\nBefehle/Tests/Build mit echtem Output; Happy Path + ein Edge/Fail (oder warum nicht). Rot — Ursache + Minimalfix/Blocker; Grün — \"TEST PASSED\" + Checks. Bei Rot nicht weiter.\n\nErgebnis: green/red + vorläufiger Projektqualitäts-Score 0–10 (unter 7 = nicht bereit).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Teste es",
+      "description": "Stern: beweise mit grünem Lauf, nicht mit Versprechen",
+      "prompt": "Prüfe, was gerade gemacht wurde, wie in Continuous Integration — nicht „sollte funktionieren“.\n\nBefehle, Tests, Build — mit echter Ausgabe. Happy Path + ein Randfall oder Fehlschlag (oder warum nicht möglich).\nRot — Ursache und Blocker; grün — «TEST BESTANDEN» und Checkliste. Bei Rot nicht weitergehen. Kannst du Checks nicht wirklich ausführen — Note nicht über 4. Braucht es einen Menschen — kurzes Szenario geben; kein «TEST BESTANDEN». Code nicht selbst reparieren, wenn nicht gebeten.\nErfinde keine Befehlsausgabe.\nErgebnis: grün / rot + Projektbewertung 0–10 (unter 7 = nicht bereit).\n7 oder höher — «Programmiere» (nächster Schritt). Unter 7 — «Behebe Fehler».\n\nDas Projekt kann leer sein — urteile nur nach dem, was da ist.\nVerboten: Fakten und Lücken erfinden; Note aus Mitleid aufblasen; 9–10 ohne drei Fakten; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn Prüfung unmöglich ist (kein Lauf oder keine Daten), zweite Zeile:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "fix",
-      "title": "Fix",
-      "description": "Turm: minimaler Patch bis Qualitäts-Score ≥ 7",
-      "prompt": "Behebe den Defekt aus letztem Test, Review oder Projektqualitäts-Score < 7.\n\nNur Minimalfix. Symptom → Ursache → Blast Radius → Patch → gleiche Verify. Loop bis ≥ 7. Blocker — 2 Optionen mit Trade-offs. before → after → Evidence. Keine Features solange offen.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Behebe Fehler",
+      "description": "Turm: minimaler Patch bis Note 7 oder höher",
+      "prompt": "Behebe den Defekt aus dem letzten Test, Review oder einer Projektbewertung unter 7 von 10.\n\nNur minimaler Fix. Kein Refactoring „nebenbei“ und keine neuen Features. Vor kritischen Änderungen — Backup.\nSchleife: Symptom → Ursache → was sonst noch kaputtgehen kann → Patch → gleiche Prüfung. Solange Note unter 7 — wiederholen.\nNach 3 Versuchen ohne Fortschritt — stoppen: was scheitert und warum; 2 Optionen mit Kompromissen; Liste, wo ein Mensch nötig ist.\nFormat: war → wurde → Beweis.\n7 oder höher — «Teste es».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn der Schritt nicht nur „bewertet“ ist, zweite Zeile eines von:\nKEYCODE_STATUS: NEED_DATA — nicht genug Daten\nKEYCODE_STATUS: BLOCKED — Mensch nötig oder nicht weiter möglich",
       "image": "tower",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "polish",
-      "title": "Verfeinern",
-      "description": "Stärke: Projektqualitäts-Score auf 9–10 heben",
-      "prompt": "Modus hohe Qualität. Stopp bei 7–8 verboten. Ziel — Projektqualitäts-Score 9 oder 10 von 10.\n\nLoop: Score N/10 + Critical/Major Lücken → nur die (Scope Freeze) → Recheck → Rescore. Solange ≤ 8 wiederholen. Stopp nur bei 9–10.\n\nReport: Score · was hob Qualität · Restrisiko · was unberührt. Externe Decke <9 — erst nach Exhaustion im Scope nennen.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Verbessere es",
+      "description": "Kraft: hebe die Projektbewertung auf 9–10",
+      "prompt": "Hoher Feinschliff-Modus. Ziel — Projektbewertung 9 oder 10. Bei 7–8 stoppen ist nicht erlaubt.\n\nSchleife: Note N/10 → kritische und ernste Lücken → Korrekturen nur dafür (Scope nicht erweitern) → erneute Prüfung → neue Note. Solange 8 oder darunter — wiederholen.\nMaximal 2–3 Iterationen. Steigt die Note zwei Runden hintereinander nicht — stoppen und die Grenze erklären. Liegt die Grenze wegen externer Einschränkungen unter 9 — nach Ausschöpfen der Scope-Korrekturen benennen.\nVor dem Start — Backup.\nBericht: Endnote · was die Qualität hob · Restrisiko · was unberührt blieb.\n9 oder höher — «Teste es». «Mach alles selbst» — nur wenn der ganze Scope schon geschlossen ist.\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn der Schritt nicht nur „bewertet“ ist, zweite Zeile eines von:\nKEYCODE_STATUS: NEED_DATA — nicht genug Daten\nKEYCODE_STATUS: BLOCKED — Grenze erreicht, nicht weiter möglich",
       "image": "strength",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "fullcycle",
-      "title": "Zyklus",
-      "description": "Welt: end-to-end, jeder Punkt ≥ 7 Qualitätspunkte",
-      "prompt": "Voller end-to-end-Zyklus durch den Plan.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 (Polish für 9–10). Pro Punkt: nennen → implementieren → mit Fakten prüfen → Score → bis ≥7 fixen → weiter. Kein Skip, Scope-Inflation oder Maskieren roter Tests.\n\nKein Plan — kurzer 5–8-Schritt-Plan mit Acceptance Criteria, dann ausführen.\n\nFinal: Gesamtscore · done/not done · Restrisiken · manuelle Checks vor Merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
+      "title": "Mach alles selbst",
+      "description": "Welt: Ende-zu-Ende, jeder Punkt Qualitätsnote 7 oder höher",
+      "prompt": "Voller Zyklus durch den Plan. Ein Punkt ist erst bei Note 7 oder höher geschlossen (für 9–10 — «Verbessere es»). Pro Punkt: nennen → umsetzen → mit Fakten prüfen → Note → bis 7 reparieren → weiter. Kein Überspringen, Scope-Aufblasen oder Kaschieren roter Tests.\nKein Plan — zuerst 5–8 Schritte mit Abnahmekriterien.\nSteigt die Note 2–3 Runden nicht — vereinfachen oder Weg wechseln. Braucht es einen Menschen — Blocker-Liste, Rest weiter machen. Drei Runden ohne Bewegung — stoppen.\nVor dem Start und bei kritischen Schritten — Backup. Gefährliche Befehle — Backup und klares „ja“. Erfinde keine Bibliotheken oder Befehle. Gibt es guten Open Source — nutze ihn.\nFinale: Gesamtnote · fertig / nicht fertig · Risiken · was manuell vor dem Merge prüfen. Unter 7 keinen Erfolg verkünden.\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende unbedingt:\nKEYCODE_SCORE: N\n\nWenn der genehmigte Scope geschlossen und Checks grün sind:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nWenn nicht bereit oder Checks rot:\nKEYCODE_GATE: FAIL\nWenn wegen Blockern gestoppt:\nKEYCODE_STATUS: BLOCKED",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Kurzfassung",
+      "title": "Ergebnisüberblick",
       "description": "Hohepriesterin: kurz — Aufgabe, erledigt, Lücken, weiter",
-      "prompt": "Lies diesen Chat und den Repo-Kontext. Keinen Code schreiben oder ändern.\n\nAntwort genau in vier kurzen Abschnitten (je 1–3 Punkte):\n1. Aufgabe — Ziel + Acceptance Criteria falls bekannt.\n2. Erledigt — umgesetzt, reviewed oder verifiziert.\n3. Offen — offene Punkte, Fehler, Blocker, Unklarheiten.\n4. Nächster Schritt — eine beste Aktion (Plan / Review / Code / Test / Fix nennen, falls klar).\n\nKein Plan — sag es und empfehle Plan. Unbekanntes markieren — nichts erfinden. Keine KEYCODE_SCORE-Zeile.",
+      "prompt": "Lies diesen Chat und den Repo-Kontext. Schreibe und ändere keinen Code. Erfinde keine Beweise.\n\nVier kurze Blöcke (je 1–3 Punkte):\n1. Aufgabe — Ziel und Abnahmekriterien, falls bekannt\n2. Erledigt\n3. Nicht erledigt — Offenes, Fehlschläge, Blocker\n4. Nächster Schritt — eine Karte: Erstelle einen Plan / Bewerte das Ergebnis / Straffe den Plan / Programmiere / Teste es / Behebe Fehler / Verbessere es / Mach alles selbst\n\nKein Plan — «Erstelle einen Plan» empfehlen. Arbeit steckt — fünfter Block: Grund und Optionen (vereinfachen / zum Plan zurück / Menschen fragen).\nKeine Zeilen KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT und KEYCODE_STATUS hinzufügen.\n\nDas Projekt kann leer sein — schreibe nur, was im Chat sichtbar ist.\nVerboten: Erledigtes erfinden; Code schreiben oder ändern; Zeilen KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT und KEYCODE_STATUS hinzufügen.",
       "image": "high_priestess",
       "hotkey": ""
     }

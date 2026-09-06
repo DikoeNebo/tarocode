@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "plan",
-      "title": "Plan",
-      "description": "Hierofante: plan listo para merge, no borrador",
-      "prompt": "Crea un plan de implementación para la tarea actual. Sin código. Sin relleno.\n\nDel contexto: acceptance criteria; scope IN/OUT; riesgos (datos, API, races, compatibilidad, regresiones).\n\nReglas: pasos verificables con entregable + cómo verificar; tests/errores/edges/rollback; simple que funciona > arquitectura ideal; supuestos y preguntas abiertas.\n\nSalida: plan numerado + riesgos cortos + definition of done.",
+      "title": "Haz un plan",
+      "description": "Hierofante: plan para un cambio listo para fusionar, no un borrador",
+      "prompt": "Haz un plan de implementación para la tarea actual. No escribas código. Sin relleno.\n\nDel contexto (si hay): criterios de aceptación; alcance dentro / fuera; riesgos — datos, interfaces, condiciones de carrera, compatibilidad, regresiones. Poco contexto — como máximo 3 preguntas. No inventes respuestas.\n\nReglas: un paso = una cosa verificable; por paso — qué hacer · criterio de listo · cómo comprobar; cubrir tests, errores, bordes, rollback. Lo simple que funciona supera la arquitectura ideal. Supuestos — explícitos. No inventes interfaces, bibliotecas ni comandos que no estén en el repositorio. Si hay buen open source — úsalo.\n\nSalida: plan numerado · riesgos · criterios de listo.\nSiguiente: «Evalúa lo creado».\n\nEl proyecto puede estar vacío y puede no tener reglas. No inventes lo que no hay.\nProhibido: inventar hechos, nombres, cifras y archivos; escribir código (esta carta es solo análisis); complicar «para el futuro»; agradar; si faltan datos — pregunta, no adivines.\n\nAl final una línea:\nKEYCODE_STATUS: READY — plan listo\no\nKEYCODE_STATUS: NEED_DATA — se necesita más información",
       "image": "hierophant",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evaluate",
-      "title": "Revisar",
-      "description": "Justicia: revisión con puntuación de calidad del proyecto 0–10",
-      "prompt": "Revisión estricta del plan actual o diff/resultado.\n\nScore 0–10: 0–6 block; 7–8 aceptable con matices; 9–10 alto. Bajo 7 = blocker.\n\nRevisa: corrección/edges; regresiones; complejidad; tests/errores; seguridad/datos si aplica; top 3 fixes PR.\n\nFormato:\n- Project quality score: N/10\n- Veredicto: block (<7) / acceptable (7–8) / strong (9–10)\n- Findings: Critical / Major / Minor\n- Fixes concretos\n\nSin gran refactor salvo petición. No aceptar bajo 7.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Evalúa lo creado",
+      "description": "Justicia: revisión estricta con puntuación de calidad del proyecto 0–10",
+      "prompt": "Revisión estricta del plan o cambio actual. Con honestidad, sin adulación.\n\nPuntuación de calidad del proyecto 0–10: 0–6 bloqueo; 7–8 aceptable con matices; 9–10 listón alto. Por debajo de 7 no aceptar.\nComprueba: corrección y bordes; regresiones; complejidad; tests y errores; seguridad y datos si aplica; top-3 correcciones para una solicitud de fusión.\nNo infles la puntuación. Para 9–10 hacen falta 3 hechos. Si el objetivo no está claro o el alcance está hinchado — no pongas 7 o más.\n\nRespuesta: puntuación N/10 · veredicto · críticos / graves / menores · correcciones.\nRefactor grande solo si te lo piden.\nPor debajo de 7 — «Compacta el plan». 7 o más — «Programa».\n\nEl proyecto puede estar vacío — juzga solo lo que hay.\nProhibido: inventar hechos y agujeros; inflar la puntuación por lástima; poner 9–10 sin tres hechos; si faltan datos — pregunta, no adivines.\n\nAl final de la respuesta añade siempre esta línea (N = tu puntuación 0-10):\nKEYCODE_SCORE: N\nSi no se puede evaluar por falta de datos, segunda línea:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "improve",
-      "title": "Afinar",
-      "description": "Templanza: reduce el plan al mínimo para implementar",
-      "prompt": "Mejora el plan o diseño actual a nivel listo para implementar.\n\nCorta fuera de acceptance criteria; aclara interfaces/datos/errores/tests; si hinchado — más simple con trade-offs; mantén pasos + verify. Sin código hasta pedirlo.\n\nSalida: plan actualizado + changelog (3–7) + readiness 0–10.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Compacta el plan",
+      "description": "Templanza: compacta el plan al mínimo para implementar",
+      "prompt": "Lleva el plan a listo para código. Solo análisis — sin código.\n\nCorta todo lo que esté fuera de los criterios de aceptación. Aclara interfaces, datos, errores, tests. Si está hinchado — propone algo más simple con compromisos. Conserva pasos y método de comprobación. No inventes requisitos. No añadas «para el futuro».\n\nSalida: plan actualizado · registro de cambios (3–7 puntos) · puntuación de preparación del plan 0–10.\n7 o más — «Programa». Por debajo de 7 — compacta otra vez.\n\nEl proyecto puede estar vacío y puede no tener reglas. No inventes lo que no hay.\nProhibido: inventar hechos, nombres, cifras y archivos; escribir código (esta carta es solo análisis); complicar «para el futuro»; agradar; si faltan datos — pregunta, no adivines.\n\nAl final de la respuesta añade siempre esta línea (N = tu puntuación 0-10):\nKEYCODE_SCORE: N\nSi no se puede evaluar por falta de datos, segunda línea:\nKEYCODE_STATUS: NEED_DATA",
       "image": "temperance",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "work",
-      "title": "Codificar",
+      "title": "Programa",
       "description": "Mago: siguiente paso — código verificable sin regresiones",
-      "prompt": "Implementa el siguiente paso abierto del plan aprobado.\n\nSolo este paso; sin regresiones; errores explícitos; sin datos — 1–3 preguntas precisas, no inventes APIs. Después: qué cambió · cómo verificar · riesgos.\n\nEstado: done / partial / blocked + por qué. Meta corrección ≥ 7/10.",
+      "prompt": "Implementa el siguiente paso abierto del plan aprobado. Solo este paso.\n\nNo rompas lo que funciona. Maneja errores de forma explícita. Sin datos — 1–3 preguntas precisas; no inventes interfaces ni bibliotecas. Antes de cambios críticos — copia de seguridad. No añadas funciones nuevas fuera del paso. Comandos peligrosos (borrar, reset, producción) — solo tras un «sí» explícito.\n\nDespués: qué cambió · cómo comprobar · riesgos. Objetivo — puntuación de corrección 7 o más.\nListo — «Prueba». Bloqueo — «Haz un plan».\n\nEl proyecto puede estar vacío y puede no tener reglas. No inventes lo que no hay.\nProhibido: inventar bibliotecas, comandos y salida; hacer de más fuera del paso; agradar y ocultar roturas; comandos peligrosos sin un «sí» explícito; si faltan datos — pregunta, no adivines.\n\nAl final una línea:\nKEYCODE_STATUS: DONE — paso listo para comprobar\no\nKEYCODE_STATUS: PARTIAL — paso empezado pero no terminado\no\nKEYCODE_STATUS: BLOCKED — hace falta una persona o datos",
       "image": "magician",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "test",
-      "title": "Probar",
-      "description": "Estrella: demuestra con ejecución verde, no promesa",
-      "prompt": "Verifica lo recién hecho como en CI, no «debería funcionar».\n\nComandos/tests/build con salida real; happy path + un edge/fail (o por qué no). Rojo — causa + fix/blocker; verde — \"TEST PASSED\" + checks. En rojo no avances.\n\nResultado: green/red + score preliminar 0–10 (bajo 7 = no listo).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Prueba",
+      "description": "Estrella: demuéstralo con una pasada en verde, no con una promesa",
+      "prompt": "Comprueba lo que se acaba de hacer como en integración continua, no «debería funcionar».\n\nComandos, tests, build — con salida real. Camino feliz + un caso límite o fallo (o por qué no se puede).\nRojo — causa y bloqueo; verde — «PRUEBA SUPERADA» y la lista de comprobaciones. En rojo no sigas. Si no puedes ejecutar de verdad — no pongas puntuación por encima de 4. Si hace falta una persona — da un escenario corto; no marques «PRUEBA SUPERADA». No arregles el código tú mismo si no te lo pidieron.\nNo inventes la salida de comandos.\nResultado: verde / rojo + puntuación de calidad del proyecto 0–10 (por debajo de 7 = no listo).\n7 o más — «Programa» (siguiente paso). Por debajo de 7 — «Arregla bugs».\n\nEl proyecto puede estar vacío — juzga solo lo que hay.\nProhibido: inventar hechos y agujeros; inflar la puntuación por lástima; poner 9–10 sin tres hechos; si faltan datos — pregunta, no adivines.\n\nAl final de la respuesta añade siempre esta línea (N = tu puntuación 0-10):\nKEYCODE_SCORE: N\nSi no se puede comprobar (sin ejecución o datos), segunda línea:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "fix",
-      "title": "Fix",
-      "description": "Torre: parche mínimo hasta puntuación ≥ 7",
-      "prompt": "Arregla el defecto del último test, revisión o puntuación de calidad del proyecto < 7.\n\nSolo fix mínimo. Síntoma → causa → blast radius → patch → misma verificación. Loop hasta ≥ 7. Blocker — 2 opciones con trade-offs. before → after → evidencia. Sin features mientras abierto.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Arregla bugs",
+      "description": "Torre: parche mínimo hasta puntuación 7 o más",
+      "prompt": "Corrige el defecto del último test, revisión o puntuación de calidad del proyecto por debajo de 7 de 10.\n\nSolo el arreglo mínimo. Sin refactor «de paso» ni funciones nuevas. Antes de cambios críticos — copia de seguridad.\nCiclo: síntoma → causa → qué más puede romperse → parche → comprobar del mismo modo. Mientras la puntuación esté por debajo de 7 — repite.\nTras 3 intentos sin progreso — para: qué no sale y por qué; 2 opciones con compromisos; lista de dónde hace falta una persona.\nFormato: era → es → evidencia.\n7 o más — «Prueba».\n\nEl proyecto puede estar vacío y puede no tener reglas. No inventes lo que no hay.\nProhibido: inventar bibliotecas, comandos y salida; hacer de más fuera del paso; agradar y ocultar roturas; comandos peligrosos sin un «sí» explícito; si faltan datos — pregunta, no adivines.\n\nAl final de la respuesta añade siempre esta línea (N = tu puntuación 0-10):\nKEYCODE_SCORE: N\nSi el paso no es solo «evaluado», segunda línea una de:\nKEYCODE_STATUS: NEED_DATA — faltan datos\nKEYCODE_STATUS: BLOCKED — hace falta una persona o no se puede seguir",
       "image": "tower",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "polish",
-      "title": "Pulir",
-      "description": "Fuerza: lleva la puntuación de calidad del proyecto a 9–10",
-      "prompt": "Modo pulido de alta calidad. Parar en 7–8 prohibido. Meta — puntuación de calidad del proyecto 9 o 10 de 10.\n\nLoop: score N/10 + Critical/Major → fix solo eso (scope freeze) → recheck → rescore. Mientras ≤ 8, repetir. Para solo en 9–10.\n\nInforme: score · qué subió calidad · riesgo residual · qué no tocaste. Techo externo <9 — nómbralo tras agotar fixes in-scope.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Mejora",
+      "description": "Fuerza: sube la puntuación de calidad del proyecto a 9–10",
+      "prompt": "Modo de acabado alto. Objetivo — puntuación de calidad del proyecto 9 o 10. Parar en 7–8 no está permitido.\n\nCiclo: puntuación N/10 → agujeros críticos y graves → correcciones solo de esos (no ampliar alcance) → volver a comprobar → nueva puntuación. Mientras sea 8 o menos — repite.\nMáximo 2–3 iteraciones. Si la puntuación no sube dos rondas seguidas — para y explica el techo. Si el techo está por debajo de 9 por límites externos — nómbralos tras agotar correcciones dentro del alcance.\nAntes de empezar — copia de seguridad.\nInforme: puntuación final · qué subió la calidad · riesgo residual · qué no tocaste.\n9 o más — «Prueba». «Hazlo todo» — solo si todo el alcance ya está cerrado.\n\nEl proyecto puede estar vacío y puede no tener reglas. No inventes lo que no hay.\nProhibido: inventar bibliotecas, comandos y salida; hacer de más fuera del paso; agradar y ocultar roturas; comandos peligrosos sin un «sí» explícito; si faltan datos — pregunta, no adivines.\n\nAl final de la respuesta añade siempre esta línea (N = tu puntuación 0-10):\nKEYCODE_SCORE: N\nSi el paso no es solo «evaluado», segunda línea una de:\nKEYCODE_STATUS: NEED_DATA — faltan datos\nKEYCODE_STATUS: BLOCKED — se alcanzó el techo, no se puede seguir",
       "image": "strength",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "fullcycle",
-      "title": "Ciclo",
-      "description": "Mundo: end-to-end, cada ítem ≥ 7 puntos de calidad",
-      "prompt": "Ciclo completo end-to-end del plan.\n\nCierra cada ítem solo con score ≥ 7 (Polish para 9–10). Por ítem: nombrar → implementar → verificar con hechos → score → fix hasta ≥7 → siguiente. Sin saltos, inflar scope ni enmascarar tests rojos.\n\nSin plan — plan corto 5–8 con acceptance criteria, luego ejecutar.\n\nFinal: score global · done/not done · riesgos residuales · checks manuales antes de merge.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
+      "title": "Hazlo todo",
+      "description": "Mundo: de extremo a extremo, cada punto con puntuación 7 o más",
+      "prompt": "Ciclo completo según el plan. Un punto se cierra solo con puntuación 7 o más (para 9–10 — «Mejora»). Por punto: nombrar → implementar → comprobar con hechos → puntuación → arreglar hasta 7 → seguir. Sin saltos, hinchar el alcance ni maquillar tests en rojo.\nSin plan — primero 5–8 pasos con criterios de aceptación.\nSi la puntuación no sube 2–3 rondas — simplifica o cambia de camino. Hace falta una persona — lista de bloqueos, sigue con el resto. Tres rondas sin movimiento — para.\nAntes de empezar y en pasos críticos — copia de seguridad. Comandos peligrosos — copia de seguridad y «sí» explícito. No inventes bibliotecas ni comandos. Si hay buen open source — úsalo.\nFinal: puntuación global · hecho / no hecho · riesgos · qué comprobar a mano antes de fusionar. Por debajo de 7 no declares éxito.\n\nEl proyecto puede estar vacío y puede no tener reglas. No inventes lo que no hay.\nProhibido: inventar bibliotecas, comandos y salida; hacer de más fuera del paso; agradar y ocultar roturas; comandos peligrosos sin un «sí» explícito; si faltan datos — pregunta, no adivines.\n\nAl final siempre:\nKEYCODE_SCORE: N\n\nSi el alcance aprobado está cerrado y las comprobaciones están en verde:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nSi no está listo o las comprobaciones están en rojo:\nKEYCODE_GATE: FAIL\nSi te detuviste por bloqueos:\nKEYCODE_STATUS: BLOCKED",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Resumen",
+      "title": "Resumen del resultado",
       "description": "Sacerdotisa: breve — tarea, hecho, huecos, siguiente",
-      "prompt": "Lee este chat y el contexto del repo. No escribas ni cambies código.\n\nResponde en exactamente cuatro secciones cortas (1–3 viñetas cada una):\n1. Tarea — objetivo + criterios de aceptación si se conocen.\n2. Hecho — implementado, revisado o verificado.\n3. Pendiente — abiertos, fallos, bloqueos, desconocidos.\n4. Siguiente paso — una sola mejor acción (nombra Plan / Review / Code / Test / Fix si es obvio).\n\nSi no hay plan, dilo y recomienda Plan. Marca lo desconocido — no inventes. Sin línea KEYCODE_SCORE.",
+      "prompt": "Lee este chat y el contexto del repositorio. No escribas ni cambies código. No inventes pruebas.\n\nCuatro bloques cortos (1–3 puntos cada uno):\n1. Tarea — objetivo y criterios de aceptación si se conocen\n2. Hecho\n3. No hecho — abierto, fallos, bloqueos\n4. Siguiente paso — una carta: Haz un plan / Evalúa lo creado / Compacta el plan / Programa / Prueba / Arregla bugs / Mejora / Hazlo todo\n\nSi no hay plan — recomienda «Haz un plan». Si el trabajo se estancó — quinto bloque: causa y opciones (simplificar / volver al plan / preguntar a una persona).\nNo añadas líneas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT ni KEYCODE_STATUS.\n\nEl proyecto puede estar vacío — escribe solo lo visible en el chat.\nProhibido: inventar lo hecho; escribir o cambiar código; añadir líneas KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT y KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

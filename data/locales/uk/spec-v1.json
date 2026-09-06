@@ -1,76 +1,76 @@
 {
   "id": "spec-v1",
-  "name": "02 Специфікація",
+  "name": "02 Що будуємо",
   "cards": [
     {
       "id": "brief",
-      "title": "Бриф",
-      "description": "Emperor: goal, users, stories, measurable outcome",
-      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "title": "Навіщо і для кого",
+      "description": "Імператор: мета, користувачі, сценарії, вимірюваний результат",
+      "prompt": "Перетвори підтверджену гіпотезу на бриф продукту. Лише аналіз — без коду.\n\nЯкщо перевірка ідеї не пройшла — скажи повернутися до колоди «Перевірка ідеї». Спека без підтвердженої ідеї — зарано.\n\nВивід:\n1. Мета (одне речення)\n2. Хто користувач (конкретно)\n3. Ключові сценарії (3–5)\n4. Вимірюваний результат за місяць\n5. Чого ми НЕ робимо в v1\n\nЗаборонено: вигадувати користувачів/сценарії поза гіпотезою; додавати функції «на потім».\nДалі: «Що робимо».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — бриф готовий\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "emperor",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "scope",
-      "title": "MVP",
-      "description": "Two of Swords: IN / OUT, one happy path, acceptance",
-      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "title": "Що робимо",
+      "description": "Двійка мечів: IN / OUT, один happy path, приймання",
+      "prompt": "Зафіксуй найменшу робочу версію. Лише аналіз — без коду.\n\nВивід:\n1. IN: що робимо в v1\n2. OUT: чого НЕ робимо\n3. Один happy path — від входу до результату\n4. Критерії приймання\n5. Що відкладаємо і чому\n\nПравила: вирізай усе, що не потрібне першому шляху. Якщо в IN більше ніж 5 функцій — скороти. Не додавай «може знадобитися потім». Не вигадуй вимоги поза брифом.\nДалі: «Як виглядає».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — обсяг готовий\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "swords_02",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "ux",
-      "title": "Інтерфейс",
-      "description": "Ace of Cups: screens, buttons, empty/error/loading",
-      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "title": "Як виглядає",
+      "description": "Туз келихів: екрани, керування, порожньо/завантаження/помилка",
+      "prompt": "Опиши UI текстом. Без коду, без зображень.\n\nВивід: список екранів; на кожному — кнопки й поля; стани порожньо / завантаження / помилка / успіх; як екрани з’єднані.\n\nНе генеруй зображення, Figma чи розмітку. Не додавай екрани поза обсягом. Більше ніж 5 екранів — подумай про об’єднання. Має бути збірним простими засобами.\nДалі: «Що зберігаємо».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — UI описано\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "cups_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "data-contracts",
-      "title": "Дані",
-      "description": "Ace of Pentacles: entities only if the project needs them",
-      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "title": "Що зберігаємо",
+      "description": "Туз пентаклів: сутності лише якщо продукт їх потребує",
+      "prompt": "Визнач дані продукту. Лише аналіз — без коду.\n\nВивід: сутності й поля; валідація; де зберігається (файл, локально, БД, хмара); зовнішні контракти — лише якщо потрібно.\n\nНе нав’язуй БД, REST чи ORM десктопному/локальному застосунку без потреби. Якщо зберігання непотрібне — скажи. Не вигадуй сутності поза обсягом.\nДалі: «Чим будуємо».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — дані визначено або зберігання не потрібне\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "pentacles_ace",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "architecture",
-      "title": "Архітектура",
-      "description": "Chariot: simplest fit after reading the repo",
-      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "title": "Чим будуємо",
+      "description": "Колісниця: найпростіша структура і стек після читання репо",
+      "prompt": "Спочатку прочитай репозиторій і поточні залежності. Запропонуй найпростішу структуру і стек під задачу.\n\nВивід: папки й ключові файли; мова й бібліотеки; що взяти з open source замість писати з нуля; ризики та ідея відкату.\n\nНудний і робочий варіант кращий за модну архітектуру. Не додавай мікросервіси чи контейнери для простого проєкту. Не вигадуй відсутніх залежностей. Не ламай те, що вже працює.\nДалі: «Правила коду».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — структуру і стек запропоновано\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "chariot",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "project-rules",
-      "title": "Правила",
-      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
-      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "title": "Правила коду",
+      "description": "Ієрофант: AGENTS.md і .cursor/rules — без legacy .cursorrules",
+      "prompt": "Перевір наявні файли правил: AGENTS.md (правила проєкту) і .cursor/rules/*.mdc. Запропонуй мінімальні узгоджені правки або базовий набір, якщо їх немає.\n\nЗа замовчуванням не створюй legacy .cursorrules. Не дублюй наявні правила. Змінюй файли лише коли просять. 5–10 простих правил достатньо: стиль, іменування, що заборонено.\nДалі: «Огляд плану».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — правила перевірено або запропоновано\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "hierophant",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "risk-review",
-      "title": "Рев’ю",
-      "description": "Justice: clarity, YAGNI, safety, testability",
-      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "title": "Огляд плану",
+      "description": "Справедливість: ясність, надлишок, безпека, тестованість",
+      "prompt": "Оціни специфікацію чесно — без лестощів.\n\nПеревір: чиста мета; повнота (бриф, обсяг, UI, дані, архітектура, правила); надлишок; очевидні діри безпеки; чи критерії приймання тестовані.\n\nБал якості проєкту 0–10: 0–6 виправити до коду; 7–8 можна стартувати; 9–10 відмінно. Не завищуй. Для 9–10 дай 3 факти, чому спека сильна. Нижче 7 — назви одну карту специфікації як наступну.\n\nВідповідь: бал N/10 · вердикт · плюси · мінуси · топ-3 виправлення.\nБал ≥7 — «Готові кодити?». Нижче 7 — виправ названу карту.\n\nПроєкт може бути порожнім — оцінюй лише те, що є.\nЗаборонено: вигадувати факти чи діри; завищувати бал зі співчуття; давати 9–10 без трьох фактів; немає даних — питай, не вгадуй.\n\nЗавжди завершуй цим рядком (N = твій бал 0–10):\nKEYCODE_SCORE: N\nЯкщо не можеш оцінити через брак даних, додай другий рядок:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "readiness",
-      "title": "Готовність",
-      "description": "Judgement: gate to Hobby or Production work",
-      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "title": "Готові кодити?",
+      "description": "Суд: брама в Хобі або Продакшен",
+      "prompt": "Перевір готовність до коду. Не став PASS, якщо чогось бракує. Не вигадуй артефакти.\n\nОбов’язково: мета й користувачі; обсяг і happy path; UI зі станами; дані де потрібно; архітектура; правила або базовий набір; критерії приймання; бал огляду плану ≥7.\n\nНе вгадуй режим. Питай явно, якщо не обрано:\n- Хобі — швидкий простий проєкт;\n- Продакшен — суворіше, з рев’ю і готовністю до merge.\n\nПроєкт може бути порожнім — немає факту = не PASS.\nЗаборонено: вигадувати докази; ставити PASS зі співчуття чи тому що «ідея гарна»; лестити.\n\nЗаверши рівно двома рядками.\nХобі:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nПродакшен:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nНе готово (замінити brief на id відсутньої карти: scope, ux, data-contracts, architecture, project-rules, risk-review):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief",
       "image": "judgement",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Зведення",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "title": "Підсумок",
+      "description": "Верховна жриця: мета, вирішено, відкрито, далі",
+      "prompt": "Прочитай цей чат. Не пиши й не змінюй код.\n\nЧотири короткі блоки (по 1–3 пункти):\n1. Мета\n2. Вирішено — які артефакти готові\n3. Відкрито — чого ще бракує\n4. Наступний крок — одна карта: Навіщо і для кого / Що робимо / Як виглядає / Що зберігаємо / Чим будуємо / Правила коду / Огляд плану / Готові кодити? — або перехід до Роботи\n\nЯкщо специфікація не готова — скажи.\nНе додавай рядки KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT або KEYCODE_STATUS.\n\nПроєкт може бути порожнім — пиши лише те, що видно в чаті.\nЗаборонено: вигадувати виконану роботу; писати чи змінювати код; додавати рядки KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT або KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

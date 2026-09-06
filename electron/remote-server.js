@@ -104,11 +104,13 @@ function safeJoin(root, urlPath) {
  * @param {() => string} [opts.getAccessMode] — "lan" (default) | "tailscale"
  * @param {() => object} opts.getRemoteState — cards without prompts
  * @param {() => Promise<object>} [opts.listChats] — live Cursor chats from CDP
+ * @param {(payload: object) => Promise<object>} [opts.createChat] — new Cursor chat in a project
  * @param {(targetId: string, opts?: object) => Promise<object>} opts.readChat
  * @param {(cardId: string, targetId: string) => Promise<object>} opts.pasteCard
  * @param {(text: string, targetId: string) => Promise<object>} [opts.pasteText]
  * @param {(targetId: string, mode: string) => Promise<object>} [opts.setComposerMode]
  * @param {(targetId: string, model: string) => Promise<object>} [opts.setComposerModel]
+ * @param {(targetId: string) => Promise<object>} [opts.listComposerModels]
  * @param {(targetId: string, payload: object) => Promise<object>} [opts.answerClarification]
  * @param {string} opts.staticDir
  * @param {string} opts.tarotDir
@@ -383,10 +385,51 @@ function createRemoteServer(opts) {
         sendJson(res, 200, {
           ok: true,
           chats: Array.isArray(result.chats) ? result.chats : [],
+          projects: Array.isArray(result.projects) ? result.projects : [],
         });
       } catch (e) {
         sendJson(res, 500, { ok: false, error: "list_chats_failed", chats: [] });
         log("WARN", "remote list chats failed", { err: String(e.message || e) });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/chats/create") {
+      if (typeof opts.createChat !== "function") {
+        sendJson(res, 501, { ok: false, error: "create_chat_unavailable" });
+        return;
+      }
+      const ct = String(req.headers["content-type"] || "");
+      if (!ct.includes("application/json")) {
+        sendJson(res, 415, { ok: false, error: "json_required" });
+        return;
+      }
+      let body;
+      try {
+        const raw = await readBody(req);
+        body = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        if (e?.code === "body_too_large") {
+          sendJson(res, 413, { ok: false, error: "body_too_large" });
+          return;
+        }
+        sendJson(res, 400, { ok: false, error: "bad_json" });
+        return;
+      }
+      try {
+        const result = await opts.createChat(body || {});
+        if (!result?.ok) {
+          sendJson(res, result?.hint === "cdp_closed" ? 502 : 400, {
+            ok: false,
+            error: result?.error || "create_chat_failed",
+            hint: result?.hint || "",
+          });
+          return;
+        }
+        sendJson(res, 200, { ok: true, chat: result.chat || null });
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: "create_chat_failed" });
+        log("WARN", "remote create chat failed", { err: String(e.message || e) });
       }
       return;
     }
@@ -465,6 +508,60 @@ function createRemoteServer(opts) {
       } catch (e) {
         sendJson(res, 500, { ok: false, error: "mode_failed" });
         log("WARN", "remote composer mode failed", { err: String(e.message || e) });
+      }
+      return;
+    }
+
+    if (
+      (req.method === "GET" || req.method === "POST") &&
+      url.pathname === "/api/composer/models"
+    ) {
+      if (typeof opts.listComposerModels !== "function") {
+        sendJson(res, 501, { ok: false, error: "composer_models_unavailable" });
+        return;
+      }
+      let targetId = String(url.searchParams.get("targetId") || "").trim();
+      if (req.method === "POST") {
+        const ct = String(req.headers["content-type"] || "");
+        if (!ct.includes("application/json")) {
+          sendJson(res, 415, { ok: false, error: "json_required" });
+          return;
+        }
+        try {
+          const raw = await readBody(req);
+          const body = raw ? JSON.parse(raw) : {};
+          targetId = String(body.targetId || targetId || "").trim();
+        } catch (e) {
+          if (e?.code === "body_too_large") {
+            sendJson(res, 413, { ok: false, error: "body_too_large" });
+            return;
+          }
+          sendJson(res, 400, { ok: false, error: "bad_json" });
+          return;
+        }
+      }
+      if (!targetId) {
+        sendJson(res, 400, { ok: false, error: "target_required" });
+        return;
+      }
+      try {
+        const result = await opts.listComposerModels(targetId);
+        if (!result?.ok) {
+          sendJson(res, 502, {
+            ok: false,
+            error: result?.error || "models_failed",
+            hint: result?.hint || "",
+          });
+          return;
+        }
+        sendJson(res, 200, {
+          ok: true,
+          models: result.models || [],
+          composer: result.composer || null,
+        });
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: "models_failed" });
+        log("WARN", "remote composer models failed", { err: String(e.message || e) });
       }
       return;
     }

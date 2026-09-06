@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "release-plan",
-      "title": "Profile",
-      "description": "Three of Wands: product type, channel, what needs a yes",
-      "prompt": "Choose a release profile from the actual project: desktop / web / mobile / open source (or say unknown).\n\nList channel, release criteria, and actions that need an explicit human yes (publish, signing, production migrate, store upload).\n\nDo not assume Vercel, Stripe, Docker, or npm.",
+      "title": "What product",
+      "description": "Three of Wands: product type, channel, what needs explicit yes",
+      "prompt": "Define the release profile. Analysis only — no code, no deploy.\n\nOutput:\n1. Type: desktop / web / mobile / CLI / library / open source\n2. Channel: store, web deploy, GitHub Releases, package manager, other\n3. Release criteria\n4. What needs explicit yes: publish, signing, production migration, store upload\n5. Whether work was Hobby or Production — if known\n\nType unknown — ask. Do not assume services, payments, containers, or package managers without repo context.\nNext: “Does it work”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — profile is clear\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "wands_03",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "quality-audit",
-      "title": "Quality",
-      "description": "Star: run existing tests/builds only",
-      "prompt": "Find and run only existing relevant builds/tests/linters in this repo. Do not invent npm/Docker/CI.\n\nShow real command output. Score 0–10 from those facts.\n\nAlways end with:\nKEYCODE_SCORE: N\n\nIf red or score < 7, say the next step is Production work card Fix.",
+      "title": "Does it work",
+      "description": "Star: only existing tests and builds",
+      "prompt": "Find and run only existing builds, tests, and linters in this repository. Do not invent commands.\n\nShow real output. Score 0–10 from facts: 0–6 red, cannot ship; 7–8 shippable with notes; 9–10 clean. No tests — say so; quality unverified. Cannot run for real — do not score above 4. Do not add new tests unless asked.\n\nBelow 7 — next is “Fix” in the Production deck. ≥7 — “Any holes”.\n\nThe project may be empty — judge only what exists.\nForbidden: inventing facts or holes; inflating score out of pity; giving 9–10 without three facts; if data is missing — ask, do not guess.\n\nAlways end with this line (N = your 0-10 score):\nKEYCODE_SCORE: N\nIf checks cannot be run, add a second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "security-audit",
-      "title": "Security",
-      "description": "Ace of Swords: secrets, inputs, deps — report, don't patch",
-      "prompt": "Read-only security review: secrets, input validation, dependency risk, privacy. Prioritize findings with evidence.\n\nDo not apply patches. Do not print secret values.\n\nIf a critical issue exists, end with:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\n\nOtherwise say no critical blockers and continue to Package.",
+      "title": "Any holes",
+      "description": "Ace of Swords: secrets, input, deps — report, not patch",
+      "prompt": "Read-only: check security. Do not apply patches. Do not print secret values — only where found.\n\nCheck: hardcoded keys and passwords; input validation; known dependency holes if checkable; whether personal data is logged.\nDo not invent vulnerabilities. No access to dependency checks — say so.\n\nOutput: critical (blocks release) · important · can wait — with evidence for each.\nNo criticals — “Build the package”.\n\nThe project may be empty — no fact = not PASS.\nForbidden: inventing evidence; PASSing out of pity or because “the idea is good”; flattery.\nIf something critical exists:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\nKEYCODE_STATUS: BLOCKED\n\nOtherwise say there are no critical blockers, and:\nKEYCODE_STATUS: READY",
       "image": "swords_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "package",
-      "title": "Package",
-      "description": "Three of Pentacles: artifact + rollback; wait before publish",
-      "prompt": "Prepare the package/deploy artifact and rollback for the chosen profile.\n\nInstalls, DB migrations, code signing, store upload, and production commands require an explicit user yes. Stop and ask. Do not publish.",
+      "title": "Build the package",
+      "description": "Three of Pentacles: artifact and rollback; publish only after explicit yes",
+      "prompt": "Prepare a package or artifact for the profile from “What product”.\n\nDesktop — installer; web — static or image; mobile — app package; CLI — binary; library — package; open source — tag.\nDescribe build commands, but do not run them without yes. Rollback plan — how to return to the previous version. Installs, DB migrations, signing, store, and production — only after explicit yes. Do not publish. Do not invent commands missing from the repo.\nNext: “Instructions”.\n\nThe project may be empty — do not invent services or commands.\nForbidden: publishing, signing, deploying, or store upload without explicit yes; inventing missing commands; flattery and claiming “already shipped”.\n\nEnd with one line:\nKEYCODE_STATUS: READY — artifact or build plan is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_03",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "docs",
-      "title": "Docs",
-      "description": "Hermit: README / notes / install / rollback that exist",
-      "prompt": "Update only relevant README, release notes, install/upgrade/rollback text. Do not create extra documents nobody asked for.",
+      "title": "Instructions",
+      "description": "Hermit: README / notes / install / rollback that matter",
+      "prompt": "Update release documentation. Do not spawn extra files. Change files only when asked.\n\nNeed what matters: README (what it is, install, run); release notes; how to upgrade; how to roll back. Simple project — short README and notes. Complex — add install and rollback. Library or CLI — examples.\nDo not invent commands missing from the repo. No marketing fluff.\nNext: “How to watch”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — docs described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hermit",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "operations",
-      "title": "Ops",
-      "description": "Temperance: logs, backup, support, incident",
-      "prompt": "Minimal ops: logs, errors, backups, support, incident response. Suggest external services only after the user picks them.",
+      "title": "How to watch",
+      "description": "Temperance: logs, backup, support, failure",
+      "prompt": "Describe the minimum operations after release.\n\nLogs: where to look. Backups: how often, where, how to restore. Failure response — 3 steps. How users report issues. Rollback. Local or desktop product — backups and rollback only; monitoring not required. Open source — how issues and PRs are handled.\nExternal services — only after the user chooses. Do not invent process theater. A simple project needs 3–5 bullets.\nNext: “Ready to ship?”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — operations described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "temperance",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "release-gate",
-      "title": "Gate",
-      "description": "Justice: ship only if checks pass",
-      "prompt": "Check build/tests, critical security, docs, rollback, and remaining manual steps.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
+      "title": "Ready to ship?",
+      "description": "Justice: ship only if checks are green",
+      "prompt": "Check release readiness. Do not PASS if anything is missing. Do not invent artifacts.\n\nRequired: builds and tests green; no critical holes; artifact ready; docs updated; ops plan exists; rollback possible; manual steps known; user confirmed readiness.\nRed tests or critical holes — automatic FAIL.\nCode problem — “Fix” in Production. Docs — “Instructions”. Build — “Build the package”.\n\nThe project may be empty — no fact = not PASS.\nForbidden: inventing evidence; PASSing out of pity or because “the idea is good”; flattery.\n\nEnd with exactly two lines.\nIf ready:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nIf not ready (replace fix with quality-audit, security-audit, package, docs, or operations when the problem is there):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "launch",
-      "title": "Launch",
-      "description": "Sun: show plan first; publish only after a clear yes",
-      "prompt": "First list the launch actions, risks, and rollback. Do not publish, upload, or ship until the user clearly says to do it.\n\nAfter a confirmed launch, verify the artifact/availability if possible.\n\nThen recommend Validation → Verdict using real feedback (not a new invented idea). If launch happened, you may end with:\nKEYCODE_NEXT: validate-v1/evidence-review",
+      "title": "Ship it",
+      "description": "Sun: plan first; publish only after explicit yes",
+      "prompt": "Prepare the launch plan. Do not publish, upload, or ship until the user explicitly said to do it.\n\nFirst: ordered action list; risks; rollback; what needs yes. After confirmation, do only what was confirmed, verify the artifact and availability if possible, record the result.\nDo not invent deploy commands. Do not assume services without context.\n\nAfter launch, recommend the “Idea check” deck, card “Verdict” — based on real feedback, not a new invented idea.\n\nIf launch happened, end with:\nKEYCODE_NEXT: validate-v1/evidence-review\n\nThe project may be empty — do not invent services or commands.\nForbidden: publishing, signing, deploying, or store upload without explicit yes; inventing missing commands; flattery and claiming “already shipped”.\n\nAlso end with one status line:\nKEYCODE_STATUS: READY — plan ready or launch done\nor\nKEYCODE_STATUS: NEED_DATA — need user yes or more data",
       "image": "sun",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "Recap",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not publish anything. Do not change production.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step\n\nNo KEYCODE_SCORE line.",
+      "description": "High Priestess: ready / blockers / rollback / next",
+      "prompt": "Read this chat. Do not publish anything or change production. Do not invent evidence.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step — one card: What product / Does it work / Any holes / Build the package / Instructions / How to watch / Ready to ship? / Ship it\n\nIf the release is not ready — say so.\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\nThe project may be empty — write only what is visible in chat.\nForbidden: inventing completed work; writing or changing code; adding KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.",
       "image": "high_priestess",
       "hotkey": ""
     }

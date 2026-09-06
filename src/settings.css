@@ -279,6 +279,57 @@ body {
   user-select: text;
 }
 
+.card-prompt-field {
+  margin-top: 10px;
+}
+
+.card-prompt-field > span {
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.card-prompt-field textarea {
+  min-height: 220px;
+  border-color: rgba(232, 197, 122, 0.45);
+  font-family: Consolas, "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 13px;
+}
+
+.card-tarot-details {
+  margin: 10px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 0 10px 10px;
+}
+
+.card-tarot-details > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.card-tarot-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.card-tarot-details > summary::before {
+  content: "▸ ";
+  color: var(--gold);
+}
+
+.card-tarot-details[open] > summary::before {
+  content: "▾ ";
+}
+
+.card-tarot-details .tarot-picker {
+  max-height: 220px;
+}
+}
+
 .check {
   display: flex;
   align-items: center;
@@ -824,4 +875,151 @@ body {
   .deck-editor {
     grid-template-columns: 1fr;
   }
+}
+
+/* Coach-mark tour (shared look with deck) */
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: transparent;
+  pointer-events: auto;
+}
+.onboarding.hidden {
+  display: none;
+}
+.onboarding-hole {
+  position: fixed;
+  z-index: 81;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 3px rgba(255, 220, 120, 0.95),
+    0 0 0 6px rgba(232, 197, 122, 0.35),
+    0 0 18px 2px rgba(232, 197, 122, 0.55),
+    0 0 0 9999px rgba(8, 4, 14, 0.62);
+  outline: none;
+  pointer-events: none;
+  transition: left 0.18s ease, top 0.18s ease, width 0.18s ease, height 0.18s ease;
+}
+.onboarding-card {
+  position: fixed;
+  z-index: 82;
+  width: min(340px, calc(100vw - 24px));
+  padding: 14px 18px 16px;
+  border-radius: 12px;
+  background: #1a1228;
+  border: 1px solid rgba(232, 197, 122, 0.35);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  margin: 0;
+}
+.onboarding-arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #1a1228;
+  border-left: 1px solid rgba(232, 197, 122, 0.35);
+  border-top: 1px solid rgba(232, 197, 122, 0.35);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.onboarding-arrow.below {
+  top: -7px;
+  left: 28px;
+}
+.onboarding-arrow.above {
+  bottom: -7px;
+  left: 28px;
+  border-left: 0;
+  border-top: 0;
+  border-right: 1px solid rgba(232, 197, 122, 0.35);
+  border-bottom: 1px solid rgba(232, 197, 122, 0.35);
+}
+.onboarding-arrow.right {
+  left: -7px;
+  top: 22px;
+}
+.onboarding-arrow.left {
+  right: -7px;
+  top: 22px;
+  border-left: 0;
+  border-top: 0;
+  border-right: 1px solid rgba(232, 197, 122, 0.35);
+  border-bottom: 1px solid rgba(232, 197, 122, 0.35);
+}
+.onboarding-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.onboarding-kicker {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.onboarding-skip {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.onboarding-skip:hover {
+  color: var(--gold);
+}
+.onboarding-card h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: var(--gold);
+  font-weight: 600;
+}
+.onboarding-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  min-height: 2.8em;
+}
+.onboarding-body kbd {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(232, 197, 122, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--gold);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 197, 122, 0.45);
+  background: transparent;
+  padding: 0;
+  cursor: default;
+}
+.onboarding-dot.active {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.onboarding-card .primary-btn {
+  width: 100%;
+  min-height: 3.4em;
+  padding: 0.85em 1em;
+  font-size: 1.05em;
+  font-weight: 600;
 }

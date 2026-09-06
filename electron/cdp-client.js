@@ -11,12 +11,27 @@ const {
 const {
   normalizeComposerChrome,
   normalizeClarifications,
+  isAutoModelLabel,
+  modelMenuChoice,
+  modelChoiceMatches,
+  modelLabelLooksApplied,
+  pointerClick,
+  toggleAutoModeRow,
+  activateMenuItem,
+  activateModelMenuItem,
+  pickActiveModelTrigger,
+  modeLooksApplied,
+  modeMenuLabelMatches,
   SUBMIT_BUTTON_SELECTOR,
+  COMPOSER_ROOT_SELECTOR,
+  MODEL_PICKER_SELECTOR,
+  MODEL_MENU_ITEM_SELECTOR,
 } = require("./cdp-composer");
 const {
   findBestChat,
   pickCdpWindow,
   transcriptFailHint,
+  normalizeAgentStatus,
 } = require("./cdp-resolve");
 
 const DEFAULT_PORT = 9222;
@@ -355,7 +370,18 @@ class CdpClient {
           if (aria && aria.length <= 120) return aria;
           return cleanTitle((el.textContent || '').slice(0, 160));
         };
-        const pushChat = (list, id, title, kind, project) => {
+        // Cursor agent-status-dot: draft | running | needs-attention | done-unseen | done-seen
+        const statusOf = (el) => {
+          if (!el) return '';
+          const dot = el.querySelector('.agent-status-dot');
+          if (!dot) return '';
+          const aria = String(dot.getAttribute('aria-label') || '').trim().toLowerCase();
+          if (aria) return aria;
+          const cls = String(dot.className || '');
+          const m = cls.match(/agent-status-dot--([\\w-]+)/);
+          return m ? m[1] : '';
+        };
+        const pushChat = (list, id, title, kind, project, status) => {
           const t = cleanTitle(title);
           if (!t || t.length < 2 || t.length > 120) return null;
           if (skip.test(t)) return null;
@@ -369,6 +395,7 @@ class CdpClient {
             title: t,
             kind: kind || 'item',
             project: project || '',
+            status: status || '',
           };
           list.push(chat);
           if (list !== outChats) outChats.push(chat);
@@ -399,7 +426,8 @@ class CdpClient {
                 'p:' + projectName + '|a#' + idx + ':' + t.slice(0, 40),
                 t,
                 'agent-sidebar',
-                projectName
+                projectName,
+                statusOf(el)
               );
             });
             projects.push({
@@ -416,7 +444,14 @@ class CdpClient {
             '.glass-sidebar-agent-menu-btn, .glass-sidebar-agent-list-container .ui-sidebar-menu-button'
           ).forEach((el, idx) => {
             const t = titleOf(el);
-            pushChat(outChats, 'agent#' + idx + ':' + t.slice(0, 40), t, 'agent-sidebar', '');
+            pushChat(
+              outChats,
+              'agent#' + idx + ':' + t.slice(0, 40),
+              t,
+              'agent-sidebar',
+              '',
+              statusOf(el)
+            );
           });
           const sels = [
             '.agent-sidebar-cell',
@@ -436,7 +471,8 @@ class CdpClient {
                 composerId || (sel + '#' + idx + ':' + title.slice(0, 40)),
                 title,
                 sel,
-                ''
+                '',
+                statusOf(el)
               );
             });
           }
@@ -458,12 +494,20 @@ class CdpClient {
           chats: outChats.slice(0, 240),
         };
       })()`);
-      const projects = Array.isArray(raw?.projects) ? raw.projects : [];
-      const chats = Array.isArray(raw?.chats)
-        ? raw.chats
-        : Array.isArray(raw)
-          ? raw
-          : [];
+      const withStatus = (chat) => {
+        if (!chat || typeof chat !== "object") return chat;
+        const status = normalizeAgentStatus(chat.status);
+        return status ? { ...chat, status } : { ...chat, status: "" };
+      };
+      const projects = (Array.isArray(raw?.projects) ? raw.projects : []).map(
+        (p) => ({
+          ...p,
+          chats: Array.isArray(p?.chats) ? p.chats.map(withStatus) : [],
+        })
+      );
+      const chats = (
+        Array.isArray(raw?.chats) ? raw.chats : Array.isArray(raw) ? raw : []
+      ).map(withStatus);
       return {
         ok: true,
         projects,
@@ -484,9 +528,18 @@ class CdpClient {
     const runSelect = () => session.evaluate(`(() => {
       const wantId = ${JSON.stringify(chatId)};
       const wantTitle = ${JSON.stringify(chatTitle)};
-      const wantProject = ${JSON.stringify(projectName)};
+      const wantProjectIn = ${JSON.stringify(projectName)};
       const norm = (s) => String(s || '').trim().replace(/\\s+/g, ' ')
         .replace(/\\s*(?:now|\\d+\\s*[smhd]|\\d+\\s*мин(?:ут[аы]?)?)\\s*$/i, '').trim();
+      const projectFromId = (() => {
+        const m = String(wantId || '').match(/(?:^|\\|)p:([^|]+)\\|/i);
+        return m ? String(m[1] || '').trim() : '';
+      })();
+      const wantProject = wantProjectIn || projectFromId;
+      const agentIdx = (() => {
+        const m = String(wantId || '').match(/\\|a#(\\d+)(?::|$)/);
+        return m ? Number(m[1]) : NaN;
+      })();
       const titleOf = (el) => {
         const label = el.querySelector(
           '.ui-sidebar-menu-button-label, .ui-sidebar-label-row-title, [class*="menu-button-label"]'
@@ -496,14 +549,34 @@ class CdpClient {
         if (aria && aria.length <= 120) return aria;
         return norm((el.textContent || '').slice(0, 160));
       };
-      const click = (el) => {
-        if (!el) return false;
+      const hit = (el, how, forcedIdx) => {
+        if (!el) return null;
+        const sec = el.closest('.glass-sidebar-workspace-section-root');
+        const project = (() => {
+          if (!sec) return wantProject || '';
+          const titleEl = sec.querySelector(
+            '.ui-sidebar-section-head .ui-sidebar-label-row-title, .ui-sidebar-label-row-title'
+          );
+          return norm(titleEl ? titleEl.textContent : '') || wantProject || '';
+        })();
+        const title = titleOf(el);
+        let idx = Number.isFinite(forcedIdx) ? forcedIdx : null;
+        if (idx == null && sec) {
+          const agents = [...sec.querySelectorAll('.glass-sidebar-agent-menu-btn')].filter(
+            (a) => !a.classList?.contains('ui-sidebar-paginated-menu-toggle')
+          );
+          const found = agents.indexOf(el);
+          if (found >= 0) idx = found;
+        }
         el.scrollIntoView({ block: 'nearest' });
         el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
         el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
         el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
         if (typeof el.click === 'function') el.click();
-        return true;
+        const chatIdOut = project
+          ? ('p:' + project + '|a#' + (idx != null ? idx : 0) + ':' + title.slice(0, 40))
+          : title;
+        return { ok: true, how, title, project, chatId: chatIdOut };
       };
       const projectOf = (el) => {
         const sec = el.closest('.glass-sidebar-workspace-section-root');
@@ -515,7 +588,10 @@ class CdpClient {
       };
       if (wantId && wantId !== 'Текущий агент' && !wantId.includes('|') && !wantId.startsWith('agent#') && !wantId.startsWith('p:') && !/[\\"']/.test(wantId)) {
         const byComp = document.querySelector('[data-composer-id="' + wantId + '"]');
-        if (byComp && click(byComp)) return true;
+        if (byComp) {
+          const r = hit(byComp, 'composer-id');
+          if (r) return r;
+        }
       }
       // Prefer agent buttons inside the matching project section
       const roots = wantProject
@@ -536,10 +612,12 @@ class CdpClient {
           if (el.classList?.contains('ui-sidebar-paginated-menu-toggle')) continue;
           const t = titleOf(el);
           if (wantId && (wantId.endsWith(':' + t.slice(0, 40)) || wantId.includes('|a#') && wantId.includes(t.slice(0, 40)))) {
-            if (click(el)) return true;
+            const r = hit(el, 'id-title');
+            if (r) return r;
           }
           if (wt && t === wt) {
-            if (click(el)) return true;
+            const r = hit(el, 'title');
+            if (r) return r;
           }
         }
       }
@@ -552,10 +630,12 @@ class CdpClient {
         const t = titleOf(el);
         if (wantProject && projectOf(el) && projectOf(el) !== norm(wantProject)) continue;
         if (wantId && (wantId.endsWith(':' + t.slice(0, 40)) || wantId.includes(t))) {
-          if (click(el)) return true;
+          const r = hit(el, 'id-global');
+          if (r) return r;
         }
         if (wt && t === wt) {
-          if (click(el)) return true;
+          const r = hit(el, 'title-global');
+          if (r) return r;
         }
       }
       if (wt) {
@@ -564,28 +644,54 @@ class CdpClient {
           const t = titleOf(el);
           if (wantProject && projectOf(el) && projectOf(el) !== norm(wantProject)) continue;
           if (t && (t.startsWith(wt.slice(0, 24)) || wt.startsWith(t.slice(0, 24)))) {
-            if (click(el)) return true;
+            const r = hit(el, 'title-prefix');
+            if (r) return r;
+          }
+        }
+      }
+      // Cursor often renames chats — fall back to the same a#N slot in the project.
+      if (Number.isFinite(agentIdx) && agentIdx >= 0) {
+        const indexRoots = wantProject ? roots : [document];
+        for (const root of indexRoots) {
+          const agents = [...root.querySelectorAll('.glass-sidebar-agent-menu-btn')].filter(
+            (el) => !el.classList?.contains('ui-sidebar-paginated-menu-toggle')
+          );
+          if (agentIdx < agents.length) {
+            const r = hit(agents[agentIdx], 'agent-index', agentIdx);
+            if (r) return r;
           }
         }
       }
       // "Текущий агент" / already open — no sidebar click needed
       if (!wt || wt === 'Текущий агент' || wantId === 'Текущий агент') {
-        if (document.querySelector('[data-composer-id], [contenteditable="true"]')) return true;
+        if (document.querySelector('[data-composer-id], [contenteditable="true"]')) {
+          return { ok: true, how: 'current', title: wantTitle || '', project: wantProject || '', chatId: wantId || '' };
+        }
       }
-      return false;
+      return { ok: false };
     })()`);
-    let ok = await runSelect();
-    if (!ok) {
+    let result = await runSelect();
+    if (!result?.ok) {
       try {
         await this.revealSidebarChats(session);
       } catch {
         /* still try once more on whatever is visible */
       }
-      ok = await runSelect();
+      result = await runSelect();
     }
-    if (!ok) throw new Error("chat_not_found");
+    if (!result?.ok) throw new Error("chat_not_found");
     await sleep(200);
-    return { ok: true, cdpTargetId: target.id };
+    const healedTitle = String(result.title || "").trim();
+    const healedProject = String(result.project || projectName || "").trim();
+    const healedChatId = String(result.chatId || "").trim();
+    return {
+      ok: true,
+      cdpTargetId: target.id,
+      chatTitle: healedTitle || undefined,
+      projectName: healedProject || undefined,
+      chatId: healedChatId || undefined,
+      matchHow: result.how || "",
+    };
   }
 
   async insertText(cdpTargetId, text, { submit = false } = {}) {
@@ -768,12 +874,96 @@ class CdpClient {
     };
   }
 
+  /**
+   * Select chat and focus the Cursor composer input (no text insert).
+   * Used so the user can dictate with Win+H / Cursor mic into that field.
+   */
+  async focusComposer(cdpTargetId, chat) {
+    const selected = await this.selectChat(cdpTargetId, chat);
+    const id = selected?.cdpTargetId || cdpTargetId;
+    await sleep(150);
+    const { session } = await this.getSession(id);
+    const result = await session.evaluate(`(() => {
+      const visible = (el) => {
+        if (!el) return false;
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return (
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const isMessageChrome = (el) =>
+        !!el.closest(
+          '[data-message-role], [data-role="user"], [data-role="assistant"], [class*="composer-message"], [class*="chat-message"], [class*="agent-message"], [class*="message-bubble"], .markdown-root, .anysphere-markdown-container-root'
+        );
+      const sels = [
+        '.aislash-editor-input',
+        '.ui-prompt-input-editor__input[contenteditable="true"]',
+        '[class*="aislash-editor"] [contenteditable="true"]',
+        '[class*="prompt-input"] [contenteditable="true"]',
+        '[data-lexical-editor="true"][contenteditable="true"]',
+        '.tiptap.ProseMirror[contenteditable="true"]',
+        '[class*="composer"] [contenteditable="true"]',
+        '[class*="ai-input"] textarea',
+        'textarea[placeholder]',
+        '[role="textbox"][contenteditable="true"]',
+      ];
+      const candidates = [];
+      for (const sel of sels) {
+        for (const el of document.querySelectorAll(sel)) {
+          if (!visible(el)) continue;
+          if (isMessageChrome(el) && !el.closest('[class*="prompt"], [class*="aislash"], [class*="ai-input"]')) {
+            continue;
+          }
+          candidates.push(el);
+        }
+        if (candidates.length) break;
+      }
+      if (!candidates.length) {
+        for (const el of document.querySelectorAll('[contenteditable="true"], textarea')) {
+          if (!visible(el)) continue;
+          if (isMessageChrome(el)) continue;
+          candidates.push(el);
+        }
+      }
+      if (!candidates.length) return { ok: false, error: 'input_not_found' };
+      candidates.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+      const el = candidates[0];
+      el.focus();
+      try {
+        el.scrollIntoView({ block: 'nearest' });
+      } catch (_) {}
+      if (el.isContentEditable) {
+        try {
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch (_) {}
+      }
+      return { ok: true };
+    })()`);
+    if (!result?.ok) throw new Error(result?.error || "input_not_found");
+    return { ok: true, cdpTargetId: id };
+  }
+
   async sendToChat(cdpTargetId, chat, text, { submit = false } = {}) {
     const selected = await this.selectChat(cdpTargetId, chat);
     const id = selected?.cdpTargetId || cdpTargetId;
     await sleep(150);
     const r = await this.insertText(id, text, { submit });
-    return { ...r, cdpTargetId: id };
+    return {
+      ...r,
+      cdpTargetId: id,
+      chatId: selected?.chatId,
+      chatTitle: selected?.chatTitle,
+      projectName: selected?.projectName,
+    };
   }
 
   /**
@@ -1241,51 +1431,69 @@ class CdpClient {
           break;
         }
       }
-      // Mode control near send-with-mode
+      // Mode: current Cursor shows a chip (.ui-prompt-input-mode-chip); Agent = no chip.
+      // Older builds used send-with-mode. Never treat the top menubar "Edit" as mode.
       let modeLabel = '';
-      const modeRoots = [
-        ...document.querySelectorAll(
-          '.send-with-mode, [class*="send-with-mode"], [class*="mode-selector"], [class*="composer-mode"], [data-testid*="mode" i]'
-        ),
-      ].filter(visible);
-      for (const root of modeRoots) {
-        const btn =
-          root.matches('button') ? root :
-          root.querySelector('button, [role="button"], [aria-haspopup="menu"], [aria-haspopup="listbox"]');
-        const label = clean(
-          (btn || root).getAttribute('aria-label') ||
-          (btn || root).innerText ||
-          (btn || root).textContent
-        );
-        if (label && !/^(send|build)$/i.test(label)) {
-          modeLabel = label.split(/\\n/)[0].slice(0, 40);
-          break;
-        }
+      const modeChip = [...document.querySelectorAll(
+        '.ui-prompt-input-mode-chip .ui-pill__label, .ui-prompt-input-mode-chip'
+      )].find(visible);
+      if (modeChip) {
+        modeLabel = clean(
+          modeChip.classList?.contains('ui-prompt-input-mode-chip')
+            ? (modeChip.querySelector('.ui-pill__label')?.innerText || modeChip.innerText)
+            : modeChip.innerText
+        ).split(/\\n/)[0].slice(0, 40);
       }
       if (!modeLabel) {
-        const modeBtn = [...document.querySelectorAll('button, [role="button"]')].find((el) => {
-          if (!visible(el)) return false;
-          const t = clean(el.getAttribute('aria-label') || el.innerText || '').toLowerCase();
-          return /\\b(agent|plan|ask|edit)\\b/.test(t) && t.length < 48;
-        });
-        if (modeBtn) {
-          modeLabel = clean(modeBtn.getAttribute('aria-label') || modeBtn.innerText);
+        const modeRoots = [
+          ...document.querySelectorAll(
+            '.send-with-mode, [class*="send-with-mode"], [class*="mode-selector"], [class*="composer-mode"], [data-testid*="mode" i]'
+          ),
+        ].filter(visible);
+        for (const root of modeRoots) {
+          const btn =
+            root.matches('button') ? root :
+            root.querySelector('button, [role="button"], [aria-haspopup="menu"], [aria-haspopup="listbox"]');
+          const label = clean(
+            (btn || root).getAttribute('aria-label') ||
+            (btn || root).innerText ||
+            (btn || root).textContent
+          );
+          if (label && !/^(send|build|edit)$/i.test(label)) {
+            modeLabel = label.split(/\\n/)[0].slice(0, 40);
+            break;
+          }
         }
       }
+      if (!modeLabel) modeLabel = 'Agent';
+
       let modelLabel = '';
-      const modelBtn = [...document.querySelectorAll('button, [role="button"], [aria-haspopup]')].find((el) => {
-        if (!visible(el)) return false;
-        const t = clean(el.getAttribute('aria-label') || el.innerText || '');
-        const low = t.toLowerCase();
-        if (t.length < 2 || t.length > 64) return false;
-        if (/send|build|agent|plan|stop|cancel|mic|attach|image/.test(low)) return false;
-        if (/model|gpt|claude|composer|sonnet|opus|gemini|grok/.test(low)) return true;
-        // Heuristic: model chips often sit left of send in composer footer
-        const nearComposer = !!el.closest('[class*="composer"], [class*="prompt"], [class*="aislash"], form');
-        return nearComposer && /[A-Za-z].*\\d|v\\d|[-_]/.test(t) && t.split(' ').length <= 4;
-      });
-      if (modelBtn) {
-        modelLabel = clean(modelBtn.getAttribute('aria-label') || modelBtn.innerText).split(/\\n/)[0];
+      const pickerSel = ${JSON.stringify(MODEL_PICKER_SELECTOR)};
+      const pickActiveModelTrigger = ${pickActiveModelTrigger.toString()};
+      const modelPicker = pickActiveModelTrigger([...document.querySelectorAll(pickerSel)]);
+      if (modelPicker) {
+        modelLabel = clean(
+          modelPicker.getAttribute('aria-label') ||
+          modelPicker.innerText ||
+          modelPicker.textContent
+        ).replace(/[\\u200b\\u200c\\u200d\\u2060\\ufeff]/g, '').split(/\\n/)[0];
+      }
+      if (!modelLabel) {
+        const modelBtn = pickActiveModelTrigger(
+          [...document.querySelectorAll('button, [role="button"], [aria-haspopup]')].filter((el) => {
+            if (!visible(el)) return false;
+            const t = clean(el.getAttribute('aria-label') || el.innerText || '');
+            const low = t.toLowerCase();
+            if (t.length < 2 || t.length > 64) return false;
+            if (/send|build|agent|plan|stop|cancel|mic|attach|image/.test(low)) return false;
+            if (/model|gpt|claude|composer|sonnet|opus|gemini|grok|auto|авто/.test(low)) return true;
+            const nearComposer = !!el.closest(${JSON.stringify(COMPOSER_ROOT_SELECTOR)});
+            return nearComposer && /[A-Za-z].*\\d|v\\d|[-_]/.test(t) && t.split(' ').length <= 4;
+          })
+        );
+        if (modelBtn) {
+          modelLabel = clean(modelBtn.getAttribute('aria-label') || modelBtn.innerText).split(/\\n/)[0];
+        }
       }
 
       const generating = [
@@ -1394,11 +1602,14 @@ class CdpClient {
     return { ok: true, composer, clarifications };
   }
 
-  async setComposerMode(cdpTargetId, mode) {
-    const want = String(mode || "agent").toLowerCase();
+  /**
+   * Open Cursor's model menu on demand and read its visible choices.
+   * This is intentionally separate from transcript polling so polling never
+   * flashes or repeatedly toggles Cursor UI.
+   */
+  async listComposerModels(cdpTargetId) {
     const { session } = await this.getSession(cdpTargetId);
     const raw = await session.evaluate(`(async () => {
-      const want = ${JSON.stringify(want)};
       const clean = (s) => String(s || '').replace(/\\s+/g, ' ').trim();
       const visible = (el) => {
         if (!el) return false;
@@ -1406,61 +1617,306 @@ class CdpClient {
         const rect = el.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
       };
-      const matchWant = (label) => {
-        const t = clean(label).toLowerCase();
-        if (want === 'plan') return /\\bplan\\b|план/.test(t);
-        if (want === 'ask') return /\\bask\\b|вопрос/.test(t);
-        if (want === 'edit') return /\\bedit\\b|редакт/.test(t);
-        return /\\bagent\\b|агент/.test(t) || (!/\\b(plan|ask|edit)\\b/.test(t) && t.includes('agent'));
+      const modelLike = (text) =>
+        /model|auto|gpt|claude|composer|sonnet|opus|haiku|gemini|grok|deepseek|o[1-9](?:\\b|-)/i.test(text);
+      const rootSel = ${JSON.stringify(COMPOSER_ROOT_SELECTOR)};
+      const pickerSel = ${JSON.stringify(MODEL_PICKER_SELECTOR)};
+      const submitSel = ${JSON.stringify(SUBMIT_BUTTON_SELECTOR)};
+      const isAutoModelLabel = ${isAutoModelLabel.toString()};
+      const modelMenuChoice = ${modelMenuChoice.toString()};
+      const pointerClick = ${pointerClick.toString()};
+      const toggleAutoModeRow = ${toggleAutoModeRow.toString()};
+      const pickActiveModelTrigger = ${pickActiveModelTrigger.toString()};
+      const itemSel = ${JSON.stringify(MODEL_MENU_ITEM_SELECTOR)};
+      const isMessageChrome = (el) =>
+        !!el.closest(
+          '[data-message-role], [data-role="user"], [data-role="assistant"], [class*="composer-message"], [class*="chat-message"], [class*="agent-message"], [class*="message-bubble"], [class*="plan-list"], [class*="plan-todo"], .markdown-root'
+        );
+      const editors = [
+        ...document.querySelectorAll(
+          '.aislash-editor-input, .ui-prompt-input-editor__input, [data-lexical-editor="true"], .tiptap.ProseMirror, textarea, [role="textbox"][contenteditable="true"]'
+        ),
+      ].filter((el) => visible(el) && !isMessageChrome(el));
+      editors.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+      const editor =
+        editors.find((el) => {
+          const root = el.closest(rootSel);
+          if (!root) return false;
+          return (
+            [...root.querySelectorAll(submitSel)].some(visible) ||
+            !!root.querySelector(pickerSel)
+          );
+        }) ||
+        editors.find((el) => el.closest(rootSel)) ||
+        editors[0];
+      let composerRoot = editor?.closest(rootSel) || null;
+      if (!composerRoot) {
+        const anyPicker = pickActiveModelTrigger([...document.querySelectorAll(pickerSel)]);
+        composerRoot = anyPicker?.closest(rootSel) || null;
+      }
+      if (!composerRoot) return { ok: false, error: 'composer_ui_missing' };
+      const openers = [...composerRoot.querySelectorAll(
+        pickerSel + ', button, [role="button"], [aria-haspopup]'
+      )].filter((el) => {
+        if (!visible(el)) return false;
+        if (el.matches && el.matches(pickerSel)) return true;
+        const text = clean(el.getAttribute('aria-label') || el.innerText || el.textContent);
+        const low = text.toLowerCase();
+        if (!text || text.length > 80) return false;
+        if (/send|build|stop|cancel|mic|attach|agent|plan|ask|debug/.test(low)) return false;
+        return modelLike(text) ||
+          (el.getAttribute('aria-haspopup') && /[A-Za-z].*\\d/.test(text));
+      });
+      const opener = pickActiveModelTrigger(openers.filter((el) => el.matches && el.matches(pickerSel)))
+        || pickActiveModelTrigger(openers)
+        || pickActiveModelTrigger([...document.querySelectorAll(pickerSel)]);
+      if (!opener) return { ok: false, error: 'model_ui_missing' };
+      const current = clean(
+        opener.getAttribute('aria-label') || opener.innerText || opener.textContent
+      ).split('\\n')[0];
+      const menuSelector =
+        '[role="menu"], [role="listbox"], [data-radix-menu-content], [data-radix-popper-content-wrapper]';
+      const beforeMenus = new Set([...document.querySelectorAll(menuSelector)].filter(visible));
+      const controlledId = opener.getAttribute('aria-controls') || '';
+      pointerClick(opener, { xRatio: 0.5 });
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const controlled = controlledId ? document.getElementById(controlledId) : null;
+      const menuRoots = controlled && visible(controlled)
+        ? [controlled]
+        : [
+            ...document.querySelectorAll(
+              '.ui-model-picker__menu, [role="menu"], [role="listbox"], [data-radix-menu-content], [data-radix-popper-content-wrapper]'
+            ),
+          ].filter((root) => visible(root) && !beforeMenus.has(root));
+      const readChoice = (el) => modelMenuChoice({
+        testid: el.getAttribute('data-testid') || '',
+        name: el.querySelector('.ui-model-picker__item-content-name')
+          ? el.querySelector('.ui-model-picker__item-content-name').innerText
+          : '',
+        title: el.querySelector('.ui-menu__title')
+          ? el.querySelector('.ui-menu__title').innerText
+          : '',
+        text: el.querySelector('.ui-menu__item-content')
+          ? el.querySelector('.ui-menu__item-content').innerText
+          : '',
+      });
+      const autoOn = (el) => {
+        if (!el) return false;
+        if (el.getAttribute('aria-checked') === 'true') return true;
+        const sw = el.querySelector('[role="switch"]');
+        return !!(sw && sw.getAttribute('aria-checked') === 'true');
       };
-      // Already selected?
-      const modeRoots = [
-        ...document.querySelectorAll(
-          '.send-with-mode, [class*="send-with-mode"], [class*="mode-selector"], [class*="composer-mode"], button, [role="button"]'
-        ),
-      ].filter(visible);
-      for (const el of modeRoots) {
-        const label = clean(el.getAttribute('aria-label') || el.innerText || '');
-        if (matchWant(label) && label.length < 48 && !/send|build/i.test(label)) {
-          // If this looks like the current mode chip (not a menu item), done.
-          if (el.getAttribute('aria-expanded') === 'false' || el.getAttribute('aria-haspopup')) {
-            // open menu
-            el.click();
-            await new Promise((r) => setTimeout(r, 180));
-            break;
-          }
+      const toggleAuto = async (el) => {
+        if (!el) return;
+        toggleAutoModeRow(el);
+        await new Promise((resolve) => setTimeout(resolve, 450));
+      };
+      const collect = () => {
+        const seen = new Set();
+        const models = [];
+        const nodes = [...document.querySelectorAll(itemSel)].filter(visible);
+        for (const item of nodes) {
+          const choice = readChoice(item);
+          if (!choice) continue;
+          const key = String(choice.id || '').toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          const row = { id: choice.id, label: choice.label };
+          if (choice.testid) row.testid = choice.testid;
+          models.push(row);
+          if (models.length >= 40) break;
         }
+        return models;
+      };
+      let autoEl = document.querySelector('[data-testid="auto-mode-toggle"]');
+      const autoWasOn = autoOn(autoEl);
+      if (autoWasOn && autoEl) {
+        await toggleAuto(autoEl);
+        autoEl = document.querySelector('[data-testid="auto-mode-toggle"]');
+        // Retry once if Auto stayed on (plain click is ignored by Cursor).
+        if (autoOn(autoEl)) await toggleAuto(autoEl);
       }
-      // Open any mode dropdown near composer
-      const openers = [...document.querySelectorAll(
-        '[aria-haspopup="menu"], [aria-haspopup="listbox"], .send-with-mode button, [class*="send-with-mode"] button, [class*="mode"] button'
-      )].filter(visible);
-      for (const opener of openers) {
-        const lab = clean(opener.getAttribute('aria-label') || opener.innerText || '').toLowerCase();
-        if (/send|build|stop|mic|attach/.test(lab) && !/agent|plan|ask|mode/.test(lab)) continue;
-        if (/agent|plan|ask|edit|mode/.test(lab) || opener.closest('.send-with-mode, [class*="send-with-mode"], [class*="mode"]')) {
-          opener.click();
-          await new Promise((r) => setTimeout(r, 200));
-          break;
-        }
+      let models = collect();
+      if (models.length < 2 && autoWasOn) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        models = collect();
       }
-      const items = [
-        ...document.querySelectorAll(
-          '[role="menuitem"], [role="option"], [role="menuitemradio"], [data-radix-collection-item], div[role="button"], button'
-        ),
-      ].filter(visible);
-      for (const item of items) {
-        const label = clean(item.getAttribute('aria-label') || item.innerText || '');
-        if (!label || label.length > 64) continue;
-        if (matchWant(label)) {
-          item.click();
-          return { ok: true, mode: want, label };
-        }
+      if (autoWasOn) {
+        autoEl = document.querySelector('[data-testid="auto-mode-toggle"]');
+        if (autoEl && !autoOn(autoEl)) await toggleAuto(autoEl);
       }
-      return { ok: false, error: 'mode_not_found', mode: want };
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        code: 'Escape',
+        keyCode: 27,
+        which: 27,
+        bubbles: true,
+      }));
+      return models.length
+        ? { ok: true, current, models }
+        : { ok: false, error: 'models_not_found', current, models: [] };
     })()`);
     if (!raw?.ok) {
-      return { ok: false, error: raw?.error || "mode_not_found", hint: "mode_ui_missing" };
+      return {
+        ok: false,
+        error: raw?.error || "models_not_found",
+        hint: raw?.error || "models_not_found",
+        models: [],
+      };
+    }
+    const current = await this.getComposerChrome(cdpTargetId);
+    // Prefer stable id from the listed models when the trigger shows a label.
+    const listed = Array.isArray(raw.models) ? raw.models : [];
+    const currentLabel = raw.current || current?.composer?.modelLabel || "";
+    let modelId = current?.composer?.modelId || currentLabel;
+    const matched = listed.find(
+      (m) =>
+        modelChoiceMatches(currentLabel, m) ||
+        modelLabelLooksApplied(currentLabel, m)
+    );
+    if (matched?.id) modelId = matched.id;
+    const composer = normalizeComposerChrome({
+      ...(current?.composer || {}),
+      modelLabel: currentLabel || current?.composer?.modelLabel,
+      modelId,
+      models: listed,
+    });
+    return { ok: true, models: composer.models, composer };
+  }
+
+  async setComposerMode(cdpTargetId, mode) {
+    const want = String(mode || "agent").toLowerCase();
+    const { session } = await this.getSession(cdpTargetId);
+    const raw = await session.evaluate(`(async () => {
+      const want = ${JSON.stringify(want)};
+      const clean = (s) => String(s || '').replace(/[\\u200b\\u200c\\u200d\\u2060\\ufeff]/g, '').replace(/\\s+/g, ' ').trim();
+      const visible = (el) => {
+        if (!el) return false;
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      };
+      const pointerClick = ${pointerClick.toString()};
+      const activateMenuItem = ${activateMenuItem.toString()};
+      const modeLooksApplied = ${modeLooksApplied.toString()};
+      const modeMenuLabelMatches = ${modeMenuLabelMatches.toString()};
+      const escapeMenu = () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true,
+        }));
+      };
+      const currentChip = () => {
+        const chip = [...document.querySelectorAll('.ui-prompt-input-mode-chip')].find(visible);
+        if (!chip) return '';
+        return clean(chip.querySelector('.ui-pill__label')?.innerText || chip.innerText);
+      };
+
+      const chipNow = currentChip();
+      if (modeLooksApplied(want, chipNow)) {
+        return { ok: true, mode: want, label: chipNow || 'Agent' };
+      }
+
+      const removeChip = async () => {
+        const removeBtn = [...document.querySelectorAll(
+          '.ui-prompt-input-mode-chip .ui-pill__close, button[aria-label^="Remove " i]'
+        )].find(visible);
+        if (!removeBtn) return false;
+        pointerClick(removeBtn, { xRatio: 0.5 });
+        await new Promise((r) => setTimeout(r, 300));
+        return !currentChip();
+      };
+
+      if (want === 'agent') {
+        if (!chipNow) return { ok: true, mode: want, label: 'Agent' };
+        await removeChip();
+        const after = currentChip();
+        if (modeLooksApplied('agent', after)) {
+          return { ok: true, mode: want, label: 'Agent' };
+        }
+        return { ok: false, error: 'mode_not_applied', mode: want, label: after || chipNow };
+      }
+
+      if (chipNow) await removeChip();
+
+      const plus = [...document.querySelectorAll(
+        '.ui-prompt-input-plus-button, button[aria-label*="Add agents" i], button[aria-label*="context, tools" i]'
+      )].find(visible);
+      if (!plus) return { ok: false, error: 'mode_ui_missing', mode: want };
+
+      const openPlus = async () => {
+        pointerClick(plus, { xRatio: 0.5 });
+        await new Promise((r) => setTimeout(r, 450));
+        // Plain click as fallback when synthetic pointer is ignored.
+        const open = [...document.querySelectorAll(
+          '[role="menu"], [data-radix-menu-content], [data-radix-popper-content-wrapper], .ui-menu'
+        )].some(visible);
+        if (!open) {
+          try { plus.click(); } catch (e) { /* ignore */ }
+          await new Promise((r) => setTimeout(r, 450));
+        }
+      };
+
+      const findModeItem = () => {
+        const roots = [...document.querySelectorAll(
+          '[role="menu"], [data-radix-menu-content], [data-radix-popper-content-wrapper], .ui-menu'
+        )].filter(visible);
+        const pool = (roots.length
+          ? roots.flatMap((root) =>
+              [...root.querySelectorAll('[role="menuitem"], [role="menuitemradio"]')]
+            )
+          : [...document.querySelectorAll('[role="menuitem"], [role="menuitemradio"]')]
+        ).filter(visible);
+        return pool.find((item) => {
+          const label = clean(item.getAttribute('aria-label') || item.innerText || '');
+          return label && modeMenuLabelMatches(want, label);
+        });
+      };
+
+      await openPlus();
+      let pick = findModeItem();
+      if (!pick) {
+        escapeMenu();
+        await new Promise((r) => setTimeout(r, 200));
+        await openPlus();
+        pick = findModeItem();
+      }
+      if (!pick) {
+        escapeMenu();
+        return { ok: false, error: 'mode_not_found', mode: want };
+      }
+
+      // Same as model picker: Cursor ignores synthetic click; focus+Enter works.
+      activateMenuItem(pick);
+      await new Promise((r) => setTimeout(r, 450));
+      escapeMenu();
+      await new Promise((r) => setTimeout(r, 250));
+      let applied = currentChip();
+      if (modeLooksApplied(want, applied)) {
+        return { ok: true, mode: want, label: applied || want };
+      }
+      // One retry if the menu closed without applying.
+      await openPlus();
+      pick = findModeItem();
+      if (pick) {
+        activateMenuItem(pick);
+        await new Promise((r) => setTimeout(r, 450));
+        escapeMenu();
+        await new Promise((r) => setTimeout(r, 250));
+        applied = currentChip();
+        if (modeLooksApplied(want, applied)) {
+          return { ok: true, mode: want, label: applied || want };
+        }
+      }
+      return { ok: false, error: 'mode_not_applied', mode: want, label: applied || '' };
+    })()`);
+    if (!raw?.ok) {
+      return {
+        ok: false,
+        error: raw?.error || "mode_not_found",
+        hint: raw?.error || "mode_ui_missing",
+        mode: want,
+        modeLabel: raw?.label,
+      };
     }
     await sleep(150);
     const chrome = await this.getComposerChrome(cdpTargetId);
@@ -1473,61 +1929,268 @@ class CdpClient {
     const { session } = await this.getSession(cdpTargetId);
     const raw = await session.evaluate(`(async () => {
       const want = ${JSON.stringify(want)};
-      const wantLow = want.toLowerCase();
-      const clean = (s) => String(s || '').replace(/\\s+/g, ' ').trim();
+      const clean = (s) => String(s || '')
+        .replace(/[\\u200b\\u200c\\u200d\\u2060\\ufeff]/g, '')
+        .replace(/\\s+/g, ' ')
+        .trim();
       const visible = (el) => {
         if (!el) return false;
         const style = window.getComputedStyle(el);
         const rect = el.getBoundingClientRect();
         return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
       };
-      const openers = [...document.querySelectorAll('button, [role="button"], [aria-haspopup]')].filter((el) => {
+      const modelLike = (text) =>
+        /model|auto|gpt|claude|composer|sonnet|opus|haiku|gemini|grok|deepseek|o[1-9](?:\\b|-)/i.test(text);
+      const rootSel = ${JSON.stringify(COMPOSER_ROOT_SELECTOR)};
+      const pickerSel = ${JSON.stringify(MODEL_PICKER_SELECTOR)};
+      const submitSel = ${JSON.stringify(SUBMIT_BUTTON_SELECTOR)};
+      const isAutoModelLabel = ${isAutoModelLabel.toString()};
+      const modelMenuChoice = ${modelMenuChoice.toString()};
+      const modelChoiceMatches = ${modelChoiceMatches.toString()};
+      const modelLabelLooksApplied = ${modelLabelLooksApplied.toString()};
+      const pointerClick = ${pointerClick.toString()};
+      const toggleAutoModeRow = ${toggleAutoModeRow.toString()};
+      const activateModelMenuItem = ${activateModelMenuItem.toString()};
+      const pickActiveModelTrigger = ${pickActiveModelTrigger.toString()};
+      const itemSel = ${JSON.stringify(MODEL_MENU_ITEM_SELECTOR)};
+      const escapeMenu = () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true,
+        }));
+      };
+      const readOpenerLabel = (el) => clean(
+        el.getAttribute('aria-label') || el.innerText || el.textContent || ''
+      ).split('\\n')[0];
+      const isMessageChrome = (el) =>
+        !!el.closest(
+          '[data-message-role], [data-role="user"], [data-role="assistant"], [class*="composer-message"], [class*="chat-message"], [class*="agent-message"], [class*="message-bubble"], [class*="plan-list"], [class*="plan-todo"], .markdown-root'
+        );
+      const editors = [
+        ...document.querySelectorAll(
+          '.aislash-editor-input, .ui-prompt-input-editor__input, [data-lexical-editor="true"], .tiptap.ProseMirror, textarea, [role="textbox"][contenteditable="true"]'
+        ),
+      ].filter((el) => visible(el) && !isMessageChrome(el));
+      editors.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+      const editor =
+        editors.find((el) => {
+          const root = el.closest(rootSel);
+          if (!root) return false;
+          return (
+            [...root.querySelectorAll(submitSel)].some(visible) ||
+            !!root.querySelector(pickerSel)
+          );
+        }) ||
+        editors.find((el) => el.closest(rootSel)) ||
+        editors[0];
+      let composerRoot = editor?.closest(rootSel) || null;
+      if (!composerRoot) {
+        const anyPicker = pickActiveModelTrigger([...document.querySelectorAll(pickerSel)]);
+        composerRoot = anyPicker?.closest(rootSel) || null;
+      }
+      if (!composerRoot) return { ok: false, error: 'composer_ui_missing' };
+      const openers = [...composerRoot.querySelectorAll(
+        pickerSel + ', button, [role="button"], [aria-haspopup]'
+      )].filter((el) => {
         if (!visible(el)) return false;
+        if (el.matches && el.matches(pickerSel)) return true;
         const t = clean(el.getAttribute('aria-label') || el.innerText || '');
         const low = t.toLowerCase();
         if (!t || t.length > 64) return false;
         if (/send|build|stop|cancel|mic|attach/.test(low)) return false;
-        return /model|gpt|claude|composer|sonnet|opus|gemini|grok/.test(low) ||
-          (!!el.closest('[class*="composer"], [class*="prompt"], form') && /[A-Za-z].*\\d/.test(t));
+        return modelLike(low) ||
+          (el.getAttribute('aria-haspopup') && /[A-Za-z].*\\d/.test(t));
       });
-      if (!openers.length) return { ok: false, error: 'model_ui_missing' };
-      openers[0].click();
-      await new Promise((r) => setTimeout(r, 220));
-      const items = [...document.querySelectorAll(
-        '[role="menuitem"], [role="option"], [data-radix-collection-item], button, [role="button"]'
-      )].filter(visible);
-      for (const item of items) {
-        const label = clean(item.getAttribute('aria-label') || item.innerText || '');
-        if (!label) continue;
-        const low = label.toLowerCase();
-        if (low === wantLow || low.includes(wantLow) || wantLow.includes(low)) {
-          item.click();
-          return { ok: true, model: label };
-        }
+      if (!openers.length) {
+        const fallback = pickActiveModelTrigger([...document.querySelectorAll(pickerSel)]);
+        if (fallback) openers.push(fallback);
       }
-      return { ok: false, error: 'model_not_found' };
+      if (!openers.length) return { ok: false, error: 'model_ui_missing' };
+      const opener = pickActiveModelTrigger(openers.filter((el) => el.matches && el.matches(pickerSel)))
+        || pickActiveModelTrigger(openers)
+        || openers[0];
+      const readTrigger = () => {
+        const live = pickActiveModelTrigger([...document.querySelectorAll(pickerSel)]) || opener;
+        return readOpenerLabel(live);
+      };
+      const currentLabel = readTrigger();
+      const wantAuto = isAutoModelLabel(want);
+      if (wantAuto && isAutoModelLabel(currentLabel)) {
+        return { ok: true, model: 'Auto', modelId: 'Auto', modelLabel: currentLabel || 'Auto' };
+      }
+
+      pointerClick(opener, { xRatio: 0.5 });
+      await new Promise((r) => setTimeout(r, 400));
+      const menuOpen = [...document.querySelectorAll(
+        '.ui-model-picker__menu, [data-testid="model-picker-menu"], [role="menu"]'
+      )].some(visible);
+      if (!menuOpen && !document.querySelector('[data-testid="auto-mode-toggle"]')) {
+        // Retry open once
+        pointerClick(opener, { xRatio: 0.5 });
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      if (!document.querySelector('[data-testid="auto-mode-toggle"], [data-testid^="model-item-"]')) {
+        escapeMenu();
+        return { ok: false, error: 'model_ui_missing' };
+      }
+
+      const readChoice = (el) => modelMenuChoice({
+        testid: el.getAttribute('data-testid') || '',
+        name: el.querySelector('.ui-model-picker__item-content-name')
+          ? el.querySelector('.ui-model-picker__item-content-name').innerText
+          : '',
+        title: el.querySelector('.ui-menu__title')
+          ? el.querySelector('.ui-menu__title').innerText
+          : '',
+        text: el.querySelector('.ui-menu__item-content')
+          ? el.querySelector('.ui-menu__item-content').innerText
+          : '',
+      });
+      const autoOn = (el) => {
+        if (!el) return false;
+        if (el.getAttribute('aria-checked') === 'true') return true;
+        const sw = el.querySelector('[role="switch"]');
+        return !!(sw && sw.getAttribute('aria-checked') === 'true');
+      };
+      const toggleAuto = async (el) => {
+        if (!el) return;
+        toggleAutoModeRow(el);
+        await new Promise((r) => setTimeout(r, 450));
+      };
+      const activateRow = (choice) => {
+        const live = (choice.testid && document.querySelector('[data-testid="' + choice.testid + '"]'))
+          || choice.item;
+        activateModelMenuItem(live);
+      };
+      const collectChoices = () =>
+        [...document.querySelectorAll(itemSel)]
+          .filter(visible)
+          .map((item) => {
+            const parsed = readChoice(item);
+            if (!parsed) return null;
+            return {
+              item: item,
+              id: parsed.id,
+              label: parsed.label,
+              kind: parsed.kind,
+              testid: parsed.testid || '',
+            };
+          })
+          .filter((choice) => choice);
+
+      let autoEl = document.querySelector('[data-testid="auto-mode-toggle"]');
+      if (wantAuto) {
+        if (autoOn(autoEl)) {
+          escapeMenu();
+          return { ok: true, model: 'Auto', modelId: 'Auto', modelLabel: 'Auto' };
+        }
+        if (autoEl) {
+          await toggleAuto(autoEl);
+          autoEl = document.querySelector('[data-testid="auto-mode-toggle"]');
+          if (autoOn(autoEl)) {
+            escapeMenu();
+            await new Promise((r) => setTimeout(r, 200));
+            const applied = readTrigger();
+            if (isAutoModelLabel(applied)) {
+              return { ok: true, model: 'Auto', modelId: 'Auto', modelLabel: applied || 'Auto' };
+            }
+            return { ok: false, error: 'model_not_applied', model: 'Auto' };
+          }
+        }
+        escapeMenu();
+        return { ok: false, error: 'model_not_found' };
+      }
+
+      if (autoOn(autoEl) && autoEl) {
+        await toggleAuto(autoEl);
+        autoEl = document.querySelector('[data-testid="auto-mode-toggle"]');
+        if (autoOn(autoEl)) await toggleAuto(autoEl);
+      }
+
+      let choices = collectChoices();
+      if (choices.length < 2) {
+        await new Promise((r) => setTimeout(r, 300));
+        choices = collectChoices();
+      }
+      const choice = choices.find((c) => modelChoiceMatches(want, c));
+      if (!choice) {
+        escapeMenu();
+        return { ok: false, error: 'model_not_found' };
+      }
+
+      // Already selected (non-Auto): check mark / trigger before click.
+      if (modelLabelLooksApplied(currentLabel, choice) && !autoOn(document.querySelector('[data-testid="auto-mode-toggle"]'))) {
+        escapeMenu();
+        return {
+          ok: true,
+          model: choice.label,
+          modelId: choice.id,
+          modelLabel: currentLabel || choice.label,
+        };
+      }
+
+      activateRow(choice);
+      await new Promise((r) => setTimeout(r, 400));
+      escapeMenu();
+      await new Promise((r) => setTimeout(r, 250));
+      const applied = readTrigger();
+      if (modelLabelLooksApplied(applied, choice)) {
+        return {
+          ok: true,
+          model: choice.label,
+          modelId: choice.id,
+          modelLabel: applied || choice.label,
+        };
+      }
+      return {
+        ok: false,
+        error: 'model_not_applied',
+        model: choice.label,
+        modelId: choice.id,
+        modelLabel: applied || '',
+      };
     })()`);
     if (!raw?.ok) {
       return {
         ok: false,
         error: raw?.error || "model_ui_missing",
         hint: raw?.error || "model_ui_missing",
+        model: raw?.model,
+        modelId: raw?.modelId,
+        modelLabel: raw?.modelLabel,
       };
     }
-    await sleep(120);
+    await sleep(80);
     const chrome = await this.getComposerChrome(cdpTargetId);
-    return { ok: true, model: raw.model, composer: chrome.composer };
+    const modelLabel = raw.modelLabel || chrome.composer?.modelLabel || raw.model || want;
+    const modelId = raw.modelId || want;
+    const composer = normalizeComposerChrome({
+      ...(chrome.composer || {}),
+      modelLabel,
+      modelId,
+      models: Array.isArray(chrome.composer?.models) ? chrome.composer.models : undefined,
+    });
+    // Keep stable id even when Cursor trigger only shows the display label.
+    if (modelId && composer.modelId !== modelId && !composer.models?.length) {
+      composer.modelId = modelId;
+      composer.modelLabel = modelLabel;
+    }
+    return { ok: true, model: modelLabel, modelId, composer };
   }
 
-  async answerClarification(cdpTargetId, { clarificationId, optionId, text } = {}) {
+  async answerClarification(
+    cdpTargetId,
+    { clarificationId, optionId, text, prompt } = {}
+  ) {
     const { session } = await this.getSession(cdpTargetId);
     const wantText = String(text || "").trim();
     const wantOpt = String(optionId || "").trim();
     const wantQ = String(clarificationId || "").trim();
+    const wantPrompt = String(prompt || "").trim();
     const raw = await session.evaluate(`(() => {
       const wantText = ${JSON.stringify(wantText)};
       const wantOpt = ${JSON.stringify(wantOpt)};
       const wantQ = ${JSON.stringify(wantQ)};
+      const wantPrompt = ${JSON.stringify(wantPrompt)};
       const clean = (s) => String(s || '').replace(/\\s+/g, ' ').trim();
       const visible = (el) => {
         if (!el) return false;
@@ -1537,31 +2200,49 @@ class CdpClient {
       };
       const qRoots = [
         ...document.querySelectorAll(
-          '[class*="ask-user"], [class*="ask_user"], [class*="clarif"], [data-testid*="question" i], [data-testid*="ask" i], [role="group"], [class*="quiz"], [class*="choice-group"], [data-message-role="assistant"], [data-role="assistant"], [class*="agent-message"]'
+          '[class*="ask-user"], [class*="ask_user"], [class*="clarif"], [data-testid*="question" i], [data-testid*="ask" i], [role="group"][aria-label*="question" i], [class*="quiz"], [class*="choice-group"], [data-message-role="assistant"], [data-role="assistant"], [class*="agent-message"]'
         ),
       ].filter(visible);
       let root = null;
-      if (wantQ) {
-        const idx = Number(String(wantQ).replace(/\\D+/g, ''));
-        if (!Number.isNaN(idx) && qRoots[idx]) root = qRoots[idx];
+      if (wantPrompt) {
+        const promptLow = clean(wantPrompt).toLowerCase();
+        root = qRoots.find((candidate) => {
+          const text = clean(candidate.innerText || candidate.textContent).toLowerCase();
+          return text.includes(promptLow) || promptLow.includes(text.slice(0, 200));
+        }) || null;
+        if (!root) return { ok: false, error: 'clarification_not_found' };
       }
-      if (!root) root = qRoots[qRoots.length - 1] || null;
+      if (!wantPrompt && wantQ) {
+        const idx = Number(String(wantQ).replace(/\\D+/g, ''));
+        if (!root && !Number.isNaN(idx) && qRoots[idx]) root = qRoots[idx];
+      }
+      if (!root && !wantPrompt) root = qRoots[qRoots.length - 1] || null;
       if (!root && !wantText) return { ok: false, error: 'clarification_not_found' };
 
       if (wantOpt || wantText) {
         const buttons = [...(root || document).querySelectorAll('button, [role="button"], [role="radio"], [role="option"]')].filter(visible);
-        const targetLabel = wantText || wantOpt;
-        for (const btn of buttons) {
-          const label = clean(btn.getAttribute('aria-label') || btn.innerText || '');
-          const idGuess = clean(btn.getAttribute('data-option-id') || btn.id || '');
-          if (
-            (wantOpt && (idGuess === wantOpt || label === wantOpt || ('opt-' + buttons.indexOf(btn)) === wantOpt)) ||
-            (targetLabel && label.toLowerCase() === targetLabel.toLowerCase()) ||
-            (targetLabel && label.toLowerCase().includes(targetLabel.toLowerCase()))
-          ) {
-            btn.click();
-            return { ok: true, clicked: label };
-          }
+        const choices = buttons.map((btn, index) => ({
+          btn,
+          label: clean(btn.getAttribute('aria-label') || btn.innerText || ''),
+          id: clean(btn.getAttribute('data-option-id') || btn.id || ''),
+          index,
+        })).filter((choice) => choice.label);
+        const targetLabel = clean(wantText || wantOpt).toLowerCase();
+        const exact = choices.find((choice) =>
+          (wantOpt && (
+            choice.id === wantOpt ||
+            choice.label === wantOpt ||
+            ('opt-' + choice.index) === wantOpt
+          )) ||
+          (targetLabel && choice.label.toLowerCase() === targetLabel)
+        );
+        const partial = choices.filter((choice) =>
+          targetLabel && choice.label.toLowerCase().includes(targetLabel)
+        );
+        const choice = exact || (partial.length === 1 ? partial[0] : null);
+        if (choice) {
+          choice.btn.click();
+          return { ok: true, clicked: choice.label };
         }
       }
       return { ok: false, error: 'option_not_found' };
@@ -1618,10 +2299,21 @@ function normalizeCreateChatRequest(payload) {
   return { ok: true, cdpTargetId, projectName };
 }
 
+function createdChatSelectionPatch(result) {
+  const activeTargetId = String(result?.target?.id || "").trim();
+  if (!activeTargetId) return null;
+  return {
+    pasteMode: "solo",
+    activePresetId: "",
+    activeTargetId,
+  };
+}
+
 module.exports = {
   DEFAULT_PORT,
   CdpClient,
   getCdpClient,
   normalizeCreateChatRequest,
+  createdChatSelectionPatch,
   CURRENT_AGENT_SENTINEL,
 };

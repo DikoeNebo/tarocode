@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "release-plan",
-      "title": "配置",
-      "description": "Three of Wands: product type, channel, what needs a yes",
-      "prompt": "Choose a release profile from the actual project: desktop / web / mobile / open source (or say unknown).\n\nList channel, release criteria, and actions that need an explicit human yes (publish, signing, production migrate, store upload).\n\nDo not assume Vercel, Stripe, Docker, or npm.",
+      "title": "什么产品",
+      "description": "权杖三：产品类型、渠道、需要明确同意的事项",
+      "prompt": "定义发布画像。只做分析——不写代码、不部署。\n\n输出：\n1. 类型：桌面 / Web / 移动 / CLI / 库 / 开源\n2. 渠道：商店、Web 部署、GitHub Releases、包管理器、其他\n3. 发布标准\n4. 需要明确同意的事项：发布、签名、生产迁移、上传商店\n5. 工作是 Hobby 还是 Production——若已知\n\n类型未知——询问。无仓库上下文时不要假定服务、支付、容器或包管理器。\n下一步：「能跑吗」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — profile is clear\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "wands_03",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "quality-audit",
-      "title": "质量",
-      "description": "Star: run existing tests/builds only",
-      "prompt": "Find and run only existing relevant builds/tests/linters in this repo. Do not invent npm/Docker/CI.\n\nShow real command output. Score 0–10 from those facts.\n\nAlways end with:\nKEYCODE_SCORE: N\n\nIf red or score < 7, say the next step is Production work card Fix.",
+      "title": "能跑吗",
+      "description": "星星：只用已有的测试和构建",
+      "prompt": "只查找并运行本仓库中已有的构建、测试和 linter。不要编造命令。\n\n展示真实输出。按事实打分 0–10：0–6 红灯，不能发；7–8 可发但有备注；9–10 干净。无测试——直说；质量未验证。无法真实运行——分数不要超过 4。未要求前不要加新测试。\n\n低于 7——下一步是生产卡组的「修复」。≥7——「有漏洞吗」。\n\n项目可能为空——只根据已有内容判断。\n禁止：编造事实或漏洞；因同情虚高分数；无三条事实就给 9–10；缺数据就问，不要猜。\n\nAlways end with this line (N = your 0-10 score):\nKEYCODE_SCORE: N\nIf checks cannot be run, add a second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "security-audit",
-      "title": "安全",
-      "description": "Ace of Swords: secrets, inputs, deps — report, don't patch",
-      "prompt": "Read-only security review: secrets, input validation, dependency risk, privacy. Prioritize findings with evidence.\n\nDo not apply patches. Do not print secret values.\n\nIf a critical issue exists, end with:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\n\nOtherwise say no critical blockers and continue to Package.",
+      "title": "有漏洞吗",
+      "description": "宝剑王牌：密钥、输入、依赖——报告，不打补丁",
+      "prompt": "只读：检查安全。不要打补丁。不要打印密钥值——只说明在哪里发现。\n\n检查：硬编码的密钥和密码；输入校验；若可检查则看已知依赖漏洞；是否记录个人数据。\n不要编造漏洞。无法做依赖检查——直说。\n\n输出：严重（阻塞发布）· 重要 · 可延后——每项附证据。\n无严重项——「打包装」。\n\n项目可能为空——无事实 = 不 PASS。\n禁止：编造证据；因同情或「想法不错」而 PASS；奉承。\nIf something critical exists:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\nKEYCODE_STATUS: BLOCKED\n\nOtherwise say there are no critical blockers, and:\nKEYCODE_STATUS: READY",
       "image": "swords_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "package",
-      "title": "打包",
-      "description": "Three of Pentacles: artifact + rollback; wait before publish",
-      "prompt": "Prepare the package/deploy artifact and rollback for the chosen profile.\n\nInstalls, DB migrations, code signing, store upload, and production commands require an explicit user yes. Stop and ask. Do not publish.",
+      "title": "打包装",
+      "description": "钱币三：产物与回滚；仅在明确同意后发布",
+      "prompt": "按「什么产品」的画像准备包或产物。\n\n桌面——安装包；Web——静态或镜像；移动——应用包；CLI——二进制；库——包；开源——标签。\n描述构建命令，但未经同意不要运行。回滚计划——如何回到上一版本。安装、数据库迁移、签名、商店和生产——仅在明确同意后。不要发布。不要编造仓库中没有的命令。\n下一步：「说明」。\n\n项目可能为空——不要编造服务或命令。\n禁止：未经明确同意就发布、签名、部署或上传商店；编造缺失命令；奉承并声称「已经发了」。\n\n以一行结束：\nKEYCODE_STATUS: READY — artifact or build plan is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_03",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "docs",
-      "title": "文档",
-      "description": "Hermit: README / notes / install / rollback that exist",
-      "prompt": "Update only relevant README, release notes, install/upgrade/rollback text. Do not create extra documents nobody asked for.",
+      "title": "说明",
+      "description": "隐者：有用的 README / 说明 / 安装 / 回滚",
+      "prompt": "更新发布文档。不要额外生成文件。仅在被要求时改文件。\n\n需要有用内容：README（是什么、安装、运行）；发布说明；如何升级；如何回滚。简单项目——短 README 和说明。复杂——加安装与回滚。库或 CLI——示例。\n不要编造仓库中没有的命令。不要营销空话。\n下一步：「如何盯」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — docs described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hermit",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "operations",
-      "title": "运维",
-      "description": "Temperance: logs, backup, support, incident",
-      "prompt": "Minimal ops: logs, errors, backups, support, incident response. Suggest external services only after the user picks them.",
+      "title": "如何盯",
+      "description": "节制：日志、备份、支持、故障",
+      "prompt": "描述发布后的最低运维。\n\n日志：看哪里。备份：多频、存哪、如何恢复。故障响应——3 步。用户如何报问题。回滚。本地或桌面产品——只需备份与回滚；不强制监控。开源——问题和 PR 如何处理。\n外部服务——仅在用户选择后。不要编造流程表演。简单项目 3–5 条即可。\n下一步：「可以发了吗？」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — operations described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "temperance",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "release-gate",
-      "title": "门禁",
-      "description": "Justice: ship only if checks pass",
-      "prompt": "Check build/tests, critical security, docs, rollback, and remaining manual steps.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
+      "title": "可以发了吗？",
+      "description": "正义：检查全绿才发",
+      "prompt": "检查发布就绪。缺任何东西都不要 PASS。不要编造产物。\n\n必需：构建与测试绿灯；无严重漏洞；产物就绪；文档已更新；有运维计划；可回滚；已知手动步骤；用户确认就绪。\n测试红灯或严重漏洞——自动 FAIL。\n代码问题——生产卡组的「修复」。文档——「说明」。构建——「打包装」。\n\n项目可能为空——无事实 = 不 PASS。\n禁止：编造证据；因同情或「想法不错」而 PASS；奉承。\n\n以恰好两行结束。\nIf ready:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nIf not ready (replace fix with quality-audit, security-audit, package, docs, or operations when the problem is there):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "launch",
-      "title": "上线",
-      "description": "Sun: show plan first; publish only after a clear yes",
-      "prompt": "First list the launch actions, risks, and rollback. Do not publish, upload, or ship until the user clearly says to do it.\n\nAfter a confirmed launch, verify the artifact/availability if possible.\n\nThen recommend Validation → Verdict using real feedback (not a new invented idea). If launch happened, you may end with:\nKEYCODE_NEXT: validate-v1/evidence-review",
+      "title": "发出去",
+      "description": "太阳：先计划；仅在明确同意后发布",
+      "prompt": "准备上线计划。在用户明确说做之前，不要发布、上传或发货。\n\n先：有序行动清单；风险；回滚；需要同意的事项。确认后只做已确认的部分，尽可能验证产物与可用性，记录结果。\n不要编造部署命令。无上下文不要假定服务。\n\n上线后，建议「验证想法」卡组的「裁决」卡——基于真实反馈，不是新编的想法。\n\nIf launch happened, end with:\nKEYCODE_NEXT: validate-v1/evidence-review\n\n项目可能为空——不要编造服务或命令。\n禁止：未经明确同意就发布、签名、部署或上传商店；编造缺失命令；奉承并声称「已经发了」。\n\nAlso end with one status line:\nKEYCODE_STATUS: READY — plan ready or launch done\nor\nKEYCODE_STATUS: NEED_DATA — need user yes or more data",
       "image": "sun",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "摘要",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not publish anything. Do not change production.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step\n\nNo KEYCODE_SCORE line.",
+      "title": "回顾",
+      "description": "女祭司：就绪 / 阻塞 / 回滚 / 下一步",
+      "prompt": "阅读本聊天。不要发布任何东西或改生产。不要编造证据。\n\n四个短块：\n1. 就绪\n2. 阻塞\n3. 回滚\n4. 下一步——一张卡：什么产品 / 能跑吗 / 有漏洞吗 / 打包装 / 说明 / 如何盯 / 可以发了吗？ / 发出去\n\n若发布未就绪——直说。\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\n项目可能为空——只写聊天里可见的内容。\n禁止：编造已完成工作；写或改代码；添加 KEYCODE_SCORE、KEYCODE_GATE、KEYCODE_NEXT 或 KEYCODE_STATUS 行。",
       "image": "high_priestess",
       "hotkey": ""
     }

@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "plan",
-      "title": "Plan",
-      "description": "Hierophant: Aufgabe in Schritte zerlegen — noch kein Code",
-      "prompt": "Erstelle einen Schritt-für-Schritt-Plan für die aktuelle Aufgabe. Schreibe keinen Code.\n\nAus dem Chat (nur fragen wenn fehlt): Ergebnis in einem Satz; was schon da ist; einfaches Hobby-Projekt ohne unnötige Komplexität.\n\nRegeln:\n1. Kleine Schritte — ein Schritt = eine prüfbare Sache.\n2. Pro Schritt: was · fertig bedeutet · wie prüfen.\n3. Blocker zuerst; Risiken / was verschieben.\n\nAm Ende nummerierte Schrittliste (eine Zeile pro Schritt).",
+      "title": "Erstelle einen Plan",
+      "description": "Zerlege die Aufgabe in Schritte (ohne Code)",
+      "prompt": "Erstelle einen Schritt-für-Schritt-Plan für die aktuelle Aufgabe. Schreibe keinen Code.\n\nAus dem Chat (frage nur, wenn fehlend): Ergebnis in einem Satz; was schon da ist; einfaches Hobby-Projekt ohne unnötige Komplexität.\n\nRegeln: ein Schritt = eine prüfbare Sache; pro Schritt — was tun · Fertig-Kriterium · wie prüfen; zuerst Blocker und Risiken; was verschieben — getrennt. Einfach und funktionsfähig schlägt ideale Architektur. Erfinde keine Interfaces, Bibliotheken oder Befehle, die nicht im Repo sind. Gibt es guten Open Source — nutze ihn statt von null zu schreiben.\nWenig Daten — höchstens 3 Fragen.\nAusgabe: nummerierte Liste (eine Zeile pro Schritt).\nWeiter: «Bewerte das Ergebnis».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Fakten, Namen, Zahlen und Dateien erfinden; Code schreiben (diese Karte ist nur Analyse); für später überkomplex machen; gefallen wollen; fehlen Daten — fragen, nicht raten.\n\nAm Ende eine Zeile:\nKEYCODE_STATUS: READY — Plan ist fertig\noder\nKEYCODE_STATUS: NEED_DATA — mehr Informationen nötig",
       "image": "hierophant",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evaluate",
-      "title": "Bewerten",
-      "description": "Gerechtigkeit: Projektqualitäts-Score 0–10 und Urteil",
-      "prompt": "Bewerte den aktuellen Plan oder das letzte Ergebnis ehrlich — ohne Fülltext und Schmeichelei.\n\nProjektqualitäts-Score 0–10: 0–6 überarbeiten; 7–8 akzeptabel; 9–10 ausgezeichnet. Unter 7 muss überarbeitet werden; ≥7 kann weiter.\n\nPrüfe: Ziel/fertig klar? Lücken? Hobby-Überkomplexität? was bricht zuerst? Top-3 Score-Fixes.\n\nAntwort:\n- Projektqualitäts-Score: N/10\n- Urteil: überarbeiten (<7) / akzeptabel (7–8) / ausgezeichnet (9–10)\n- Plus · Minus/Risiken · konkrete Fixes\n\nKein Neustart von vorn, wenn gezielte Fixes reichen. Kein Code bis gebeten.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Bewerte das Ergebnis",
+      "description": "Gerechtigkeit: Projektbewertung 0–10 und Urteil",
+      "prompt": "Bewerte den aktuellen Plan oder das letzte Ergebnis ehrlich, ohne Schmeichelei.\n\nProjektbewertung 0–10: 0–6 überarbeiten; 7–8 akzeptabel; 9–10 ausgezeichnet. Unter 7 — muss überarbeitet werden.\nPrüfe: Ziel und Fertig-Kriterium klar; Logiklücken; unnötige Komplexität für ein Hobby; was zuerst kaputtgeht; Top-3-Korrekturen.\nNicht aufblasen. Für 9–10 brauchst du 3 Fakten. Ziel unklar — keine 7 oder höher.\n\nAntwort: Note N/10 · Urteil · Plus · Minus · Korrekturen.\nSchlage keinen Neustart vor, wenn gezielte Korrekturen reichen. Starte keinen Code, bis man dich bittet.\nUnter 7 — «Programmiere» oder «Behebe Fehler». 7 oder höher — «Programmiere».\n\nDas Projekt kann leer sein — urteile nur nach dem, was da ist.\nVerboten: Fakten und Lücken erfinden; Note aus Mitleid aufblasen; 9–10 ohne drei Fakten; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn Bewertung wegen fehlender Daten unmöglich ist, zweite Zeile:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "work",
-      "title": "Arbeiten",
-      "description": "Magier: nächsten Planschritt im Code umsetzen",
-      "prompt": "Erledige den nächsten offenen Schritt des genehmigten Plans — nur diesen, nicht alles auf einmal.\n\nRegeln: Schritt benennen wenn unklar; laufenden Code nicht unnötig brechen; fehlende Daten kurz fragen — nichts erfinden. Danach: was · wo · wie prüfen.\n\nEnde mit einer Zeile: Status — done / partial / blocked (und warum).",
+      "title": "Programmiere",
+      "description": "Magier: setze den nächsten Plansschritt in Code um",
+      "prompt": "Erledige den nächsten offenen Schritt des genehmigten Plans — nur diesen, nicht alles auf einmal.\n\nMach nichts kaputt, was funktioniert. Keine Daten — 1–3 kurze Fragen; erfinde keine Bibliotheken oder Befehle. Vor riskanten Änderungen (Datenbank, Migrationen, Configs, Auth) — Backup. Keine neuen Features außerhalb des Schritts.\n\nDanach: was sich geändert hat · wo prüfen · Risiken. Ziel — Korrektheitsnote 7 oder höher.\nFertig — «Teste es». Blocker — «Erstelle einen Plan».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nAm Ende eine Zeile:\nKEYCODE_STATUS: DONE — Schritt bereit zur Prüfung\noder\nKEYCODE_STATUS: PARTIAL — Schritt begonnen, aber nicht fertig\noder\nKEYCODE_STATUS: BLOCKED — Mensch oder Daten nötig",
       "image": "magician",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "test",
-      "title": "Test",
-      "description": "Stern: Ergebnis mit Fakten prüfen, nicht mit Worten",
-      "prompt": "Teste, was gerade gemacht wurde (letzter Schritt oder klar benannter Teil).\n\nRelevante Checks (Befehle/Build/manuell); Fakten zeigen; bei Fail — Ursache + Minimalfix; bei OK — \"TEST PASSED\" + was geprüft. Bei Rot nicht weiter im Plan.\n\nErgebnis: green / red + ein Satz warum. Vorläufiger Projektqualitäts-Score 0–10 (unter 7 = noch nicht bereit).\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Teste es",
+      "description": "Stern: prüfe das Ergebnis mit Fakten, nicht mit Worten",
+      "prompt": "Prüfe, was gerade gemacht wurde (letzter Schritt oder klar benannter Teil).\n\nFühre relevante Checks aus (Befehle, Build, manuelles Szenario). Zeige echte Ausgabe. Happy Path + ein Randfall oder Fehlschlag (oder warum nicht möglich).\nBei Fehlschlag — Ursache und Karte «Behebe Fehler»; Code nicht selbst reparieren, wenn nicht gebeten. Bei Erfolg — «TEST BESTANDEN» und Checkliste. Bei Rot nicht weitergehen. Kannst du Checks nicht wirklich ausführen — Note nicht über 4. Braucht es einen Menschen — kurzes Szenario geben; kein «TEST BESTANDEN».\nErfinde keine Befehlsausgabe.\nErgebnis: grün / rot + Projektbewertung 0–10 (unter 7 = nicht bereit).\n7 oder höher — «Programmiere» (nächster Schritt). Unter 7 — «Behebe Fehler».\n\nDas Projekt kann leer sein — urteile nur nach dem, was da ist.\nVerboten: Fakten und Lücken erfinden; Note aus Mitleid aufblasen; 9–10 ohne drei Fakten; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn Bewertung wegen fehlender Daten unmöglich ist, zweite Zeile:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "fix",
-      "title": "Fixen",
-      "description": "Turm: Defekt bis akzeptabler Score (≥7) beheben",
-      "prompt": "Behebe Probleme aus dem letzten Test, Fehler oder Projektqualitäts-Score unter 7/10.\n\nNur Minimalfix — keine Drive-by-Refactors oder Features. Symptom → Ursache → Patch → Verify. Loop bis Score ≥ 7. Wenn stecken — Blocker + 2 Auswege. Kurz: war → tat → bestätigt.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Behebe Fehler",
+      "description": "Turm: repariere den Bruch bis zur akzeptablen Note (7 oder höher)",
+      "prompt": "Behebe den Defekt aus dem letzten Test, Fehler oder einer Projektbewertung unter 7 von 10.\n\nNur minimaler Fix. Kein Refactoring „nebenbei“ und keine neuen Features. Vor kritischen Änderungen — Backup.\nSchleife: Symptom → Ursache → was sonst noch kaputtgehen kann → Patch → gleiche Prüfung. Solange Note unter 7 — wiederholen.\nNach 3 Versuchen ohne Fortschritt — stoppen: was scheitert und warum; 2 Optionen mit Kompromissen; Liste, wo ein Mensch nötig ist.\nFormat: war → wurde → Beweis.\n7 oder höher — «Teste es».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn der Schritt nicht nur „bewertet“ ist, zweite Zeile eines von:\nKEYCODE_STATUS: NEED_DATA — nicht genug Daten\nKEYCODE_STATUS: BLOCKED — Mensch nötig oder nicht weiter möglich",
       "image": "tower",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "polish",
-      "title": "Verfeinern",
-      "description": "Stärke: Projektqualitäts-Score auf 9–10 heben",
-      "prompt": "Modus „Verfeinern“. Nicht stoppen, bis Projektqualitäts-Score 9 oder 10 von 10 ist.\n\n7–8 reicht für diese Karte nicht. Loop ohne Fragen: Score N/10 + Hauptlücken → nur die fixen → prüfen → neu scoren. Solange ≤ 8 wiederholen. Stopp nur bei 9–10.\n\nDann: Endscore · was hob · was du ließest.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N",
+      "title": "Verbessere es",
+      "description": "Kraft: hebe die Projektbewertung auf 9–10",
+      "prompt": "Hoher Feinschliff-Modus. Ziel — Projektbewertung 9 oder 10. Bei 7–8 stoppen ist nicht erlaubt.\n\nSchleife: Note N/10 → kritische Lücken → Korrekturen nur dafür (Scope nicht erweitern) → erneute Prüfung → neue Note. Solange 8 oder darunter — wiederholen.\nMaximal 2–3 Iterationen. Steigt die Note zwei Runden hintereinander nicht — stoppen und die Grenze erklären. Liegt die Grenze wegen externer Einschränkungen unter 9 — nach Ausschöpfen der Scope-Korrekturen benennen.\nVor dem Start — Backup.\nBericht: Endnote · was die Qualität hob · Restrisiko · was unberührt blieb.\n9 oder höher — «Speichere».\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende der Antwort unbedingt diese Zeile (N = deine Note 0-10):\nKEYCODE_SCORE: N\nWenn der Schritt nicht nur „bewertet“ ist, zweite Zeile eines von:\nKEYCODE_STATUS: NEED_DATA — nicht genug Daten\nKEYCODE_STATUS: BLOCKED — Grenze erreicht, nicht weiter möglich",
       "image": "strength",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "backup",
-      "title": "Backup",
-      "description": "Eremit: Rollback-Punkt speichern",
-      "prompt": "Erstelle einen sicheren Rollback-Punkt für den aktuellen Projektstand.\n\n1. git status (oder Äquivalent).\n2. Sinnvoller Commit oder fertiger Befehl — kein force, kein --no-verify ohne Bitte.\n3. Kein git — datierte Kopie wichtiger Dateien.\n4. Rollback in 1–2 Befehlen. Kein Push ohne Anfrage.\n\nEnde: \"Checkpoint saved\" + wo/wie zurück.",
+      "title": "Speichere",
+      "description": "Eremit: speichere einen Rollback-Punkt",
+      "prompt": "Erstelle einen sicheren Rollback-Punkt.\n\n1. git status (oder Äquivalent).\n2. Sinnvoller Commit oder fertiger Befehl — kein force und kein Überspringen von Checks ohne Bitte.\n3. Kein git — Kopie der Schlüsseldateien mit Datum im Namen.\n4. Rollback in 1–2 Befehlen.\n5. Keine Änderungen pushen und keine gefährlichen Befehle (Löschen, Reset, Produktion) ohne klares „ja“.\n\nAm Ende: «Punkt gespeichert» + wohin und wie zurückrollen. Erfinde keinen erfolgreichen Commit.\nWeiter: «Mach alles selbst» oder «Programmiere» — je nach Kontext.\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nAm Ende eine Zeile:\nKEYCODE_STATUS: SAVED — Punkt gespeichert\noder\nKEYCODE_STATUS: FAILED — Speichern fehlgeschlagen",
       "image": "hermit",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "fullcycle",
-      "title": "Voller Zyklus",
-      "description": "Welt: Plan → Arbeit → Test, jeder Schritt ≥ 7 Punkte",
-      "prompt": "Voller Zyklus durch den Plan von Anfang bis Ende — ohne Überspringen.\n\nPunkt nur bei Projektqualitäts-Score ≥ 7 schließen (Polish für 9–10). Pro Punkt: nennen → umsetzen → prüfen → Score → wenn <7 bis ≥7 fixen → weiter. Kein Scope-Aufblasen.\n\nKein Plan — zuerst kurzer 5–8-Schritt-Plan (oder sofort wenn schon vereinbart).\n\nFinal: Gesamtscore · done / not done · manuell prüfen. Bei Gesamt <7 keinen Erfolg erklären.\n\nAlways end your reply with this exact line (N = your 0-10 score):\nKEYCODE_SCORE: N\n\nIf the approved scope is fully done and checks are green, also end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nIf not done or checks are red:\nKEYCODE_GATE: FAIL",
+      "title": "Mach alles selbst",
+      "description": "Welt: Plan → Arbeit → Prüfung, jeder Schritt Note 7 oder höher",
+      "prompt": "Führe den Plan von Anfang bis Ende aus. Vor dem Start — Backup; bei kritischen Schritten (Datenbank, Migrationen, Auth) — ebenfalls.\n\nEin Punkt ist erst bei Note 7 oder höher geschlossen (für 9–10 — «Verbessere es»). Pro Punkt: nennen → machen → mit Fakten prüfen → Note → unter 7 reparieren → weiter. Kein Überspringen, Scope-Aufblasen oder Kaschieren roter Tests.\nKein Plan — zuerst 5–8 Schritte mit Abnahmekriterien. Mehr als 8 Schritte — nur die erste Stufe. Erfinde keine Bibliotheken oder Befehle. Gefährliche Befehle — Backup und klares „ja“.\n\nSteigt die Note 2–3 Runden an einer Aufgabe nicht — vereinfachen oder Weg wechseln. Braucht es einen Menschen — Blocker-Liste, Rest weiter machen. Drei Runden ohne Bewegung — stoppen und ehrlichen Status geben.\nFinale: Gesamtnote · fertig / nicht fertig · Risiken · was manuell prüfen. Unter 7 keinen Erfolg verkünden.\n\nDas Projekt kann leer sein; es kann keine Regeln haben. Erfinde nichts, was nicht da ist.\nVerboten: Bibliotheken, Befehle und Ausgabe erfinden; Extra außerhalb des Schritts; gefallen wollen und Brüche verstecken; gefährliche Befehle ohne klares „ja“; fehlen Daten — fragen, nicht raten.\n\nGanz am Ende unbedingt:\nKEYCODE_SCORE: N\n\nWenn der genehmigte Scope geschlossen und Checks grün sind:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/release-plan\n\nWenn nicht bereit oder Checks rot:\nKEYCODE_GATE: FAIL\nWenn wegen Blockern gestoppt:\nKEYCODE_STATUS: BLOCKED",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Kurzfassung",
+      "title": "Ergebnisüberblick",
       "description": "Hohepriesterin: kurz — Aufgabe, erledigt, offen, weiter",
-      "prompt": "Lies diesen Chat und den Repo-Kontext. Keinen Code schreiben oder ändern.\n\nAntwort genau in vier kurzen Abschnitten (je 1–3 Punkte):\n1. Aufgabe — Ziel (ein Satz + Scope falls bekannt).\n2. Erledigt — umgesetzt oder verifiziert.\n3. Offen — offene Schritte, Fehler, Blocker, Unklarheiten.\n4. Nächster Schritt — eine beste Aktion (Plan / Arbeiten / Test / Fix nennen, falls klar).\n\nKein Plan — sag es und empfehle Plan. Unbekanntes markieren — nichts erfinden. Keine KEYCODE_SCORE-Zeile.",
+      "prompt": "Lies diesen Chat und den Repo-Kontext. Schreibe und ändere keinen Code. Erfinde keine Beweise.\n\nVier kurze Blöcke (je 1–3 Punkte):\n1. Aufgabe\n2. Erledigt\n3. Nicht erledigt — Schritte, Fehlschläge, Blocker\n4. Nächster Schritt — eine Karte: Erstelle einen Plan / Bewerte das Ergebnis / Programmiere / Teste es / Behebe Fehler / Verbessere es / Speichere / Mach alles selbst\n\nKein Plan — «Erstelle einen Plan» empfehlen. Arbeit steckt — fünfter Block: Grund und Optionen (vereinfachen / zum Plan zurück / Menschen fragen).\nKeine Zeilen KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT und KEYCODE_STATUS hinzufügen.\n\nDas Projekt kann leer sein — schreibe nur, was im Chat sichtbar ist.\nVerboten: Erledigtes erfinden; Code schreiben oder ändern; Zeilen KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT und KEYCODE_STATUS hinzufügen.",
       "image": "high_priestess",
       "hotkey": ""
     }

@@ -1,4 +1,4 @@
-# Publish first GitHub Release (manual)
+# Publish GitHub Release (manual)
 
 Repo remote is set to `https://github.com/DikoeNebo/keycode.git`.
 
@@ -23,27 +23,27 @@ npm run build:all
 powershell -File scripts/release-checksums.ps1
 ```
 
-Expected in `dist/`:
+Expected in `dist-release/`:
 
-- `Keycode-1.0.0-portable.exe`
-- `Keycode-Setup-1.0.0.exe`
+- `Keycode-0.5.0-portable.exe`
+- `Keycode-Setup-0.5.0.exe`
 - `SHA256SUMS.txt`
 
 Smoke: follow `docs/SMOKE.md` on the portable exe.
 
-## Create Release v1.0.0
+## Create Release v0.5.0
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
-On GitHub → Releases → Draft a new release → tag `v1.0.0` → paste body from `docs/RELEASE-NOTES-v1.0.0.md` → upload the three `dist/` files → Publish.
+On GitHub → Releases → Draft a new release → tag `v0.5.0` → paste body from `docs/RELEASE-NOTES-v0.5.0.md` → upload the three `dist-release/` files → Publish.
 
 Or with `gh`:
 
 ```powershell
-gh release create v1.0.0 dist/Keycode-1.0.0-portable.exe dist/Keycode-Setup-1.0.0.exe dist/SHA256SUMS.txt --title "v1.0.0" --notes-file docs/RELEASE-NOTES-v1.0.0.md
+gh release create v0.5.0 dist-release/Keycode-0.5.0-portable.exe dist-release/Keycode-Setup-0.5.0.exe dist-release/SHA256SUMS.txt --title "v0.5.0" --notes-file docs/RELEASE-NOTES-v0.5.0.md
 ```
 
 ## After publish

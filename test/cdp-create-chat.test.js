@@ -1,6 +1,9 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { normalizeCreateChatRequest } = require("../electron/cdp-client");
+const {
+  normalizeCreateChatRequest,
+  createdChatSelectionPatch,
+} = require("../electron/cdp-client");
 
 describe("normalizeCreateChatRequest", () => {
   it("rejects empty project name", () => {
@@ -26,5 +29,17 @@ describe("normalizeCreateChatRequest", () => {
     assert.equal(r.ok, true);
     assert.equal(r.cdpTargetId, "win-a");
     assert.equal(r.projectName, "keycode");
+  });
+
+  it("selects a newly created target in solo mode", () => {
+    assert.deepEqual(
+      createdChatSelectionPatch({ target: { id: " tgt-new " } }),
+      {
+        pasteMode: "solo",
+        activePresetId: "",
+        activeTargetId: "tgt-new",
+      }
+    );
+    assert.equal(createdChatSelectionPatch({}), null);
   });
 });

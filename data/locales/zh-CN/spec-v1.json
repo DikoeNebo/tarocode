@@ -1,76 +1,76 @@
 {
   "id": "spec-v1",
-  "name": "02 规格",
+  "name": "02 我们在建什么",
   "cards": [
     {
       "id": "brief",
-      "title": "简报",
-      "description": "Emperor: goal, users, stories, measurable outcome",
-      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "title": "为何与为谁",
+      "description": "皇帝：目标、用户、场景、可衡量结果",
+      "prompt": "把已确认的假设写成产品简报。只做分析——不写代码。\n\n若想法验证未通过——说明应回到「验证想法」卡组。未确认想法就写规格为时过早。\n\n输出：\n1. 目标（一句话）\n2. 用户是谁（具体）\n3. 关键场景（3–5）\n4. 一个月内可衡量的结果\n5. v1 我们不做什么\n\n禁止：编造假设之外的用户/场景；添加「以后再说」的功能。\n下一步：「我们做什么」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — brief is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "emperor",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "scope",
-      "title": "MVP",
-      "description": "Two of Swords: IN / OUT, one happy path, acceptance",
-      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "title": "我们做什么",
+      "description": "宝剑二：IN / OUT、一条快乐路径、验收",
+      "prompt": "锁定最小可用版本。只做分析——不写代码。\n\n输出：\n1. IN：v1 做什么\n2. OUT：不做什么\n3. 一条快乐路径——从入口到结果\n4. 验收标准\n5. 延后什么及原因\n\n规则：砍掉第一条路径不需要的一切。IN 超过 5 个功能——砍。不要加「以后可能需要」。不要编造简报之外的需求。\n下一步：「长什么样」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — scope is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "swords_02",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "ux",
-      "title": "界面",
-      "description": "Ace of Cups: screens, buttons, empty/error/loading",
-      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "title": "长什么样",
+      "description": "圣杯王牌：屏幕、控件、空/加载/错误状态",
+      "prompt": "用文字描述 UI。不要代码、不要图片。\n\n输出：屏幕列表；每屏——按钮和字段；空 / 加载 / 错误 / 成功状态；屏幕如何连接。\n\n不要生成图片、Figma 或标记。不要添加范围外的屏幕。超过 5 屏——考虑合并。必须能用简单手段实现。\n下一步：「存什么」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — UI described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "cups_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "data-contracts",
-      "title": "数据",
-      "description": "Ace of Pentacles: entities only if the project needs them",
-      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "title": "存什么",
+      "description": "钱币王牌：仅在产品需要时定义实体",
+      "prompt": "定义产品数据。只做分析——不写代码。\n\n输出：实体与字段；校验；存哪里（文件、本地、数据库、云）；外部契约——仅在需要时。\n\n不要对桌面/本地应用无必要地强加数据库、REST 或 ORM。若不需要存储——直说。不要编造范围外的实体。\n下一步：「用什么建」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — data defined or storage not needed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_ace",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "architecture",
-      "title": "架构",
-      "description": "Chariot: simplest fit after reading the repo",
-      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "title": "用什么建",
+      "description": "战车：读完仓库后给出最简单的结构与技术栈",
+      "prompt": "先阅读仓库和当前依赖。为任务提出最简单的结构与技术栈。\n\n输出：文件夹与关键文件；语言与库；可从开源复用而非从零写的部分；风险与回滚思路。\n\n无聊但能用胜过时髦架构。不要为简单项目加微服务或容器。不要编造缺失的依赖。不要破坏已能用的东西。\n下一步：「代码规则」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — structure and stack proposed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "chariot",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "project-rules",
-      "title": "规则",
-      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
-      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "title": "代码规则",
+      "description": "教皇：AGENTS.md 与 .cursor/rules——不要遗留 .cursorrules",
+      "prompt": "检查现有规则文件：AGENTS.md（项目规则）和 .cursor/rules/*.mdc。提出最小一致的修改；若无则给一套基础规则。\n\n默认不要创建遗留的 .cursorrules。不要重复已有规则。仅在被要求时改文件。5–10 条简单规则即可：风格、命名、禁止事项。\n下一步：「计划评审」。\n\n项目可能为空；也可能没有规则。不要编造不存在的东西。\n禁止：编造事实、姓名、数字或文件；写代码（本卡仅分析）；为「以后」过度设计；奉承；缺数据就问，不要猜。\n\n以一行结束：\nKEYCODE_STATUS: READY — rules checked or proposed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hierophant",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "risk-review",
-      "title": "评审",
-      "description": "Justice: clarity, YAGNI, safety, testability",
-      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "title": "计划评审",
+      "description": "正义：清晰度、冗余、安全、可测性",
+      "prompt": "诚实给规格评分——不要奉承。\n\n检查：目标是否清晰；完整性（简报、范围、UI、数据、架构、规则）；是否过多；明显安全漏洞；验收标准是否可测。\n\n项目质量评分 0–10：0–6 写代码前先修；7–8 可开始；9–10 优秀。不要虚高。给 9–10 时列出 3 条说明规格扎实的事实。低于 7——指出下一张规格卡。\n\n回复：分数 N/10 · 结论 · 优点 · 缺点 · 前 3 项修复。\n分数 ≥7 —「可以写代码了吗？」。低于 7 — 修所点名的卡。\n\n项目可能为空——只根据已有内容判断。\n禁止：编造事实或漏洞；因同情虚高分数；无三条事实就给 9–10；缺数据就问，不要猜。\n\nAlways end with this line (N = your 0-10 score):\nKEYCODE_SCORE: N\nIf you cannot score due to missing data, add a second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "readiness",
-      "title": "就绪",
-      "description": "Judgement: gate to Hobby or Production work",
-      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "title": "可以写代码了吗？",
+      "description": "审判：进入爱好或生产的门禁",
+      "prompt": "检查是否准备好写代码。缺任何东西都不要 PASS。不要编造产物。\n\n必需：目标与用户；范围与快乐路径；带状态的 UI；需要时有数据；架构；规则或基础集；验收标准；计划评审分数 ≥7。\n\n不要猜测模式。未选择时明确询问：\n- Hobby — 快速简单项目；\n- Production — 更严，含评审与合并就绪。\n\n项目可能为空——无事实 = 不 PASS。\n禁止：编造证据；因同情或「想法不错」而 PASS；奉承。\n\n以恰好两行结束。\nHobby:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nProduction:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nNot ready (replace brief with the missing card id: scope, ux, data-contracts, architecture, project-rules, risk-review):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief",
       "image": "judgement",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "摘要",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "title": "回顾",
+      "description": "女祭司：目标、已定、未定、下一步",
+      "prompt": "阅读本聊天。不要写或改代码。\n\n四个短块（各 1–3 条）：\n1. 目标\n2. 已定——哪些产物就绪\n3. 未定——还缺什么\n4. 下一步——一张卡：为何与为谁 / 我们做什么 / 长什么样 / 存什么 / 用什么建 / 代码规则 / 计划评审 / 可以写代码了吗？——或进入工作\n\n若规格未就绪——直说。\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\n项目可能为空——只写聊天里可见的内容。\n禁止：编造已完成工作；写或改代码；添加 KEYCODE_SCORE、KEYCODE_GATE、KEYCODE_NEXT 或 KEYCODE_STATUS 行。",
       "image": "high_priestess",
       "hotkey": ""
     }

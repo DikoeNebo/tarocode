@@ -2,7 +2,11 @@
 
 Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F8** for hotkeyed cards) pastes a saved prompt into Cursor chats **without stealing focus** — your game or other app stays in front.
 
-![Deck preview](docs/screenshots/demo-deck.png)
+![Deck — Idea check](docs/screenshots/keycode-hero.png)
+
+| Deck | Phone remote | Edit cards | Dictation |
+|------|--------------|------------|-----------|
+| ![cycle](docs/screenshots/keycode-cycle.png) | ![phone](docs/screenshots/keycode-phone.png) | ![decks](docs/screenshots/keycode-decks.png) | ![dictation](docs/screenshots/keycode-dictation.png) |
 
 **Official builds:** only from [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) on this repository (`DikoeNebo/keycode`). Do not trust re-uploads elsewhere. Verify SHA-256 from the release `SHA256SUMS.txt`.
 
@@ -17,15 +21,15 @@ Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F
 
 1. Download `Keycode-*-portable.exe` from Releases and run it.
 2. Press **F9** (or the eye button) to show the deck.
-3. **Settings → Cursor background → Always enable (shortcut)** once → close Cursor → open Cursor from the new Keycode shortcut.
-4. **+ chat** → pick a Cursor chat → enable the chip → click a card.
+3. **◎** or **Settings → Cursor → Always enable (shortcut)** once → close Cursor → open Cursor from the Keycode shortcut (or “Launch Cursor with CDP”).
+4. **💬 Chats → + chat** → pick a Cursor chat (or a chip on the destination bar) → click a card (or F1–F8).
 
-Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR). Anyone on that Wi‑Fi with the link can control the remote — do not share the secret.
+Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR). Anyone on that Wi‑Fi with the link can control the remote — do not share the secret. Phone remote UI languages: English and Russian (desktop UI has 10 locales).
 
 Windows may show **Unknown publisher** (unsigned first builds). Compare the file hash with the release notes:
 
 ```powershell
-Get-FileHash .\Keycode-1.0.0-portable.exe -Algorithm SHA256
+Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
 ```
 
 ---
@@ -55,20 +59,20 @@ npm run build:installer
 npm run build:all      # check + test + portable + NSIS
 ```
 
-Артефакты: `dist/Keycode-<version>-portable.exe`, `dist/Keycode-Setup-<version>.exe`.
+Артефакты: `dist-release/Keycode-<version>-portable.exe`, `dist-release/Keycode-Setup-<version>.exe`.
 
-После сборки: `powershell -File scripts/release-checksums.ps1` → `dist/SHA256SUMS.txt` для GitHub Release.
+После сборки: `powershell -File scripts/release-checksums.ps1` → `dist-release/SHA256SUMS.txt` для GitHub Release.
 
 Автопроверка обновлений смотрит релизы в `DikoeNebo/keycode`.
 
-**Важно:** папка `data/` с колодами «Тарокод · Хобби» и «Тарокод · Продакшен» должна быть в репозитории. Картинки таро — в `assets/tarot/`.
+**Важно:** папка `data/locales/` с пятью встроенными колодами (проверка идеи → спецификация → хобби / продакшен → релиз) должна быть в репозитории. Картинки таро — в `assets/tarot/`.
 
 ## Как пользоваться
 
 1. Подведите курсор **к краю** — карты выедут (если включено в настройках), или нажмите **F9** / 👁.
-2. **⚙** → **Всегда включать фон (ярлык)** один раз → закройте Cursor и откройте новый ярлык. Либо **Запустить Cursor для фона**, если Cursor уже закрыт.
-3. **+ чат** — выбрать чат Cursor; **+ поле** — Блокнот и простые поля.
-4. Включите чипы слева → клик по карте или **F1–F8**.
+2. **◎** или **⚙ → Cursor → Всегда включать фон (ярлык)** один раз → закройте Cursor и откройте новый ярлык. Либо «Запустить Cursor с CDP», если Cursor уже закрыт.
+3. **💬 Чаты → + чат** — выбрать чат Cursor; **+ поле** — Блокнот и простые поля. На полосе назначений можно переключить solo-чат или набор.
+4. Клик по карте или **F1–F8**.
 
 При первом запуске покажется короткая подсказка.
 
@@ -98,11 +102,11 @@ npm run build:all      # check + test + portable + NSIS
 
 ## Возможности
 
-- Две встроенные колоды: **Тарокод · Хобби** и **Тарокод · Продакшен**
-- Несколько целей сразу, Enter после вставки — вкл/выкл
+- Пять встроенных колод по фазам: **проверка идеи → спецификация → работа (хобби / продакшен) → релиз** (по 9 карт; UI на 10 языках)
+- Несколько целей сразу или solo-чат; Enter после вставки — вкл/выкл
 - Редактор карт и колод, экспорт / импорт JSON (с проверкой)
 - Автопроверка обновлений (GitHub Releases), когда релиз опубликован
-- Опциональный веб-пульт с телефона (та же Wi‑Fi + секрет)
+- Опциональный веб-пульт с телефона (та же Wi‑Fi + секрет; интерфейс пульта — EN/RU)
 
 Данные: `%APPDATA%/keycode-lazy-coder/keycode-data/`  
 Логи: `%APPDATA%/keycode-lazy-coder/keycode-data/logs/` (без текстов промптов)
@@ -112,7 +116,7 @@ npm run build:all      # check + test + portable + NSIS
 Первые публичные сборки могут быть **без цифровой подписи**. Windows покажет «Неизвестный издатель» — это ожидаемо для unsigned open-source. Сверяйте SHA-256 из GitHub Release с файлом:
 
 ```powershell
-Get-FileHash .\Keycode-1.0.0-portable.exe -Algorithm SHA256
+Get-FileHash .\Keycode-0.5.0-portable.exe -Algorithm SHA256
 ```
 
 ## Лицензия

@@ -1,76 +1,76 @@
 {
   "id": "spec-v1",
-  "name": "02 Specification",
+  "name": "02 What we build",
   "cards": [
     {
       "id": "brief",
-      "title": "Brief",
-      "description": "Emperor: goal, users, stories, measurable outcome",
-      "prompt": "Turn the confirmed hypothesis into a product brief: goal, users, key stories, measurable outcome.\n\nDo not start implementation. If validation never passed, say so and recommend the Validation deck.\n\nOutput: goal · users · stories · success metric · constraints.",
+      "title": "Why and for whom",
+      "description": "Emperor: goal, users, scenarios, measurable outcome",
+      "prompt": "Turn the confirmed hypothesis into a product brief. Analysis only — no code.\n\nIf idea validation did not pass — say to return to the “Idea check” deck. Spec without a confirmed idea is too early.\n\nOutput:\n1. Goal (one sentence)\n2. Who the user is (specific)\n3. Key scenarios (3–5)\n4. Measurable outcome in one month\n5. What we will NOT do in v1\n\nForbidden: inventing users/scenarios outside the hypothesis; adding “for later” features.\nNext: “What we do”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — brief is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "emperor",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "scope",
-      "title": "MVP",
+      "title": "What we do",
       "description": "Two of Swords: IN / OUT, one happy path, acceptance",
-      "prompt": "Freeze MVP: IN / OUT, one happy path, acceptance criteria, deferred features.\n\nYAGNI: cut anything not needed for the first real user path. No code.",
+      "prompt": "Lock the smallest working version. Analysis only — no code.\n\nOutput:\n1. IN: what we do in v1\n2. OUT: what we do NOT do\n3. One happy path — from entry to result\n4. Acceptance criteria\n5. What we defer and why\n\nRules: cut anything the first path does not need. If IN has more than 5 features — cut. Do not add “might need later”. Do not invent requirements outside the brief.\nNext: “How it looks”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — scope is ready\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "swords_02",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "ux",
-      "title": "Interface",
-      "description": "Ace of Cups: screens, buttons, empty/error/loading",
-      "prompt": "Describe screens, controls, empty/loading/error states, and navigation in text.\n\nDo not generate image/figma files unless the user asked. Keep it implementable.",
+      "title": "How it looks",
+      "description": "Ace of Cups: screens, controls, empty/loading/error states",
+      "prompt": "Describe the UI in text. No code, no images.\n\nOutput: screen list; per screen — buttons and fields; empty / loading / error / success states; how screens connect.\n\nDo not generate images, Figma, or markup. Do not add screens outside scope. More than 5 screens — consider merging. Must be buildable with simple means.\nNext: “What we store”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — UI described\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "cups_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "data-contracts",
-      "title": "Data",
-      "description": "Ace of Pentacles: entities only if the project needs them",
-      "prompt": "Define entities, validation, storage, and external contracts ONLY if this project needs them.\n\nDo not invent a database, REST API, Prisma, or tRPC for a local/desktop app that does not need them. If none needed, say so and list what is stored where.",
+      "title": "What we store",
+      "description": "Ace of Pentacles: entities only if the product needs them",
+      "prompt": "Define product data. Analysis only — no code.\n\nOutput: entities and fields; validation; where stored (file, local, DB, cloud); external contracts — only if needed.\n\nDo not force a DB, REST, or ORM on a desktop/local app without need. If storage is unnecessary — say so. Do not invent entities outside scope.\nNext: “What we build with”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — data defined or storage not needed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "pentacles_ace",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "architecture",
-      "title": "Architecture",
-      "description": "Chariot: simplest fit after reading the repo",
-      "prompt": "Read the repo and existing dependencies first. Propose the simplest structure and stack that fits.\n\nRecord risks and a rollback idea. Prefer boring working software over a fashionable architecture.",
+      "title": "What we build with",
+      "description": "Chariot: simplest structure and stack after reading the repo",
+      "prompt": "First read the repository and current dependencies. Propose the simplest structure and stack for the job.\n\nOutput: folders and key files; language and libraries; what to reuse from open source instead of writing from scratch; risks and a rollback idea.\n\nBoring working beats trendy architecture. Do not add microservices or containers for a simple project. Do not invent missing dependencies. Do not break what already works.\nNext: “Code rules”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — structure and stack proposed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "chariot",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "project-rules",
-      "title": "Rules",
-      "description": "Hierophant: AGENTS.md and .cursor/rules — no leftover .cursorrules",
-      "prompt": "Inspect existing AGENTS.md and .cursor/rules/*.mdc. Propose the smallest non-conflicting updates.\n\nDo not create a legacy .cursorrules file by default. Do not duplicate rules already written. Ask before writing files if the user did not request edits.",
+      "title": "Code rules",
+      "description": "Hierophant: AGENTS.md and .cursor/rules — no legacy .cursorrules",
+      "prompt": "Check existing rule files: AGENTS.md (project rules) and .cursor/rules/*.mdc. Propose minimal consistent edits, or a base set if none exist.\n\nDo not create a legacy .cursorrules by default. Do not duplicate existing rules. Change files only when asked. 5–10 simple rules are enough: style, naming, what is forbidden.\nNext: “Plan review”.\n\nThe project may be empty; it may have no rules. Do not invent what is not there.\nForbidden: inventing facts, names, numbers, or files; writing code (this card is analysis only); over-engineering “for later”; flattery; if data is missing — ask, do not guess.\n\nEnd with one line:\nKEYCODE_STATUS: READY — rules checked or proposed\nor\nKEYCODE_STATUS: NEED_DATA — more information needed",
       "image": "hierophant",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "risk-review",
-      "title": "Review",
-      "description": "Justice: clarity, YAGNI, safety, testability",
-      "prompt": "Review the specification for clarity, completeness, YAGNI, safety, and testability.\n\nProject quality score 0–10: below 7 must be fixed before coding.\n\nAlways end with this exact line (N = 0-10):\nKEYCODE_SCORE: N\n\nIf score < 7, name the one spec card that should run next.",
+      "title": "Plan review",
+      "description": "Justice: clarity, excess, security, testability",
+      "prompt": "Score the specification honestly — no flattery.\n\nCheck: clear goal; completeness (brief, scope, UI, data, architecture, rules); excess; obvious security holes; whether acceptance criteria are testable.\n\nProject quality score 0–10: 0–6 fix before code; 7–8 can start; 9–10 excellent. Do not inflate. For 9–10 give 3 facts why the spec is strong. Below 7 — name one specification card as next.\n\nReply: score N/10 · verdict · pros · cons · top-3 fixes.\nScore ≥7 — “Ready to code?”. Below 7 — fix the named card.\n\nThe project may be empty — judge only what exists.\nForbidden: inventing facts or holes; inflating score out of pity; giving 9–10 without three facts; if data is missing — ask, do not guess.\n\nAlways end with this line (N = your 0-10 score):\nKEYCODE_SCORE: N\nIf you cannot score due to missing data, add a second line:\nKEYCODE_STATUS: NEED_DATA",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "readiness",
-      "title": "Ready?",
-      "description": "Judgement: gate to Hobby or Production work",
-      "prompt": "Check that goal, scope, UX, needed contracts, architecture, acceptance, and rollback exist.\n\nDo not guess Hobby vs Production if the user has not chosen.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nor (if they already chose production):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief\n\n(replace brief with the one missing spec card id if you know it).",
+      "title": "Ready to code?",
+      "description": "Judgement: gate into Hobby or Production",
+      "prompt": "Check readiness to code. Do not PASS if anything is missing. Do not invent artifacts.\n\nRequired: goal and users; scope and happy path; UI with states; data where needed; architecture; rules or a base set; acceptance criteria; plan-review score ≥7.\n\nDo not guess the mode. Ask explicitly if not chosen:\n- Hobby — fast simple project;\n- Production — stricter, with review and merge readiness.\n\nThe project may be empty — no fact = not PASS.\nForbidden: inventing evidence; PASSing out of pity or because “the idea is good”; flattery.\n\nEnd with exactly two lines.\nHobby:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: lazy-v1/plan\n\nProduction:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: pro-v1/plan\n\nNot ready (replace brief with the missing card id: scope, ux, data-contracts, architecture, project-rules, risk-review):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: spec-v1/brief",
       "image": "judgement",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
       "title": "Recap",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks:\n1. Goal\n2. Decided\n3. Open\n4. Next step (name a Specification card, or Work · Hobby / Work · Production)\n\nNo KEYCODE_SCORE / GATE / NEXT lines.",
+      "description": "High Priestess: goal, decided, open, next",
+      "prompt": "Read this chat. Do not write or change code.\n\nFour short blocks (1–3 bullets each):\n1. Goal\n2. Decided — which artifacts are ready\n3. Open — what is still missing\n4. Next step — one card: Why and for whom / What we do / How it looks / What we store / What we build with / Code rules / Plan review / Ready to code? — or move to Work\n\nIf the specification is not ready — say so.\nDo not add KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.\n\nThe project may be empty — write only what is visible in chat.\nForbidden: inventing completed work; writing or changing code; adding KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT, or KEYCODE_STATUS lines.",
       "image": "high_priestess",
       "hotkey": ""
     }

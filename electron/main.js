@@ -21,10 +21,25 @@ const {
   getCdpClient,
   DEFAULT_PORT: DEFAULT_CDP_PORT,
   normalizeCreateChatRequest,
+  createdChatSelectionPatch,
 } = require("./cdp-client");
 const { suggestNextCards } = require("./card-suggestions");
+const {
+  transcribeGigaam,
+  ensureGigaamReady,
+  ensureGigaamServe,
+  stopGigaamServe,
+  writePcm16WavFile,
+  modelReady,
+  binaryReady,
+} = require("./gigaam-dictate");
+const {
+  listWindowsSpeechLangs,
+  dictateOnceWindows,
+} = require("./windows-speech");
 /** Rewrite bundled hobby/pro decks from locale packs when this increases. */
-const STOCK_DECK_REV = 4;
+/** Bump when stock locale packs must rewrite user copies (e.g. empty card hotkeys). */
+const STOCK_DECK_REV = 9;
 const {
   getCursorSdkClient,
   SDK_LIVE_CHAT_ID,
@@ -83,6 +98,114 @@ const pasteQueue = new PasteQueue();
 let remoteServer = null;
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Dictation engines: "gigaam" (local) | "windows" (System.Speech packs).
+ * Changing UI language sets a sensible default; user can override manually.
+ */
+function normalizeDictationEngine(raw) {
+  const v = String(raw || "gigaam").toLowerCase();
+  if (v === "windows") return "windows";
+  // Legacy "auto" → resolve from current UI locale once at migrate time.
+  return "gigaam";
+}
+
+/** Russian UI → GigaAM; any other UI language → Windows Speech. */
+function dictationEngineForUiLocale(uiLocalePref) {
+  const resolved = i18n.resolveUiLocale(
+    uiLocalePref ?? "system",
+    systemLocale()
+  );
+  return String(resolved || "en")
+    .toLowerCase()
+    .startsWith("ru")
+    ? "gigaam"
+    : "windows";
+}
+
+/**
+ * Transcribe one recorded utterance.
+ * @param {{ lang?: string, engine?: string, samples?: ArrayBuffer|Float32Array|number[], sampleRate?: number }} payload
+ */
+async function dictateFromRecording(payload = {}) {
+  const lang = String(payload?.lang || "en-US").trim() || "en-US";
+  const settings = readSettings();
+  const engine = normalizeDictationEngine(
+    payload?.engine || settings.dictationEngine
+  );
+  const sampleRate = Number(payload?.sampleRate) || 16000;
+  const samples = coerceFloat32Samples(payload?.samples);
+  if (!samples) {
+    return { ok: false, error: "no_audio", hint: "no_audio" };
+  }
+  if (!samples.length) {
+    return { ok: false, error: "no_speech", hint: "no_speech" };
+  }
+
+  if (engine === "windows") {
+    const tmpWav = path.join(
+      os.tmpdir(),
+      `keycode-dictate-${process.pid}-${Date.now()}.wav`
+    );
+    try {
+      writePcm16WavFile(tmpWav, samples, sampleRate);
+      return await dictateOnceWindows(lang, tmpWav);
+    } finally {
+      try {
+        fs.unlinkSync(tmpWav);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  return transcribeGigaam(samples, {
+    sampleRate,
+    userDataPath: app.getPath("userData"),
+  });
+}
+
+/** Normalize IPC audio payload (ArrayBuffer / TypedArray / number[]). */
+function coerceFloat32Samples(buf) {
+  if (!buf) return null;
+  if (buf instanceof Float32Array) return buf;
+  if (buf instanceof ArrayBuffer) return new Float32Array(buf);
+  if (ArrayBuffer.isView(buf)) {
+    return new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
+  }
+  if (Array.isArray(buf)) return Float32Array.from(buf);
+  // Structured clone sometimes yields a plain object with numeric keys.
+  if (typeof buf === "object" && buf.length != null) {
+    try {
+      return Float32Array.from(buf);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function allowMediaPermission(_wc, permission, callback) {
+  const ok =
+    permission === "media" ||
+    permission === "microphone" ||
+    permission === "audioCapture";
+  if (typeof callback === "function") callback(ok);
+  return ok;
+}
+
+function attachMediaPermissions(win) {
+  if (!win || win.isDestroyed()) return;
+  const ses = win.webContents.session;
+  ses.setPermissionRequestHandler((_wc, permission, callback) => {
+    allowMediaPermission(_wc, permission, callback);
+  });
+  if (typeof ses.setPermissionCheckHandler === "function") {
+    ses.setPermissionCheckHandler((_wc, permission) =>
+      allowMediaPermission(null, permission)
+    );
+  }
+}
 
 // Isolate smoke runs from the real user profile (settings/decks).
 if (process.env.KEYCODE_SMOKE_I18N === "1") {
@@ -249,8 +372,12 @@ const appRoot = () => app.getAppPath();
 let deckWindow = null;
 /** @type {BrowserWindow | null} */
 let settingsWindow = null;
+/** @type {null | { page?: string, highlight?: string, tour?: boolean }} */
+let pendingSettingsFocus = null;
 /** @type {BrowserWindow | null} */
 let targetsWindow = null;
+/** @type {null | { highlight?: string, tour?: boolean, step?: number, stepCount?: number }} */
+let pendingTargetsFocus = null;
 /** @type {BrowserWindow | null} */
 let pickWindow = null;
 /** @type {BrowserWindow | null} */
@@ -265,19 +392,32 @@ const defaultSettings = {
   pauseMs: 350,
   showHotkey: "F9",
   panelScale: 1,
+  /** 0 = legacy absolute scale; 1 = UI% where 100% = former 75% look */
+  panelScaleRev: 1,
+  /** Deck chat controls/layout scale (independent of card panelScale) */
+  chatScale: 1,
+  /** Desktop chat transcript and composer text sizes */
+  chatMessageFontPx: 10,
+  chatComposerFontPx: 10,
+  /** 0 = text still inherited from chatScale; 1 = independent text sizes */
+  chatFontRev: 1,
   editMode: false,
   targets: [],
   targetsWindowBounds: null,
   targetsWindowMaximized: false,
-  activeDeckId: "validate-v1",
+  activeDeckId: "lazy-v1",
   /** @type {'top'|'bottom'|'left'|'right'} */
   dock: "right",
-  /** Side docks: "table" (default 3×4 grid) | "strip" (classic full-height column) */
+  /** Side docks: "table" (default 3×3 grid) | "strip" (classic full-height column) */
   sideCardLayout: "table",
   /** Edge hover popup */
   edgeHover: true,
   edgeThreshold: 14,
   hideDelayMs: 450,
+  /** Open and pin the deck after normal startup */
+  showDeckOnStartup: false,
+  /** Packaged builds check GitHub Releases after startup; never download silently */
+  autoCheckUpdates: true,
   /** 0.05–1: panel/cards opacity; title separate */
   uiOpacity: 0.8,
   titleOpacity: 1,
@@ -294,6 +434,14 @@ const defaultSettings = {
   uiLocale: "system",
   /** "en" (default), "ui", or locale code for Rider–Waite titles */
   arcanaLocale: "en",
+  /** Desktop mic: "gigaam" | "windows" (UI language sets default; user may override). */
+  dictationEngine: "gigaam",
+  /** Seconds of hush after speech before auto-ending a take. */
+  dictationSilenceSec: 3.5,
+  /** Max take length in seconds; 0 = no limit. */
+  dictationMaxSec: 0,
+  /** Deck / new-chat dictation: auto-submit after recognition (default: insert only). */
+  deckDictateAutoSend: false,
   /** Phone remote: LAN Wi-Fi default; Tailscale mode later */
   remoteEnabled: false,
   remotePort: DEFAULT_REMOTE_PORT,
@@ -316,7 +464,11 @@ const defaultSettings = {
   targetPresets: [],
   /** Deck strip chat transcript pane */
   deckTranscriptOpen: true,
-  deckTranscriptHeightPx: 168,
+  /** Card strip visible on deck (hotkeys still work when false) */
+  deckCardsOpen: true,
+  /** Manual type/mic/model under transcript (default: messages only) */
+  deckComposerOpen: false,
+  deckTranscriptHeightPx: 208,
   /** Last applied stock deck pack revision (see STOCK_DECK_REV). */
   stockDeckRev: 0,
 };
@@ -393,6 +545,23 @@ function ensureData() {
       s.stockDeckRev = STOCK_DECK_REV;
       changed = true;
     }
+    // Card size: old 75% look becomes new 100%; range expands to 30%–300%.
+    if (Number(s.panelScaleRev || 0) < 1) {
+      const old = Number(s.panelScale);
+      s.panelScale = clampPanelScale(
+        Number.isFinite(old) && old > 0 ? old / PANEL_SCALE_VISUAL_REF : 1
+      );
+      s.panelScaleRev = 1;
+      changed = true;
+    }
+    if (Number(s.chatFontRev || 0) < 1) {
+      const oldScale = clampChatScale(s.chatScale);
+      const oldTextPx = clampChatFontPx(Math.round(10 * oldScale));
+      s.chatMessageFontPx = oldTextPx;
+      s.chatComposerFontPx = oldTextPx;
+      s.chatFontRev = 1;
+      changed = true;
+    }
     if (changed) {
       atomicWriteJson(settingsPath(), s);
     }
@@ -432,7 +601,24 @@ function readSettings() {
       merged.sideCardLayout = "table";
       sideLayoutMig = true;
     }
-    if (mig.changed || sdkMig.changed || pasteMig.changed || sdkUiOff || sideLayoutMig) {
+    const dictRaw = String(merged.dictationEngine || "").toLowerCase();
+    let dictNorm =
+      dictRaw === "auto"
+        ? dictationEngineForUiLocale(merged.uiLocale)
+        : normalizeDictationEngine(dictRaw);
+    let dictMig = false;
+    if (dictNorm !== dictRaw) {
+      merged.dictationEngine = dictNorm;
+      dictMig = true;
+    }
+    if (
+      mig.changed ||
+      sdkMig.changed ||
+      pasteMig.changed ||
+      sdkUiOff ||
+      sideLayoutMig ||
+      dictMig
+    ) {
       try {
         atomicWriteJson(settingsPath(), merged);
       } catch {
@@ -506,11 +692,52 @@ function writeSettings(partial) {
   if (safe.deckTranscriptOpen != null) {
     next.deckTranscriptOpen = safe.deckTranscriptOpen !== false;
   }
+  if (safe.deckCardsOpen != null) {
+    next.deckCardsOpen = safe.deckCardsOpen !== false;
+  }
+  if (safe.deckComposerOpen != null) {
+    next.deckComposerOpen = safe.deckComposerOpen === true;
+  }
+  if (safe.showDeckOnStartup != null) {
+    next.showDeckOnStartup = safe.showDeckOnStartup === true;
+  }
+  if (safe.autoCheckUpdates != null) {
+    next.autoCheckUpdates = safe.autoCheckUpdates !== false;
+  }
   if (safe.deckTranscriptHeightPx != null) {
     const h = Number(safe.deckTranscriptHeightPx);
     next.deckTranscriptHeightPx = Number.isFinite(h)
-      ? Math.min(420, Math.max(80, Math.round(h)))
+      ? Math.min(900, Math.max(80, Math.round(h)))
       : 168;
+  }
+  if (safe.chatScale != null) {
+    next.chatScale = clampChatScale(safe.chatScale);
+  }
+  if (safe.chatMessageFontPx != null) {
+    next.chatMessageFontPx = clampChatFontPx(safe.chatMessageFontPx);
+  }
+  if (safe.chatComposerFontPx != null) {
+    next.chatComposerFontPx = clampChatFontPx(safe.chatComposerFontPx);
+  }
+  if (safe.hideDelayMs != null) {
+    const ms = Number(safe.hideDelayMs);
+    next.hideDelayMs = Number.isFinite(ms)
+      ? Math.min(2000, Math.max(100, Math.round(ms)))
+      : 450;
+  }
+  if (safe.dictationSilenceSec != null) {
+    const sec = Number(safe.dictationSilenceSec);
+    next.dictationSilenceSec = Number.isFinite(sec)
+      ? Math.min(15, Math.max(1, Math.round(sec * 10) / 10))
+      : 3.5;
+  }
+  if (safe.dictationMaxSec != null) {
+    const sec = Number(safe.dictationMaxSec);
+    if (!Number.isFinite(sec) || sec <= 0) {
+      next.dictationMaxSec = 0;
+    } else {
+      next.dictationMaxSec = Math.min(1800, Math.max(5, Math.round(sec)));
+    }
   }
   // Drop stale preset/active ids when targets change
   if (
@@ -679,9 +906,41 @@ function closeSettingsWindow() {
   settingsWindow.close();
 }
 
-function openSettingsWindow() {
+/** Deck uses screen-saver always-on-top; demote it while Settings is open so Settings stays above cards. */
+function demoteDeckUnderSettings() {
+  if (!deckWindow || deckWindow.isDestroyed()) return;
+  try {
+    deckWindow.setAlwaysOnTop(false);
+  } catch {
+    /* ignore */
+  }
+}
+
+function restoreDeckAlwaysOnTop() {
+  if (!deckWindow || deckWindow.isDestroyed()) return;
+  if (settingsWindow && !settingsWindow.isDestroyed()) return;
+  try {
+    deckWindow.setAlwaysOnTop(true, "screen-saver");
+  } catch {
+    /* ignore */
+  }
+}
+
+function raiseSettingsWindow() {
+  if (!settingsWindow || settingsWindow.isDestroyed()) return;
+  demoteDeckUnderSettings();
+  if (settingsWindow.isMinimized()) settingsWindow.restore();
+  settingsWindow.show();
+  settingsWindow.focus();
+}
+
+function openSettingsWindow(focus = null) {
+  if (focus && typeof focus === "object") {
+    pendingSettingsFocus = focus;
+  }
   if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.focus();
+    raiseSettingsWindow();
+    flushSettingsFocus();
     return;
   }
   edgeHoverPaused = true;
@@ -692,6 +951,7 @@ function openSettingsWindow() {
     setDeckVisible(true);
     sendPinState();
   }
+  demoteDeckUnderSettings();
   if (deckWindow && !deckWindow.isDestroyed()) {
     deckWindow.webContents.send("settings-open");
   }
@@ -713,7 +973,8 @@ function openSettingsWindow() {
     backgroundColor: "#120a1c",
     autoHideMenuBar: true,
     show: false,
-    // Без parent к колоде: иначе always-on-top колоды держит настройки поверх всех окон
+    // Not parented to the deck and not always-on-top: parenting would pin Settings over games.
+    // Deck is demoted while this window is open so cards stay under Settings.
     alwaysOnTop: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -724,16 +985,18 @@ function openSettingsWindow() {
   });
 
   settingsWindow.once("ready-to-show", () => {
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      settingsWindow.show();
-      settingsWindow.focus();
-    }
+    raiseSettingsWindow();
+  });
+
+  settingsWindow.webContents.on("did-finish-load", () => {
+    flushSettingsFocus();
   });
 
   settingsWindow.loadFile(path.join(appRoot(), "src", "settings.html"));
 
   settingsWindow.on("closed", () => {
     settingsWindow = null;
+    clearSettingsFocus();
     edgeHoverPaused = false;
     if (settingsHeldPin) {
       settingsHeldPin = false;
@@ -743,9 +1006,76 @@ function openSettingsWindow() {
       }
       sendPinState();
     }
+    restoreDeckAlwaysOnTop();
     sendDeck("settings-closed");
     broadcastStateChanged();
   });
+}
+
+function flushSettingsFocus() {
+  if (!pendingSettingsFocus) return;
+  if (!settingsWindow || settingsWindow.isDestroyed()) return;
+  const payload = pendingSettingsFocus;
+  // Keep payload until settings UI confirms ready / tour moves on —
+  // first did-finish-load can race ahead of the renderer listener.
+  try {
+    settingsWindow.webContents.send("settings-focus", payload);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function clearSettingsFocus() {
+  pendingSettingsFocus = null;
+}
+
+function setCursorScreenPos(x, y) {
+  const sx = Math.round(Number(x) || 0);
+  const sy = Math.round(Number(y) || 0);
+  try {
+    const { execFileSync } = require("child_process");
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-STA",
+        "-Command",
+        `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${sx},${sy})`,
+      ],
+      { timeout: 2500, windowsHide: true }
+    );
+    return true;
+  } catch (e) {
+    log.warn("setCursorScreenPos", String(e.message || e));
+    return false;
+  }
+}
+
+function pointerMoveInSenderWindow(sender, x, y) {
+  const win = BrowserWindow.fromWebContents(sender);
+  if (!win || win.isDestroyed()) return false;
+  try {
+    win.focus();
+  } catch (_) {
+    /* ignore */
+  }
+  const bounds = win.getContentBounds();
+  const zoom = win.webContents.getZoomFactor?.() || 1;
+  const sx = bounds.x + Number(x) * zoom;
+  const sy = bounds.y + Number(y) * zoom;
+  return setCursorScreenPos(sx, sy);
+}
+
+function focusDeckWindow() {
+  if (!deckWindow || deckWindow.isDestroyed()) return false;
+  try {
+    if (deckWindow.isMinimized()) deckWindow.restore();
+    setDeckVisible(true, { inactive: true });
+    deckWindow.focus();
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function closeTargetsWindow() {
@@ -845,12 +1175,8 @@ function openChatPickWindow() {
     },
   });
   chatPickWindow.setAlwaysOnTop(true, "floating");
-  // Dictation (Web Speech) needs media permission in this window.
-  chatPickWindow.webContents.session.setPermissionRequestHandler(
-    (_wc, permission, callback) => {
-      callback(permission === "media" || permission === "microphone");
-    }
-  );
+  // Mic capture for local STT (GigaAM / Windows Speech) in the task prompt.
+  attachMediaPermissions(chatPickWindow);
   chatPickWindow.once("ready-to-show", () => {
     if (!chatPickWindow || chatPickWindow.isDestroyed()) return;
     // Prefer inactive show so a game does not lose focus when adding chats mid-play.
@@ -868,11 +1194,27 @@ function openChatPickWindow() {
   });
 }
 
-function openTargetsWindow() {
+function flushTargetsFocus() {
+  if (!pendingTargetsFocus) return;
+  if (!targetsWindow || targetsWindow.isDestroyed()) return;
+  const payload = pendingTargetsFocus;
+  pendingTargetsFocus = null;
+  try {
+    targetsWindow.webContents.send("targets-focus", payload);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function openTargetsWindow(focus = null) {
+  if (focus && typeof focus === "object") {
+    pendingTargetsFocus = focus;
+  }
   if (targetsWindow && !targetsWindow.isDestroyed()) {
     if (targetsWindow.isMinimized()) targetsWindow.restore();
     if (!targetsWindow.isVisible()) targetsWindow.show();
     targetsWindow.focus();
+    flushTargetsFocus();
     return;
   }
   edgeHoverPaused = true;
@@ -922,6 +1264,10 @@ function openTargetsWindow() {
     }
   });
 
+  targetsWindow.webContents.on("did-finish-load", () => {
+    flushTargetsFocus();
+  });
+
   targetsWindow.loadFile(path.join(appRoot(), "src", "targets.html"));
   targetsWindow.on("close", saveTargetsWindowPlacement);
 
@@ -942,24 +1288,75 @@ function openTargetsWindow() {
   });
 }
 
-/** Base: 5×24px corner buttons + 4×2px gaps; card height 2:3 */
+/** Card size UI: 30%–300%. 100% matches the old 75% look (preferred default). */
+const PANEL_SCALE_MIN = 0.3;
+const PANEL_SCALE_MAX = 3;
+const PANEL_SCALE_VISUAL_REF = 0.75;
+const CHAT_SCALE_MIN = 0.75;
+const CHAT_SCALE_MAX = 1.5;
+const CHAT_FONT_MIN_PX = 8;
+const CHAT_FONT_MAX_PX = 20;
+
+function clampPanelScale(scale) {
+  const n = Number(scale);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(PANEL_SCALE_MAX, Math.max(PANEL_SCALE_MIN, n));
+}
+
+function clampChatScale(scale) {
+  const n = Number(scale);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(CHAT_SCALE_MAX, Math.max(CHAT_SCALE_MIN, n));
+}
+
+function clampChatFontPx(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 10;
+  return Math.min(CHAT_FONT_MAX_PX, Math.max(CHAT_FONT_MIN_PX, Math.round(n)));
+}
+
+/** Layout multiplier: stored UI scale × ref so 1.0 looks like legacy 0.75. */
+function effectivePanelScale(scale) {
+  return clampPanelScale(scale) * PANEL_SCALE_VISUAL_REF;
+}
+
+/** Base chrome + card metrics. Chrome buttons never below 100%; cards follow scale. */
 function stripMetrics(scale) {
-  const s = Math.min(1.5, Math.max(0.75, Number(scale) || 1));
-  const btn = Math.round(24 * s);
-  const gap = Math.max(1, Math.round(2 * s));
+  const stored = clampPanelScale(scale);
+  const cardS = effectivePanelScale(stored);
+  const btnS = Math.max(1, cardS);
+  const btn = Math.round(24 * btnS);
+  const gap = Math.max(1, Math.round(2 * btnS));
   // Must match src/styles.css --deck-strip-w (5 corner buttons)
   const strip = 5 * btn + 4 * gap;
-  const cardH = Math.round((strip * 3) / 2);
-  const titlebarH = Math.max(btn, Math.round(28 * s));
-  const cardGap = Math.max(1, Math.round(2 * s));
-  return { scale: s, btn, gap, strip, cardH, titlebarH, cardGap };
+  const cardRel = cardS / btnS;
+  const cardH = Math.round((strip * cardRel * 3) / 2);
+  const titlebarH = Math.max(btn, Math.round(28 * btnS));
+  const cardGap = Math.max(1, Math.round(2 * cardS));
+  const tableCard = Math.round(strip * 0.85 * cardRel);
+  return {
+    scale: stored,
+    btnS,
+    btn,
+    gap,
+    strip,
+    cardH,
+    titlebarH,
+    cardGap,
+    tableCard,
+  };
 }
 
 function currentStrip() {
   return stripMetrics(readSettings().panelScale);
 }
 
-function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
+function dockLayout(
+  dock,
+  expanded = expandedMode,
+  scaleOverride = null,
+  transcriptHeightOverride = null
+) {
   const wa = workArea();
   const metrics =
     scaleOverride != null ? stripMetrics(scaleOverride) : currentStrip();
@@ -968,24 +1365,41 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
   const chrome = expanded ? 240 : 0;
   const pad = 6;
 
+  const resolveTranscriptH = (settings) => {
+    if (settings.deckTranscriptOpen === false) return 0;
+    const raw =
+      transcriptHeightOverride != null
+        ? transcriptHeightOverride
+        : settings.deckTranscriptHeightPx;
+    return Math.min(900, Math.max(80, Number(raw) || 208));
+  };
+
   switch (dock) {
     case "top": {
-      // Карты + боковой список; ниже — полоса под описание
-      const tipLane = expanded ? 0 : 400;
-      const height = titlebarH + cardH + 4 + tipLane + chrome + pad * 2;
+      // Cards (+ optional chat) along top; tipLane reserves room for card preview
+      const settings = readSettings();
+      const tipLane = expanded ? 0 : 280;
+      const transcriptH = resolveTranscriptH(settings);
+      const cardsH = settings.deckCardsOpen === false ? 0 : cardH;
+      const hubH = titlebarH + 72;
+      const height = hubH + transcriptH + cardsH + 4 + tipLane + chrome + pad * 2;
       return {
         x: wa.x,
         y: wa.y,
         width: wa.width,
-        height: Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.65)),
+        height: Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.72)),
         horizontal: true,
         expanded,
       };
     }
     case "bottom": {
-      const tipLane = expanded ? 0 : 400;
-      const height = titlebarH + cardH + 4 + tipLane + chrome + pad * 2;
-      const h = Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.65));
+      const settings = readSettings();
+      const tipLane = expanded ? 0 : 280;
+      const transcriptH = resolveTranscriptH(settings);
+      const cardsH = settings.deckCardsOpen === false ? 0 : cardH;
+      const hubH = titlebarH + 72;
+      const height = hubH + transcriptH + cardsH + 4 + tipLane + chrome + pad * 2;
+      const h = Math.min(height + (expanded ? 40 : 0), Math.floor(wa.height * 0.72));
       return {
         x: wa.x,
         y: wa.y + wa.height - h,
@@ -1000,8 +1414,8 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
         String(readSettings().sideCardLayout || "table").toLowerCase() === "strip"
           ? "strip"
           : "table";
-      const tableGap = Math.max(2, Math.round(4 * scale));
-      const tableCard = Math.round(cardStrip * 0.85);
+      const tableGap = Math.max(2, Math.round(4 * metrics.scale));
+      const tableCard = metrics.tableCard ?? Math.round(cardStrip * 0.85);
       const tableW =
         sideLayout === "table" ? tableCard * 3 + tableGap * 2 : cardStrip;
       const w = tableW + previewLane + pad + chrome;
@@ -1020,8 +1434,8 @@ function dockLayout(dock, expanded = expandedMode, scaleOverride = null) {
         String(readSettings().sideCardLayout || "table").toLowerCase() === "strip"
           ? "strip"
           : "table";
-      const tableGap = Math.max(2, Math.round(4 * scale));
-      const tableCard = Math.round(cardStrip * 0.85);
+      const tableGap = Math.max(2, Math.round(4 * metrics.scale));
+      const tableCard = metrics.tableCard ?? Math.round(cardStrip * 0.85);
       const tableW =
         sideLayout === "table" ? tableCard * 3 + tableGap * 2 : cardStrip;
       const w = tableW + previewLane + pad + chrome;
@@ -1104,16 +1518,30 @@ function deckKeepOpenBounds() {
     String(settings.sideCardLayout || "table").toLowerCase() !== "strip";
   const m = currentStrip();
   const tableGap = Math.max(2, Math.round(4 * m.scale));
-  const tableCard = Math.round(m.strip * 0.85);
+  const tableCard = m.tableCard ?? Math.round(m.strip * 0.85);
   const tableW = sideTable ? tableCard * 3 + tableGap * 2 : m.strip;
   const strip = tableW + 12;
   const barH = m.titlebarH + m.cardH + 10;
-  // Table stack: controls + card grid (centered vertically).
-  const tableH = Math.round(tableCard * 1.5 * 4 + tableGap * 3);
+  // Table stack: controls + chat + 3×3 card grid (flush to top).
+  const tableH = Math.round(tableCard * 1.5 * 3 + tableGap * 2);
+  const settingsH = Number(settings.deckTranscriptHeightPx) || 208;
+  const transcriptH =
+    settings.deckTranscriptOpen === false ? 0 : Math.min(900, Math.max(80, settingsH));
+  const cardsOpen = settings.deckCardsOpen !== false;
   // Hub: corner buttons row + deck pager + padding (must cover hover on ⚙/◎/💬)
-  const controlsH = Math.round(96 * m.scale);
-  const clusterH = Math.min(b.height, tableH + controlsH + 24);
-  const clusterY = b.y + Math.round((b.height - clusterH) / 2);
+  const controlsH = Math.round(96 * (m.btnS || Math.max(1, m.scale)));
+  const clusterH = Math.min(
+    b.height,
+    tableH + controlsH + transcriptH + 24
+  );
+  const clusterY = b.y; // flush to top (matches CSS align-items: flex-start)
+  const edgeBarH = Math.min(
+    b.height,
+    controlsH +
+      transcriptH +
+      (cardsOpen ? m.cardH : 0) +
+      20
+  );
   switch (dock) {
     case "left":
       return sideTable
@@ -1134,9 +1562,14 @@ function deckKeepOpenBounds() {
             height: b.height,
           };
     case "top":
-      return { x: b.x, y: b.y, width: b.width, height: barH };
+      return { x: b.x, y: b.y, width: b.width, height: edgeBarH };
     case "bottom":
-      return { x: b.x, y: b.y + b.height - barH, width: b.width, height: barH };
+      return {
+        x: b.x,
+        y: b.y + b.height - edgeBarH,
+        width: b.width,
+        height: edgeBarH,
+      };
     default:
       return b;
   }
@@ -1208,10 +1641,15 @@ function tickEdgeHover() {
   }
 }
 
-function applyDock(dock, expanded = expandedMode, scaleOverride = null) {
+function applyDock(
+  dock,
+  expanded = expandedMode,
+  scaleOverride = null,
+  transcriptHeightOverride = null
+) {
   if (fullscreenEditMode) return;
   const d = dock || readSettings().dock || "right";
-  const layout = dockLayout(d, expanded, scaleOverride);
+  const layout = dockLayout(d, expanded, scaleOverride, transcriptHeightOverride);
 
   if (deckWindow && !deckWindow.isDestroyed()) {
     deckWindow.setBounds({
@@ -1252,6 +1690,8 @@ function createDeckWindow() {
     },
   });
 
+  // Mic capture for local STT (GigaAM / Windows Speech) on the deck strip.
+  attachMediaPermissions(deckWindow);
   deckWindow.setAlwaysOnTop(true, "screen-saver");
   deckWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   deckWindow.loadFile(path.join(appRoot(), "src", "index.html"));
@@ -1395,17 +1835,26 @@ function setDeckVisible(visible, opts = {}) {
     if (!opts.silent) {
       sendDeck("deck-conceal");
     }
-    // Снова поверх всех — некоторые приложения (Cursor) могут перехватывать z-order
-    try {
-      deckWindow.setAlwaysOnTop(true, "screen-saver");
-    } catch {
-      /* ignore */
+    const settingsOpen =
+      settingsWindow && !settingsWindow.isDestroyed();
+    // Снова поверх всех — некоторые приложения (Cursor) могут перехватывать z-order.
+    // Пока открыты настройки — не поднимаем колоду над ними.
+    if (settingsOpen) {
+      demoteDeckUnderSettings();
+    } else {
+      try {
+        deckWindow.setAlwaysOnTop(true, "screen-saver");
+      } catch {
+        /* ignore */
+      }
     }
-    if (opts.inactive && typeof deckWindow.showInactive === "function") {
+    const showWithoutFocus =
+      opts.inactive || settingsOpen;
+    if (showWithoutFocus && typeof deckWindow.showInactive === "function") {
       deckWindow.showInactive();
     } else {
       deckWindow.show();
-      if (!opts.inactive) deckWindow.focus();
+      if (!showWithoutFocus) deckWindow.focus();
     }
     if (!opts.silent) {
       const reveal = () => {
@@ -2378,7 +2827,33 @@ function persistHealedCdpTarget(savedTargetId, healed) {
       healed.chatId != null && String(healed.chatId).trim()
         ? String(healed.chatId)
         : t.chatId;
-    if (String(t.cdpTargetId) === nextId && String(t.chatId) === String(chatId)) {
+    const chatTitle =
+      healed.chatTitle != null && String(healed.chatTitle).trim()
+        ? String(healed.chatTitle)
+        : t.chatTitle;
+    const projectName =
+      healed.projectName != null && String(healed.projectName).trim()
+        ? String(healed.projectName)
+        : t.projectName;
+    const titleChanged =
+      String(chatTitle || "") !== String(t.chatTitle || "") ||
+      String(chatId || "") !== String(t.chatId || "");
+    const name =
+      titleChanged && chatTitle
+        ? uniqueTargetName(
+            (projectName
+              ? `${String(projectName).slice(0, 24)} · ${String(chatTitle).slice(0, 40)}`
+              : String(chatTitle).slice(0, 40)
+            ).slice(0, 48),
+            (settings.targets || []).filter((x) => x.id !== t.id)
+          )
+        : t.name;
+    if (
+      String(t.cdpTargetId) === nextId &&
+      String(t.chatId) === String(chatId) &&
+      String(t.chatTitle || "") === String(chatTitle || "") &&
+      String(t.name || "") === String(name || "")
+    ) {
       return t;
     }
     changed = true;
@@ -2386,6 +2861,9 @@ function persistHealedCdpTarget(savedTargetId, healed) {
       ...t,
       cdpTargetId: nextId,
       chatId,
+      chatTitle,
+      projectName,
+      name,
       needsCdpRebind: false,
     };
   });
@@ -2557,7 +3035,12 @@ async function pasteViaCdp(target, text, autoEnter, cdpPort) {
       { submit: autoEnter === true }
     );
     if (target.id && r?.cdpTargetId) {
-      persistHealedCdpTarget(target.id, { cdpTargetId: r.cdpTargetId });
+      persistHealedCdpTarget(target.id, {
+        cdpTargetId: r.cdpTargetId,
+        chatId: r.chatId,
+        chatTitle: r.chatTitle,
+        projectName: r.projectName,
+      });
     }
     return {
       ok: true,
@@ -2965,6 +3448,7 @@ async function listRemoteLiveChats() {
         error: "sdk_need_cwd",
         hint: "sdk_need_cwd",
         chats: [],
+        projects: [],
         port: 0,
         backend: "sdk",
       };
@@ -2993,6 +3477,12 @@ async function listRemoteLiveChats() {
     return {
       ok: true,
       chats,
+      projects: projects.map((p) => ({
+        name: p.name || path.basename(p.cwd) || "Project",
+        cdpTargetId: "",
+        windowTitle: p.cwd,
+        projectId: p.id,
+      })),
       port: 0,
       backend: "sdk",
     };
@@ -3009,15 +3499,18 @@ async function listRemoteLiveChats() {
       error: String(e.message || e),
       hint: "cdp_closed",
       chats: [],
+      projects: [],
       port,
     };
   }
   if (!probe?.open) {
-    return { ok: false, error: "cdp_closed", hint: "cdp_closed", chats: [], port };
+    return { ok: false, error: "cdp_closed", hint: "cdp_closed", chats: [], projects: [], port };
   }
 
   const chats = [];
+  const projects = [];
   const seen = new Set();
+  const seenProjects = new Set();
   for (const win of (probe.targets || []).slice(0, 8)) {
     let list;
     try {
@@ -3026,6 +3519,18 @@ async function listRemoteLiveChats() {
       continue;
     }
     if (!list?.ok) continue;
+    for (const p of list.projects || []) {
+      const name = String(p?.name || "").trim();
+      if (!name) continue;
+      const key = `${win.id}|${name}`;
+      if (seenProjects.has(key)) continue;
+      seenProjects.add(key);
+      projects.push({
+        name,
+        cdpTargetId: win.id,
+        windowTitle: String(win.title || ""),
+      });
+    }
     for (const c of list.chats || []) {
       const chatId = String(c.id || "");
       const chatTitle = String(c.title || "");
@@ -3048,11 +3553,92 @@ async function listRemoteLiveChats() {
         projectName: project,
         windowTitle: String(win.title || ""),
       });
+      if (project) {
+        const pKey = `${win.id}|${project}`;
+        if (!seenProjects.has(pKey)) {
+          seenProjects.add(pKey);
+          projects.push({
+            name: project,
+            cdpTargetId: win.id,
+            windowTitle: String(win.title || ""),
+          });
+        }
+      }
       if (chats.length >= 200) break;
     }
     if (chats.length >= 200) break;
   }
-  return { ok: true, chats, port };
+  return { ok: true, chats, projects, port };
+}
+
+/**
+ * Create a new Cursor chat in a project for the phone remote (live CDP id, not saved target).
+ * @param {{ projectName?: string, cdpTargetId?: string }} payload
+ */
+async function createRemoteChat(payload = {}) {
+  const settings = readSettings();
+  if (cursorBackendOf(settings) === "sdk") {
+    return { ok: false, error: "sdk_create_unsupported", hint: "sdk_create_unsupported" };
+  }
+  const projectName = String(payload.projectName || payload.project || "").trim();
+  let cdpTargetId = String(payload.cdpTargetId || "").trim();
+  if (!projectName) {
+    return { ok: false, error: "project_required", hint: "project_required" };
+  }
+  const port = Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  let probe;
+  try {
+    probe = await cdp.probe();
+  } catch (e) {
+    return {
+      ok: false,
+      error: String(e.message || e),
+      hint: "cdp_closed",
+    };
+  }
+  if (!probe?.open) {
+    return { ok: false, error: "cdp_closed", hint: "cdp_closed" };
+  }
+  if (!cdpTargetId) {
+    const first = (probe.targets || [])[0];
+    cdpTargetId = first?.id || "";
+  }
+  if (!cdpTargetId) {
+    return { ok: false, error: "no_cursor_window", hint: "no_cursor_window" };
+  }
+  const created = await cdp.createChatInProject(cdpTargetId, projectName);
+  if (!created?.ok || !created.chat) {
+    return {
+      ok: false,
+      error: created?.error || "create_chat_failed",
+      hint: created?.hint || created?.error || "create_chat_failed",
+    };
+  }
+  const chatId = String(created.chat.id || created.chat.title || "").trim();
+  const chatTitle = String(created.chat.title || chatId).trim();
+  const project = String(created.chat.project || projectName).trim();
+  if (!chatId) {
+    return { ok: false, error: "create_chat_failed", hint: "chat_id_missing" };
+  }
+  const id = encodeLiveChatRef({
+    cdpTargetId,
+    chatId,
+    chatTitle,
+    project,
+  });
+  return {
+    ok: true,
+    chat: {
+      id,
+      name: project ? `${project} · ${chatTitle}` : chatTitle,
+      cdpTargetId,
+      chatId,
+      chatTitle,
+      projectName: project,
+      windowTitle: "",
+    },
+  };
 }
 
 /** Phone remote: paste text into a single Cursor chat (live or saved) or SDK agent. Never logs text. */
@@ -3155,14 +3741,20 @@ function getRemoteStatePayload() {
     id: d.id,
     name: d.name || d.id,
   }));
-  const cards = (deck.cards || []).map((c) => ({
-    id: c.id,
-    title: c.title || "",
-    description: c.description || "",
-    image: c.image || "",
-    hotkey: c.hotkey || "",
-    // Full prompt intentionally omitted until paste (server uses local deck).
-  }));
+  const ui = i18n.getActiveUiLocale() || "en";
+  const arcanaLoc = i18n.resolveArcanaLocale(settings.arcanaLocale ?? "en", ui);
+  const cards = (deck.cards || []).map((c) => {
+    const imageId = String(c.image || "").replace(/\.(jpe?g|png|webp)$/i, "");
+    return {
+      id: c.id,
+      title: c.title || "",
+      description: c.description || "",
+      image: c.image || "",
+      hotkey: c.hotkey || "",
+      arcana: imageId ? i18n.tarotLabel(imageId, arcanaLoc) : "",
+      // Full prompt intentionally omitted until paste (server uses local deck).
+    };
+  });
   return {
     deck: { id: deck.id, name: deck.name || deck.id },
     decks,
@@ -3306,19 +3898,71 @@ async function readRemoteChatWithSuggestions(targetId, opts) {
   return attachChatSuggestions(result);
 }
 
-async function setRemoteComposerMode(targetId, mode) {
+/**
+ * Map Cursor sidebar agent-status-dot onto saved Keycode CDP destinations.
+ * Does not select chats — only scrapes visible sidebar rows.
+ */
+async function probeDeckChatStatuses() {
+  const { findBestChat, pickCdpWindow, normalizeAgentStatus } = require("./cdp-resolve");
   const settings = readSettings();
-  const want = String(mode || "").toLowerCase() === "plan" ? "plan" : "agent";
-  if (cursorBackendOf(settings) === "sdk") {
-    const sdk = getCursorSdkClient();
-    return { ok: true, mode: want, ...sdk.setMode(want) };
+  const targets = (settings.targets || []).filter((t) => t && t.driver === "cdp");
+  /** @type {Record<string, string>} */
+  const statuses = {};
+  if (!targets.length) return { ok: true, statuses };
+
+  const port = Number(settings.cdpPort) || DEFAULT_CDP_PORT;
+  const cdp = getCdpClient(port);
+  const probe = await cdp.probe();
+  if (!probe.open) {
+    return { ok: false, statuses: {}, hint: "cdp_closed", error: probe.error || "" };
   }
-  const ref = resolveRemoteChatRef(targetId);
-  if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
-  if (ref.kind === "sdk") {
-    const sdk = getCursorSdkClient();
-    return { ok: true, mode: want, ...sdk.setMode(want) };
+
+  const windows = Array.isArray(probe.targets) ? probe.targets : [];
+  /** @type {Map<string, object[]>} */
+  const chatsByWindow = new Map();
+  for (const win of windows) {
+    const winId = String(win?.id || "").trim();
+    if (!winId) continue;
+    try {
+      const listed = await cdp.listChats(winId, { revealAll: false });
+      if (listed?.ok && Array.isArray(listed.chats)) {
+        chatsByWindow.set(listed.cdpTargetId || winId, listed.chats);
+      }
+    } catch (e) {
+      log.warn("probeDeckChatStatuses listChats", String(e.message || e));
+    }
   }
+  const allChats = [...chatsByWindow.values()].flat();
+
+  for (const t of targets) {
+    const want = {
+      id: t.chatId,
+      title: t.chatTitle || t.name,
+      project: t.projectName || "",
+    };
+    let pool = allChats;
+    const picked = pickCdpWindow(windows, t.cdpTargetId);
+    const poolId = picked?.target?.id
+      ? String(picked.target.id)
+      : String(t.cdpTargetId || "").trim();
+    if (poolId && chatsByWindow.has(poolId)) {
+      pool = chatsByWindow.get(poolId) || allChats;
+    }
+    const match = findBestChat(pool, want) || findBestChat(allChats, want);
+    const status = normalizeAgentStatus(match?.status);
+    if (status) statuses[t.id] = status;
+  }
+  return { ok: true, statuses };
+}
+
+async function resolveCdpComposerTarget(ref) {
+  if (!ref || ref.kind === "sdk") {
+    return { ok: false, error: "unknown_target", hint: "unknown_target" };
+  }
+  if (ref.needsCdpRebind) {
+    return { ok: false, error: t("err.rebindCdp"), hint: "rebind" };
+  }
+  const settings = readSettings();
   const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
   const cdp = getCdpClient(port);
   const chat = {
@@ -3326,45 +3970,147 @@ async function setRemoteComposerMode(targetId, mode) {
     title: ref.chatTitle,
     project: ref.projectName || "",
   };
-  const selected = await cdp.selectChat(ref.cdpTargetId, chat);
-  const id = selected?.cdpTargetId || ref.cdpTargetId;
-  if (ref.kind === "saved" && id) {
-    persistHealedCdpTarget(targetId, { cdpTargetId: id });
+  let id = String(ref.cdpTargetId || "").trim();
+
+  const hasComposer = async (winId) => {
+    if (!winId) return null;
+    const chrome = await cdp.getComposerChrome(winId).catch(() => null);
+    return chrome?.ok ? chrome : null;
+  };
+
+  // Cursor renames agents often — sidebar title no longer matches the saved
+  // Keycode target. Prefer an already-open composer for mode/model ops.
+  let chrome = await hasComposer(id);
+  if (chrome) {
+    try {
+      const selected = await cdp.selectChat(id, chat);
+      id = selected?.cdpTargetId || id;
+    } catch {
+      // Keep the open composer when rename/select fails.
+    }
+    return { ok: true, cdp, id, chat };
   }
-  return cdp.setComposerMode(id, want);
+
+  try {
+    const selected = await cdp.selectChat(id, chat);
+    id = selected?.cdpTargetId || id;
+    chrome = await hasComposer(id);
+    if (chrome) return { ok: true, cdp, id, chat };
+  } catch (e) {
+    const msg = String(e.message || e);
+    if (!/chat_not_found/i.test(msg)) {
+      return { ok: false, error: msg, hint: "select_failed" };
+    }
+    // Do not fall back to a random Cursor window — that silently changes
+    // mode/model on the wrong chat. Ask the user to rebind instead.
+    return {
+      ok: false,
+      error: t("err.rebindCdp") || "chat_not_found",
+      hint: "rebind",
+    };
+  }
+
+  return { ok: false, error: "chat_not_found", hint: "chat_missing" };
+}
+
+async function setRemoteComposerMode(targetId, mode) {
+  try {
+    const settings = readSettings();
+    const { normalizeMode } = require("./cdp-composer");
+    const want = normalizeMode(mode);
+    if (cursorBackendOf(settings) === "sdk") {
+      // SDK path only knows agent/plan; map anything else to agent.
+      const sdkMode = want === "plan" ? "plan" : "agent";
+      const sdk = getCursorSdkClient();
+      return { ok: true, mode: sdkMode, ...sdk.setMode(sdkMode) };
+    }
+    const ref = resolveRemoteChatRef(targetId);
+    if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
+    if (ref.kind === "sdk") {
+      const sdkMode = want === "plan" ? "plan" : "agent";
+      const sdk = getCursorSdkClient();
+      return { ok: true, mode: sdkMode, ...sdk.setMode(sdkMode) };
+    }
+    const resolved = await resolveCdpComposerTarget(ref);
+    if (!resolved.ok) {
+      return { ok: false, error: resolved.error, hint: resolved.hint };
+    }
+    if (ref.kind === "saved" && resolved.id) {
+      persistHealedCdpTarget(targetId, { cdpTargetId: resolved.id });
+    }
+    return resolved.cdp.setComposerMode(resolved.id, want);
+  } catch (e) {
+    return { ok: false, error: String(e.message || e), hint: "mode_failed" };
+  }
 }
 
 async function setRemoteComposerModel(targetId, model) {
-  const settings = readSettings();
-  const want = String(model || "").trim();
-  if (!want) return { ok: false, error: "model_required", hint: "model_required" };
-  if (cursorBackendOf(settings) === "sdk") {
-    const sdk = getCursorSdkClient();
-    const r = sdk.setModel(want);
-    if (r.ok) writeSettings({ cursorSdkModel: want });
-    return r;
+  try {
+    const settings = readSettings();
+    const want = String(model || "").trim();
+    if (!want) return { ok: false, error: "model_required", hint: "model_required" };
+    if (cursorBackendOf(settings) === "sdk") {
+      const sdk = getCursorSdkClient();
+      const r = sdk.setModel(want);
+      if (r.ok) writeSettings({ cursorSdkModel: want });
+      return r;
+    }
+    const ref = resolveRemoteChatRef(targetId);
+    if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
+    if (ref.kind === "sdk") {
+      const sdk = getCursorSdkClient();
+      const r = sdk.setModel(want);
+      if (r.ok) writeSettings({ cursorSdkModel: want });
+      return r;
+    }
+    const resolved = await resolveCdpComposerTarget(ref);
+    if (!resolved.ok) {
+      return { ok: false, error: resolved.error, hint: resolved.hint };
+    }
+    if (ref.kind === "saved" && resolved.id) {
+      persistHealedCdpTarget(targetId, { cdpTargetId: resolved.id });
+    }
+    return resolved.cdp.setComposerModel(resolved.id, want);
+  } catch (e) {
+    return { ok: false, error: String(e.message || e), hint: "model_failed" };
   }
-  const ref = resolveRemoteChatRef(targetId);
-  if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target" };
-  if (ref.kind === "sdk") {
-    const sdk = getCursorSdkClient();
-    const r = sdk.setModel(want);
-    if (r.ok) writeSettings({ cursorSdkModel: want });
-    return r;
+}
+
+async function listRemoteComposerModels(targetId) {
+  try {
+    const settings = readSettings();
+    const ref = resolveRemoteChatRef(targetId);
+    if (!ref) return { ok: false, error: "unknown_target", hint: "unknown_target", models: [] };
+    if (cursorBackendOf(settings) === "sdk" || ref.kind === "sdk") {
+      const sdk = getCursorSdkClient();
+      const opts = sdkOptsFromSettings(
+        settings,
+        ref.projectId,
+        ref.sdkChatId || ref.chatId
+      );
+      const result = await sdk.listModels(opts);
+      return {
+        ...result,
+        models: result?.models || [],
+        composer: result?.ok ? (await sdk.readTranscript(opts)).composer : null,
+      };
+    }
+    const resolved = await resolveCdpComposerTarget(ref);
+    if (!resolved.ok) {
+      return { ok: false, error: resolved.error, hint: resolved.hint, models: [] };
+    }
+    if (ref.kind === "saved" && resolved.id) {
+      persistHealedCdpTarget(targetId, { cdpTargetId: resolved.id });
+    }
+    return resolved.cdp.listComposerModels(resolved.id);
+  } catch (e) {
+    return {
+      ok: false,
+      error: String(e.message || e),
+      hint: "models_failed",
+      models: [],
+    };
   }
-  const port = Number(ref.port) || Number(settings.cdpPort) || DEFAULT_CDP_PORT;
-  const cdp = getCdpClient(port);
-  const chat = {
-    id: ref.chatId,
-    title: ref.chatTitle,
-    project: ref.projectName || "",
-  };
-  const selected = await cdp.selectChat(ref.cdpTargetId, chat);
-  const id = selected?.cdpTargetId || ref.cdpTargetId;
-  if (ref.kind === "saved" && id) {
-    persistHealedCdpTarget(targetId, { cdpTargetId: id });
-  }
-  return cdp.setComposerModel(id, want);
 }
 
 async function answerRemoteClarification(targetId, payload = {}) {
@@ -3489,7 +4235,7 @@ async function probeTailscaleServe(port) {
   }
 }
 
-const REMOTE_UI_ASSET_VERSION = "20260723f";
+const REMOTE_UI_ASSET_VERSION = "20260905c";
 
 function buildRemotePublicUrl(serveUrl, token) {
   const base = String(serveUrl || "").replace(/\/$/, "");
@@ -3564,11 +4310,14 @@ async function syncRemoteServer() {
       getRemoteState: getRemoteStatePayload,
       setActiveDeck: (opts) => activateDeck(opts || {}),
       listChats: listRemoteLiveChats,
+      createChat: (payload) => pasteQueue.enqueue(() => createRemoteChat(payload || {})),
       readChat: readRemoteChatWithSuggestions,
       setComposerMode: (targetId, mode) =>
-        pasteQueue.enqueue(() => setRemoteComposerMode(targetId, mode)),
+        pasteQueue.enqueueWait(() => setRemoteComposerMode(targetId, mode)),
       setComposerModel: (targetId, model) =>
-        pasteQueue.enqueue(() => setRemoteComposerModel(targetId, model)),
+        pasteQueue.enqueueWait(() => setRemoteComposerModel(targetId, model)),
+      listComposerModels: (targetId) =>
+        pasteQueue.enqueueWait(() => listRemoteComposerModels(targetId)),
       answerClarification: (targetId, payload) =>
         pasteQueue.enqueue(() => answerRemoteClarification(targetId, payload)),
       pasteCard: (cardId, targetId) =>
@@ -4072,6 +4821,50 @@ function startTargetPick(mode = "field") {
   });
 }
 
+async function checkForAvailableUpdate() {
+  const { autoUpdater } = require("electron-updater");
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  const result = await autoUpdater.checkForUpdates();
+  const info = result?.updateInfo;
+  if (!info) return { ok: true, available: false, current: app.getVersion() };
+  const current = app.getVersion();
+  return {
+    ok: true,
+    available: !!(info.version && info.version !== current),
+    version: info.version || null,
+    current,
+  };
+}
+
+function scheduleAutomaticUpdateCheck(settings) {
+  if (!app.isPackaged || settings?.autoCheckUpdates === false) return;
+  setTimeout(async () => {
+    try {
+      const result = await checkForAvailableUpdate();
+      if (!result.available) return;
+      const choice = await dialog.showMessageBox({
+        type: "info",
+        title: t("updates.availableTitle"),
+        message: t("updates.availableMessage", {
+          version: result.version,
+          current: result.current,
+        }),
+        detail: t("updates.availableDetail"),
+        buttons: [t("updates.openReleases"), t("updates.later")],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (choice.response === 0) {
+        await shell.openExternal("https://github.com/DikoeNebo/keycode/releases/latest");
+      }
+    } catch (err) {
+      log.warn("automatic update check", String(err.message || err));
+    }
+  }, 5000);
+}
+
 function setupIpc() {
   ipcMain.handle("get-state", () => {
     const settings = readSettings();
@@ -4101,6 +4894,12 @@ function setupIpc() {
       safe = {
         ...safe,
         panelScale: stripMetrics(safe.panelScale).scale,
+      };
+    }
+    if (safe.chatScale != null) {
+      safe = {
+        ...safe,
+        chatScale: clampChatScale(safe.chatScale),
       };
     }
     const before = readSettings();
@@ -4140,7 +4939,16 @@ function setupIpc() {
       };
     }
     const s = writeSettings(safe);
+    let out = s;
     if (safe.dock || safe.panelScale != null || safe.sideCardLayout != null) {
+      applyDock(s.dock || "right");
+    }
+    if (
+      safe.deckTranscriptHeightPx != null ||
+      safe.deckTranscriptOpen != null ||
+      safe.deckCardsOpen != null ||
+      safe.deckComposerOpen != null
+    ) {
       applyDock(s.dock || "right");
     }
     if (safe.showHotkey != null || safe.activeDeckId != null || safe.targets) {
@@ -4151,7 +4959,11 @@ function setupIpc() {
       const ui = refreshLocaleFromSettings(s);
       if (safe.uiLocale != null && safe.uiLocale !== before.uiLocale) {
         syncBundledDecks(ui, { onlyIfMissing: false });
-        writeSettings({ stockDeckRev: STOCK_DECK_REV });
+        // Sync dictation default to the new UI language (user can still change it later).
+        out = writeSettings({
+          stockDeckRev: STOCK_DECK_REV,
+          dictationEngine: dictationEngineForUiLocale(s.uiLocale),
+        });
       }
       try {
         if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -4185,8 +4997,19 @@ function setupIpc() {
     ) {
       notifyRemoteDeckChanged();
     }
+    const engineNow = normalizeDictationEngine(out.dictationEngine);
+    if (engineNow === "gigaam") {
+      ensureGigaamServe(app.getPath("userData")).catch((err) =>
+        log.warn("gigaam warm", String(err?.message || err))
+      );
+    } else if (
+      safe.dictationEngine != null ||
+      (safe.uiLocale != null && safe.uiLocale !== before.uiLocale)
+    ) {
+      stopGigaamServe();
+    }
     broadcastStateChanged();
-    return s;
+    return out;
   });
 
   ipcMain.handle("remote-status", async (e) => {
@@ -4247,6 +5070,36 @@ function setupIpc() {
       partial = { ...partial, panelScale: scale };
       applyDock(readSettings().dock || "right", expandedMode, scale);
     }
+    if (partial && partial.chatScale != null) {
+      partial = {
+        ...partial,
+        chatScale: clampChatScale(partial.chatScale),
+      };
+    }
+    if (partial && partial.chatMessageFontPx != null) {
+      partial = {
+        ...partial,
+        chatMessageFontPx: clampChatFontPx(partial.chatMessageFontPx),
+      };
+    }
+    if (partial && partial.chatComposerFontPx != null) {
+      partial = {
+        ...partial,
+        chatComposerFontPx: clampChatFontPx(partial.chatComposerFontPx),
+      };
+    }
+    // Live window resize while dragging chat height on top/bottom docks.
+    if (partial && partial.deckTranscriptHeightPx != null) {
+      const h = Number(partial.deckTranscriptHeightPx);
+      const clamped = Number.isFinite(h)
+        ? Math.min(900, Math.max(80, Math.round(h)))
+        : 208;
+      partial = { ...partial, deckTranscriptHeightPx: clamped };
+      const dock = readSettings().dock || "right";
+      if (dock === "top" || dock === "bottom") {
+        applyDock(dock, expandedMode, null, clamped);
+      }
+    }
     if (deckWindow && !deckWindow.isDestroyed()) {
       deckWindow.webContents.send("settings-preview", partial);
     }
@@ -4285,8 +5138,64 @@ function setupIpc() {
     }
   });
 
-  ipcMain.handle("open-settings", () => {
-    openSettingsWindow();
+  ipcMain.handle("open-settings", (e, opts) => {
+    if (!assertTrustedSender(e)) return false;
+    openSettingsWindow(opts && typeof opts === "object" ? opts : null);
+    return true;
+  });
+
+  ipcMain.handle("settings-ui-ready", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    flushSettingsFocus();
+    return true;
+  });
+
+  ipcMain.handle("settings-focus-clear", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    clearSettingsFocus();
+    return true;
+  });
+
+  ipcMain.handle("pointer-move-in-window", (e, point) => {
+    if (!assertTrustedSender(e)) return false;
+    if (!point || typeof point !== "object") return false;
+    return pointerMoveInSenderWindow(e.sender, point.x, point.y);
+  });
+
+  ipcMain.handle("focus-deck", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    return focusDeckWindow();
+  });
+
+  ipcMain.handle("settings-tour-done", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.webContents.send("tour-host-advance");
+    }
+    return true;
+  });
+
+  ipcMain.handle("settings-tour-skip", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.webContents.send("tour-host-skip");
+    }
+    return true;
+  });
+
+  ipcMain.handle("tour-host-advance", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.webContents.send("tour-host-advance");
+    }
+    return true;
+  });
+
+  ipcMain.handle("tour-host-skip", (e) => {
+    if (!assertTrustedSender(e)) return false;
+    if (deckWindow && !deckWindow.isDestroyed()) {
+      deckWindow.webContents.send("tour-host-skip");
+    }
     return true;
   });
 
@@ -4295,8 +5204,9 @@ function setupIpc() {
     return true;
   });
 
-  ipcMain.handle("open-targets", () => {
-    openTargetsWindow();
+  ipcMain.handle("open-targets", (e, opts) => {
+    if (!assertTrustedSender(e)) return false;
+    openTargetsWindow(opts && typeof opts === "object" ? opts : null);
     return true;
   });
 
@@ -4357,6 +5267,8 @@ function setupIpc() {
         hash: withSuggest.hash || "",
         messages: withSuggest.messages || [],
         generating: withSuggest.generating === true,
+        composer: withSuggest.composer || null,
+        clarifications: withSuggest.clarifications || [],
         suggestions: withSuggest.suggestions || [],
       };
     } catch (err) {
@@ -4367,6 +5279,61 @@ function setupIpc() {
         targetId,
       };
     }
+  });
+
+  /** Cursor sidebar status dots for destination chips (no chat switch). */
+  ipcMain.handle("deck-chat-statuses", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied", statuses: {} };
+    try {
+      return await probeDeckChatStatuses();
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err.message || err),
+        statuses: {},
+      };
+    }
+  });
+
+  ipcMain.handle("deck-list-models", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const targetId = String(payload?.targetId || "").trim();
+    if (!targetId) return { ok: false, error: "target_required", hint: "target_required" };
+    return pasteQueue.enqueueWait(() => listRemoteComposerModels(targetId));
+  });
+
+  ipcMain.handle("deck-set-model", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const targetId = String(payload?.targetId || "").trim();
+    const model = String(payload?.model || payload?.modelId || "").trim();
+    if (!targetId || !model) {
+      return { ok: false, error: "target_and_model_required" };
+    }
+    return pasteQueue.enqueueWait(() => setRemoteComposerModel(targetId, model));
+  });
+
+  ipcMain.handle("deck-set-mode", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const targetId = String(payload?.targetId || "").trim();
+    const mode = String(payload?.mode || "").trim();
+    if (!targetId || !mode) {
+      return { ok: false, error: "target_and_mode_required" };
+    }
+    return pasteQueue.enqueueWait(() => setRemoteComposerMode(targetId, mode));
+  });
+
+  ipcMain.handle("deck-answer-clarification", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const targetId = String(payload?.targetId || "").trim();
+    if (!targetId) return { ok: false, error: "target_required", hint: "target_required" };
+    return pasteQueue.enqueue(() =>
+      answerRemoteClarification(targetId, {
+        clarificationId: String(payload?.clarificationId || "").trim(),
+        optionId: String(payload?.optionId || "").trim(),
+        text: String(payload?.text || "").trim(),
+        prompt: String(payload?.prompt || "").trim(),
+      })
+    );
   });
 
   ipcMain.handle("set-ignore-mouse", (_e, ignore) => {
@@ -4931,11 +5898,58 @@ function setupIpc() {
       projectName: created.chat.project || req.projectName,
       port,
     });
-    if (result.ok) broadcastTargetsUpdated();
+    const selectionPatch = createdChatSelectionPatch(result);
+    if (result.ok && selectionPatch) {
+      writeSettings(selectionPatch);
+      broadcastTargetsUpdated();
+      broadcastStateChanged();
+    }
     return {
       ...result,
       chat: created.chat,
     };
+  });
+
+  ipcMain.handle("dictate-once", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    const lang = String(payload?.lang || "en-US").trim() || "en-US";
+    return dictateOnceWindows(lang, "");
+  });
+
+  ipcMain.handle("dictate-transcribe", async (e, payload) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    return dictateFromRecording(payload || {});
+  });
+
+  ipcMain.handle("dictate-probe", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false };
+    const settings = readSettings();
+    const userDataPath = app.getPath("userData");
+    const windowsLangs = await listWindowsSpeechLangs();
+    const mode = normalizeDictationEngine(settings.dictationEngine);
+    return {
+      ok: true,
+      dictationEngine: mode,
+      gigaamReady: binaryReady(userDataPath) && modelReady(userDataPath),
+      windowsLangs,
+    };
+  });
+
+  ipcMain.handle("dictate-ensure-gigaam", async (e) => {
+    if (!assertTrustedSender(e)) return { ok: false, error: "denied" };
+    try {
+      const userDataPath = app.getPath("userData");
+      await ensureGigaamReady(userDataPath);
+      // Warm serve in background so the first mic phrase is not a cold load.
+      ensureGigaamServe(userDataPath).catch(() => {});
+      return { ok: true };
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err?.message || err || "gigaam_setup_failed").slice(0, 240),
+        hint: "gigaam_setup_failed",
+      };
+    }
   });
 
   ipcMain.handle("paste-text-to-target", async (e, payload) => {
@@ -5118,7 +6132,7 @@ function setupIpc() {
           description: t("msg.newCardDesc"),
           prompt: t("msg.newCardPrompt"),
           image: "magician",
-          hotkey: "F1",
+          hotkey: "",
         },
       ],
     };
@@ -5144,7 +6158,7 @@ function setupIpc() {
     }
     const settings = readSettings();
     if (settings.activeDeckId === safe) {
-      writeSettings({ activeDeckId: "validate-v1" });
+      writeSettings({ activeDeckId: "lazy-v1" });
     }
     registerShortcuts();
     broadcastStateChanged();
@@ -5204,26 +6218,27 @@ function setupIpc() {
 
   ipcMain.handle("dismiss-first-run", () => {
     writeSettings({ firstRunDone: true });
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      try {
+        settingsWindow.webContents.send("settings-tour-clear");
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (targetsWindow && !targetsWindow.isDestroyed()) {
+      try {
+        targetsWindow.webContents.send("targets-tour-clear");
+      } catch (_) {
+        /* ignore */
+      }
+    }
     broadcastStateChanged();
     return true;
   });
 
   ipcMain.handle("check-for-updates", async () => {
     try {
-      const { autoUpdater } = require("electron-updater");
-      autoUpdater.autoDownload = false;
-      autoUpdater.autoInstallOnAppQuit = false;
-      const result = await autoUpdater.checkForUpdates();
-      const info = result?.updateInfo;
-      if (!info) return { ok: true, available: false };
-      const current = app.getVersion();
-      const available = info.version && info.version !== current;
-      return {
-        ok: true,
-        available: !!available,
-        version: info.version || null,
-        current,
-      };
+      return await checkForAvailableUpdate();
     } catch (err) {
       log.warn("check-for-updates", String(err.message || err));
       return {
@@ -5284,13 +6299,23 @@ app.whenReady().then(() => {
       log.warn("remote boot", String(err.message || err))
     );
   }
-  // First run: show deck so onboarding is visible; otherwise wait for edge/F9
+  // Preload GigaAM model into warm serve so first mic phrase is not ~3s cold start.
+  if (normalizeDictationEngine(bootSettings.dictationEngine) === "gigaam") {
+    ensureGigaamServe(app.getPath("userData")).catch((err) =>
+      log.warn("gigaam warm", String(err?.message || err))
+    );
+  }
+  // First run always shows onboarding; later launches follow the user's preference.
   if (!bootSettings.firstRunDone) {
+    pinnedOpen = true;
+    setDeckVisible(true, { inactive: true });
+  } else if (bootSettings.showDeckOnStartup === true) {
     pinnedOpen = true;
     setDeckVisible(true, { inactive: true });
   } else {
     pinnedOpen = false;
   }
+  scheduleAutomaticUpdateCheck(bootSettings);
   // Edge hover только после deck-ui-ready из рендерера (полная загрузка)
 
   // Automated smoke: exercise i18n + settings/targets, then quit.
@@ -5506,6 +6531,11 @@ app.on("will-quit", () => {
   if (hideDelayTimer) clearTimeout(hideDelayTimer);
   cancelConcealAnim();
   clearShortcuts();
+  try {
+    stopGigaamServe();
+  } catch {
+    /* ignore */
+  }
   try {
     if (remoteServer) {
       remoteServer.stop();

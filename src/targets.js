@@ -412,6 +412,100 @@ function bindEvents() {
   window.keycode.onToast((data) => toast(data.message, data.type || ""));
   window.keycode.onTargetsUpdated(async () => refresh());
   window.keycode.onStateChanged(async () => refresh());
+  bindTargetsTour();
+}
+
+function placeTargetsTourCoach(targetEl) {
+  const hole = $("targets-onboarding-hole");
+  const card = $("targets-onboarding-card");
+  const arrow = $("targets-onboarding-arrow");
+  if (!hole || !card) return;
+  const pad = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cardW = Math.min(340, vw - 24);
+  if (!targetEl) {
+    hole.style.display = "none";
+    card.style.left = `${Math.max(12, (vw - cardW) / 2)}px`;
+    card.style.top = `${Math.max(12, vh * 0.22)}px`;
+    card.style.width = `${cardW}px`;
+    if (arrow) arrow.className = "onboarding-arrow below";
+    return;
+  }
+  const r = targetEl.getBoundingClientRect();
+  hole.style.display = "block";
+  hole.style.left = `${Math.max(4, r.left - pad)}px`;
+  hole.style.top = `${Math.max(4, r.top - pad)}px`;
+  hole.style.width = `${Math.min(vw - 8, r.width + pad * 2)}px`;
+  hole.style.height = `${Math.min(vh - 8, r.height + pad * 2)}px`;
+  card.style.width = `${cardW}px`;
+  const cardH = Math.max(card.offsetHeight || 160, 140);
+  let place = "below";
+  let top = r.bottom + 14;
+  let left = Math.min(Math.max(12, r.left), vw - cardW - 12);
+  if (top + cardH > vh - 12) {
+    top = Math.max(12, r.top - cardH - 14);
+    place = "above";
+  }
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+  if (arrow) arrow.className = `onboarding-arrow ${place}`;
+}
+
+function hideTargetsTour() {
+  $("targets-onboarding")?.classList.add("hidden");
+}
+
+function showTargetsTour(data = {}) {
+  const root = $("targets-onboarding");
+  if (!root) return;
+  const step = Number(data.step) || 3;
+  const stepCount = Number(data.stepCount) || 8;
+  const hasMore = data.hasMore !== false;
+  const title = $("targets-onboarding-title");
+  const body = $("targets-onboarding-body");
+  const next = $("targets-onboarding-next");
+  const dots = $("targets-onboarding-dots");
+  if (title) title.textContent = window.I18n.t(`onboarding.s${step}.title`);
+  if (body) body.innerHTML = window.I18n.t(`onboarding.s${step}.body`);
+  if (next) {
+    next.textContent = window.I18n.t(hasMore ? "onboarding.next" : "onboarding.done");
+  }
+  if (dots) {
+    dots.innerHTML = "";
+    for (let i = 0; i < stepCount; i++) {
+      const d = document.createElement("span");
+      d.className = "onboarding-dot" + (i === step - 1 ? " active" : "");
+      dots.appendChild(d);
+    }
+  }
+  root.classList.remove("hidden");
+  const target = document.querySelector(data.highlight || "#btn-pick-agent");
+  requestAnimationFrame(() => placeTargetsTourCoach(target));
+}
+
+function bindTargetsTour() {
+  window.keycode.onTargetsFocus?.((data) => {
+    if (data?.tour) showTargetsTour(data);
+  });
+  window.keycode.onTargetsTourClear?.(() => hideTargetsTour());
+  $("targets-onboarding-next")?.addEventListener("click", () => {
+    window.keycode.tourHostAdvance?.();
+  });
+  $("targets-onboarding-skip")?.addEventListener("click", () => {
+    hideTargetsTour();
+    window.keycode.tourHostSkip?.();
+  });
+  window.addEventListener("resize", () => {
+    if ($("targets-onboarding")?.classList.contains("hidden")) return;
+    placeTargetsTourCoach(document.querySelector("#btn-pick-agent"));
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if ($("targets-onboarding")?.classList.contains("hidden")) return;
+    hideTargetsTour();
+    window.keycode.tourHostSkip?.();
+  });
 }
 
 bindEvents();

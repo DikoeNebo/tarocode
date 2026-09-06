@@ -4,73 +4,73 @@
   "cards": [
     {
       "id": "release-plan",
-      "title": "Профіль",
-      "description": "Three of Wands: product type, channel, what needs a yes",
-      "prompt": "Choose a release profile from the actual project: desktop / web / mobile / open source (or say unknown).\n\nList channel, release criteria, and actions that need an explicit human yes (publish, signing, production migrate, store upload).\n\nDo not assume Vercel, Stripe, Docker, or npm.",
+      "title": "Який продукт",
+      "description": "Трійка жезлів: тип продукту, канал, що потребує явного так",
+      "prompt": "Визнач профіль релізу. Лише аналіз — без коду, без деплою.\n\nВивід:\n1. Тип: desktop / web / mobile / CLI / бібліотека / open source\n2. Канал: store, web-деплой, GitHub Releases, пакетний менеджер, інше\n3. Критерії релізу\n4. Що потребує явного так: публікація, підпис, міграція в production, завантаження в store\n5. Чи робота була Хобі чи Продакшен — якщо відомо\n\nТип невідомий — питай. Не припускай сервісів, платежів, контейнерів чи пакетних менеджерів без контексту репо.\nДалі: «Чи працює».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — профіль зрозумілий\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "wands_03",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "quality-audit",
-      "title": "Якість",
-      "description": "Star: run existing tests/builds only",
-      "prompt": "Find and run only existing relevant builds/tests/linters in this repo. Do not invent npm/Docker/CI.\n\nShow real command output. Score 0–10 from those facts.\n\nAlways end with:\nKEYCODE_SCORE: N\n\nIf red or score < 7, say the next step is Production work card Fix.",
+      "title": "Чи працює",
+      "description": "Зірка: лише наявні тести й збірки",
+      "prompt": "Знайди й запусти лише наявні збірки, тести й лінтери в цьому репозиторії. Не вигадуй команди.\n\nПокажи реальний вивід. Бал 0–10 із фактів: 0–6 червоний, не можна шипити; 7–8 можна з примітками; 9–10 чисто. Немає тестів — скажи; якість не перевірена. Не можна реально запустити — не став вище 4. Не додавай нові тести, якщо не просять.\n\nНижче 7 — далі «Виправити» в колоді Продакшен. ≥7 — «Чи є діри».\n\nПроєкт може бути порожнім — оцінюй лише те, що є.\nЗаборонено: вигадувати факти чи діри; завищувати бал зі співчуття; давати 9–10 без трьох фактів; немає даних — питай, не вгадуй.\n\nЗавжди завершуй цим рядком (N = твій бал 0–10):\nKEYCODE_SCORE: N\nЯкщо перевірки не можна запустити, додай другий рядок:\nKEYCODE_STATUS: NEED_DATA",
       "image": "star",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "security-audit",
-      "title": "Безпека",
-      "description": "Ace of Swords: secrets, inputs, deps — report, don't patch",
-      "prompt": "Read-only security review: secrets, input validation, dependency risk, privacy. Prioritize findings with evidence.\n\nDo not apply patches. Do not print secret values.\n\nIf a critical issue exists, end with:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\n\nOtherwise say no critical blockers and continue to Package.",
+      "title": "Чи є діри",
+      "description": "Туз мечів: секрети, ввід, залежності — звіт, не патч",
+      "prompt": "Лише читання: перевір безпеку. Не застосовуй патчі. Не друкуй значення секретів — лише де знайдено.\n\nПеревір: захардкоджені ключі й паролі; валідацію вводу; відомі діри залежностей, якщо можна перевірити; чи логуються персональні дані.\nНе вигадуй вразливостей. Немає доступу до перевірок залежностей — скажи.\n\nВивід: критичні (блокують реліз) · важливі · може почекати — з доказом для кожного.\nНемає критичних — «Зібрати пакет».\n\nПроєкт може бути порожнім — немає факту = не PASS.\nЗаборонено: вигадувати докази; ставити PASS зі співчуття чи тому що «ідея гарна»; лестити.\nЯкщо є щось критичне:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix\nKEYCODE_STATUS: BLOCKED\n\nІнакше скажи, що критичних блокерів немає, і:\nKEYCODE_STATUS: READY",
       "image": "swords_ace",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "package",
-      "title": "Збірка",
-      "description": "Three of Pentacles: artifact + rollback; wait before publish",
-      "prompt": "Prepare the package/deploy artifact and rollback for the chosen profile.\n\nInstalls, DB migrations, code signing, store upload, and production commands require an explicit user yes. Stop and ask. Do not publish.",
+      "title": "Зібрати пакет",
+      "description": "Трійка пентаклів: артефакт і відкат; публікація лише після явного так",
+      "prompt": "Підготуй пакет або артефакт для профілю з «Який продукт».\n\nDesktop — інсталятор; web — статичний чи image; mobile — пакет застосунку; CLI — бінарник; бібліотека — пакет; open source — тег.\nОпиши команди збірки, але не запускай без так. План відкату — як повернутися до попередньої версії. Інсталяції, міграції БД, підпис, store і production — лише після явного так. Не публікуй. Не вигадуй команд, яких немає в репо.\nДалі: «Інструкції».\n\nПроєкт може бути порожнім — не вигадуй сервісів чи команд.\nЗаборонено: публікація, підпис, деплой чи завантаження в store без явного так; вигадувати відсутні команди; лестити й казати «вже відправлено».\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — артефакт або план збірки готовий\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "pentacles_03",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "docs",
-      "title": "Документи",
-      "description": "Hermit: README / notes / install / rollback that exist",
-      "prompt": "Update only relevant README, release notes, install/upgrade/rollback text. Do not create extra documents nobody asked for.",
+      "title": "Інструкції",
+      "description": "Відлюдник: README / нотатки / install / rollback що важливі",
+      "prompt": "Онови документацію релізу. Не плоди зайвих файлів. Змінюй файли лише коли просять.\n\nПотрібно те, що важливе: README (що це, install, запуск); release notes; як оновити; як відкотити. Простий проєкт — короткий README і нотатки. Складний — додай install і rollback. Бібліотека чи CLI — приклади.\nНе вигадуй команд, яких немає в репо. Без маркетингового шуму.\nДалі: «Як стежити».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — документацію описано\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "hermit",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "operations",
-      "title": "Експлуатація",
-      "description": "Temperance: logs, backup, support, incident",
-      "prompt": "Minimal ops: logs, errors, backups, support, incident response. Suggest external services only after the user picks them.",
+      "title": "Як стежити",
+      "description": "Помірність: логи, бекап, підтримка, збій",
+      "prompt": "Опиши мінімум операцій після релізу.\n\nЛоги: де дивитися. Бекапи: як часто, де, як відновити. Реакція на збій — 3 кроки. Як користувачі повідомляють про проблеми. Відкат. Локальний чи desktop-продукт — лише бекапи й відкат; моніторинг не обов’язковий. Open source — як обробляють issues і PR.\nЗовнішні сервіси — лише після вибору користувача. Не вигадуй театральних процесів. Простому проєкту достатньо 3–5 пунктів.\nДалі: «Готові шипити?».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — операції описано\nабо\nKEYCODE_STATUS: NEED_DATA — потрібно більше інформації",
       "image": "temperance",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "release-gate",
-      "title": "Допуск",
-      "description": "Justice: ship only if checks pass",
-      "prompt": "Check build/tests, critical security, docs, rollback, and remaining manual steps.\n\nEnd with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
+      "title": "Готові шипити?",
+      "description": "Справедливість: шипити лише якщо перевірки зелені",
+      "prompt": "Перевір готовність до релізу. Не став PASS, якщо чогось бракує. Не вигадуй артефакти.\n\nОбов’язково: збірки й тести зелені; немає критичних дір; артефакт готовий; документація оновлена; є план ops; відкат можливий; ручні кроки відомі; користувач підтвердив готовність.\nЧервоні тести або критичні діри — автоматичний FAIL.\nПроблема в коді — «Виправити» в Продакшені. Документація — «Інструкції». Збірка — «Зібрати пакет».\n\nПроєкт може бути порожнім — немає факту = не PASS.\nЗаборонено: вигадувати докази; ставити PASS зі співчуття чи тому що «ідея гарна»; лестити.\n\nЗаверши рівно двома рядками.\nЯкщо готово:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: release-v1/launch\n\nЯкщо не готово (замінити fix на quality-audit, security-audit, package, docs або operations, коли проблема там):\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: pro-v1/fix",
       "image": "justice",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "launch",
-      "title": "Запуск",
-      "description": "Sun: show plan first; publish only after a clear yes",
-      "prompt": "First list the launch actions, risks, and rollback. Do not publish, upload, or ship until the user clearly says to do it.\n\nAfter a confirmed launch, verify the artifact/availability if possible.\n\nThen recommend Validation → Verdict using real feedback (not a new invented idea). If launch happened, you may end with:\nKEYCODE_NEXT: validate-v1/evidence-review",
+      "title": "Випустити",
+      "description": "Сонце: спочатку план; публікація лише після явного так",
+      "prompt": "Підготуй план запуску. Не публікуй, не завантажуй і не шипи, доки користувач явно не сказав зробити це.\n\nСпочатку: упорядкований список дій; ризики; відкат; що потребує так. Після підтвердження роби лише підтверджене, перевір артефакт і доступність якщо можна, зафіксуй результат.\nНе вигадуй команд деплою. Не припускай сервісів без контексту.\n\nПісля запуску рекомендуй колоду «Перевірка ідеї», карту «Вердикт» — на основі реального фідбеку, не нової вигаданої ідеї.\n\nЯкщо запуск відбувся, заверши:\nKEYCODE_NEXT: validate-v1/evidence-review\n\nПроєкт може бути порожнім — не вигадуй сервісів чи команд.\nЗаборонено: публікація, підпис, деплой чи завантаження в store без явного так; вигадувати відсутні команди; лестити й казати «вже відправлено».\n\nТакож заверши одним рядком статусу:\nKEYCODE_STATUS: READY — план готовий або запуск зроблено\nабо\nKEYCODE_STATUS: NEED_DATA — потрібне так користувача або більше даних",
       "image": "sun",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Зведення",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not publish anything. Do not change production.\n\nFour short blocks:\n1. Ready\n2. Blockers\n3. Rollback\n4. Next step\n\nNo KEYCODE_SCORE line.",
+      "title": "Підсумок",
+      "description": "Верховна жриця: готово / блокери / відкат / далі",
+      "prompt": "Прочитай цей чат. Нічого не публікуй і не змінюй production. Не вигадуй докази.\n\nЧотири короткі блоки:\n1. Готово\n2. Блокери\n3. Відкат\n4. Наступний крок — одна карта: Який продукт / Чи працює / Чи є діри / Зібрати пакет / Інструкції / Як стежити / Готові шипити? / Випустити\n\nЯкщо реліз не готовий — скажи.\nНе додавай рядки KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT або KEYCODE_STATUS.\n\nПроєкт може бути порожнім — пиши лише те, що видно в чаті.\nЗаборонено: вигадувати виконану роботу; писати чи змінювати код; додавати рядки KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT або KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

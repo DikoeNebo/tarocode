@@ -31,26 +31,57 @@ let createBusy = false;
 let taskBusy = false;
 /** @type {{ targetId: string } | null} */
 let pendingTask = null;
-let recognition = null;
+/** Local STT (same path as deck strip) — not cloud Web Speech. */
 let listening = false;
+let dictationBusy = false;
 let dictationSession = 0;
 let dictationBase = "";
+/** @type {"gigaam"|"windows"} */
+let dictationEngine = "gigaam";
+let dictateAutoSend = false;
+/** Silence before auto-end (sec); from settings. */
+let dictationSilenceSecValue = 3.5;
+/** Max take length (sec); 0 = unlimited. */
+let dictationMaxSecValue = 0;
+/** @type {MediaStream|null} */
+let micStream = null;
+/** @type {AudioContext|null} */
+let audioCtx = null;
+/** @type {ScriptProcessorNode|null} */
+let processor = null;
+/** @type {number[]} */
+let pcmChunks = [];
+let speechSeen = false;
+let silentFrames = 0;
+/** @type {ReturnType<typeof setTimeout>|null} */
+let dictationMaxTimer = null;
+
+function speechLangFromTag(tag) {
+  const loc = String(tag || "en").toLowerCase();
+  if (loc.startsWith("ru")) return "ru-RU";
+  if (loc.startsWith("uk")) return "uk-UA";
+  if (loc.startsWith("de")) return "de-DE";
+  if (loc.startsWith("es")) return "es-ES";
+  if (loc.startsWith("fr")) return "fr-FR";
+  if (loc.startsWith("pt")) return "pt-BR";
+  if (loc.startsWith("zh")) return "zh-CN";
+  if (loc.startsWith("ja")) return "ja-JP";
+  if (loc.startsWith("pl")) return "pl-PL";
+  return "en-US";
+}
 
 function speechLang() {
-  const loc = String(window.I18n?.getUiLocale?.() || "en").toLowerCase();
-  const map = {
-    en: "en-US",
-    ru: "ru-RU",
-    uk: "uk-UA",
-    de: "de-DE",
-    es: "es-ES",
-    fr: "fr-FR",
-    "pt-br": "pt-BR",
-    "zh-cn": "zh-CN",
-    ja: "ja-JP",
-    pl: "pl-PL",
-  };
-  return map[loc] || loc || "en-US";
+  const loc = String(
+    window.I18n?.getUiLocale?.() || navigator.language || "en"
+  ).toLowerCase();
+  if (loc === "system") return speechLangFromTag(navigator.language || "en");
+  return speechLangFromTag(loc);
+}
+
+function normalizeDictationEngine(raw) {
+  return String(raw || "gigaam").toLowerCase() === "windows"
+    ? "windows"
+    : "gigaam";
 }
 
 function setCdpActionsVisible(visible, cursorRunning = false) {
@@ -117,6 +148,17 @@ async function launchOrRestartCdp() {
 async function applyLocale() {
   const data = await window.keycode.getState();
   if (data.i18n) window.I18n.setPack(data.i18n);
+  dictationEngine = normalizeDictationEngine(data.settings?.dictationEngine);
+  dictateAutoSend = data.settings?.deckDictateAutoSend === true;
+  const silence = Number(data.settings?.dictationSilenceSec);
+  dictationSilenceSecValue = Number.isFinite(silence)
+    ? Math.min(15, Math.max(1, silence))
+    : 3.5;
+  const maxSec = Number(data.settings?.dictationMaxSec);
+  dictationMaxSecValue =
+    Number.isFinite(maxSec) && maxSec > 0
+      ? Math.min(1800, Math.max(5, Math.round(maxSec)))
+      : 0;
   window.I18n.applyDom();
   syncTaskUi();
 }
@@ -145,102 +187,278 @@ function syncTaskUi() {
   const input = $("task-input");
   const cancel = $("btn-task-cancel");
   if (mic) {
-    mic.disabled = taskBusy;
+    mic.disabled = taskBusy || dictationBusy;
     mic.classList.toggle("listening", listening);
     mic.title = listening
       ? window.I18n.t("chatPick.micListening")
-      : window.I18n.t("chatPick.mic");
+      : dictationBusy
+        ? window.I18n.t("deck.chatTranscribing")
+        : window.I18n.t("chatPick.mic");
     mic.setAttribute("aria-label", mic.title);
-    mic.textContent = listening ? "■" : "🎤";
+    mic.setAttribute("aria-pressed", listening ? "true" : "false");
+    mic.textContent = listening ? "■" : dictationBusy ? "…" : "🎤";
   }
-  if (send) send.disabled = taskBusy;
+  if (send) send.disabled = taskBusy || dictationBusy;
   if (cancel) cancel.disabled = taskBusy;
-  if (input) input.disabled = taskBusy;
+  const autoSend = $("task-dictate-auto-send");
+  if (autoSend) {
+    autoSend.checked = dictateAutoSend;
+    autoSend.disabled = taskBusy || dictationBusy;
+  }
+  if (input) input.disabled = taskBusy || dictationBusy;
+}
+
+function clearDictationMaxTimer() {
+  if (dictationMaxTimer) {
+    clearTimeout(dictationMaxTimer);
+    dictationMaxTimer = null;
+  }
+}
+
+function teardownMic() {
+  clearDictationMaxTimer();
+  try {
+    processor?.disconnect();
+  } catch {
+    /* ignore */
+  }
+  processor = null;
+  try {
+    audioCtx?.close();
+  } catch {
+    /* ignore */
+  }
+  audioCtx = null;
+  if (micStream) {
+    for (const track of micStream.getTracks()) {
+      try {
+        track.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  micStream = null;
 }
 
 function stopDictation() {
   dictationSession += 1;
   listening = false;
-  try {
-    recognition?.stop?.();
-  } catch {
-    /* ignore */
-  }
-  recognition = null;
+  dictationBusy = false;
+  teardownMic();
   syncTaskUi();
 }
 
-function startDictation() {
+function downsampleTo16k(float32, inputRate) {
+  const rate = Number(inputRate) || 48000;
+  if (rate === 16000) return float32;
+  const ratio = rate / 16000;
+  const outLen = Math.max(1, Math.floor(float32.length / ratio));
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const idx = Math.floor(i * ratio);
+    out[i] = float32[idx] || 0;
+  }
+  return out;
+}
+
+function rmsOf(buffer) {
+  let sum = 0;
+  for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+  return Math.sqrt(sum / Math.max(1, buffer.length));
+}
+
+function dictationSilenceSec() {
+  const n = Number(dictationSilenceSecValue);
+  if (!Number.isFinite(n)) return 3.5;
+  return Math.min(15, Math.max(1, n));
+}
+
+function dictationMaxMs() {
+  const n = Number(dictationMaxSecValue);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(1800, Math.max(5, Math.round(n))) * 1000;
+}
+
+async function finishDictation(session, input, base, lang) {
+  if (session !== dictationSession || dictationBusy) return;
+  dictationBusy = true;
+  dictationSession += 1;
+  listening = false;
+  const chunks = pcmChunks;
+  const inputRate = audioCtx?.sampleRate || 48000;
+  teardownMic();
+  syncTaskUi();
+
+  try {
+    if (!chunks.length) {
+      toast(window.I18n.t("chatPick.micError"), "error");
+      return;
+    }
+    const merged = new Float32Array(chunks.length);
+    for (let i = 0; i < chunks.length; i++) merged[i] = chunks[i];
+    const pcm16k = downsampleTo16k(merged, inputRate);
+    const samples = Array.from(pcm16k);
+    const result = await window.keycode.dictateTranscribe({
+      lang,
+      engine: dictationEngine,
+      samples,
+      sampleRate: 16000,
+    });
+    if (!result?.ok) {
+      const key =
+        result?.hint === "no_speech"
+          ? "chatPick.micError"
+          : result?.hint === "no_lang"
+            ? "deck.chatMicNoLang"
+            : result?.hint === "gigaam_setup_failed"
+              ? "deck.chatMicGigaamSetup"
+              : result?.hint === "gigaam_failed"
+                ? "deck.chatMicGigaamFail"
+                : /denied|access|микрофон|microphone/i.test(
+                      String(result?.error || "")
+                    )
+                  ? "chatPick.micDenied"
+                  : "chatPick.micError";
+      const detail = String(result?.error || "").trim();
+      toast(
+        detail && key === "chatPick.micError"
+          ? `${window.I18n.t(key)} (${detail.slice(0, 120)})`
+          : window.I18n.t(key),
+        "error"
+      );
+      return;
+    }
+    const spoken = String(result.text || "").trim();
+    if (!spoken) {
+      toast(window.I18n.t("chatPick.micError"), "error");
+      return;
+    }
+    if (input && !taskBusy && pendingTask) {
+      input.value = [base, spoken].filter(Boolean).join(" ").trim();
+      syncTaskUi();
+      if (dictateAutoSend) {
+        await sendTask();
+        return;
+      }
+      const engLabel =
+        result.engine === "windows"
+          ? window.I18n.t("deck.chatMicEngineWindows")
+          : window.I18n.t("deck.chatMicEngineGigaam");
+      toast(`${engLabel}: ${window.I18n.t("chatPick.micReady")}`, "ok");
+    }
+  } catch {
+    toast(window.I18n.t("chatPick.micError"), "error");
+  } finally {
+    dictationBusy = false;
+    listening = false;
+    syncTaskUi();
+  }
+}
+
+async function startDictation() {
   const input = $("task-input");
-  if (!input || taskBusy) return;
+  if (!input || taskBusy || dictationBusy) return;
   if (listening) {
-    stopDictation();
+    const session = dictationSession;
+    const base = dictationBase;
+    const lang = speechLang();
+    await finishDictation(session, input, base, lang);
     return;
   }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
+  if (!navigator.mediaDevices?.getUserMedia) {
     toast(window.I18n.t("chatPick.micUnsupported"), "error");
     return;
   }
-  let rec;
+
+  const lang = speechLang();
+  const base = String(input.value || "").trim();
+  dictationBase = base;
+  pcmChunks = [];
+  speechSeen = false;
+  silentFrames = 0;
+  const session = ++dictationSession;
+
   try {
-    rec = new SR();
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+      video: false,
+    });
   } catch {
+    toast(window.I18n.t("chatPick.micDenied"), "error");
+    return;
+  }
+
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new Ctx();
+    const source = audioCtx.createMediaStreamSource(micStream);
+    const bufferSize = 4096;
+    processor = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+    const mute = audioCtx.createGain();
+    mute.gain.value = 0;
+    const preRollMax = Math.max(
+      bufferSize,
+      Math.round(0.2 * (audioCtx.sampleRate || 48000))
+    );
+    /** @type {number[]} */
+    let preRoll = [];
+    processor.onaudioprocess = (ev) => {
+      if (session !== dictationSession) return;
+      const inputData = ev.inputBuffer.getChannelData(0);
+      const rms = rmsOf(inputData);
+      if (rms >= 0.015) {
+        if (!speechSeen && preRoll.length) {
+          for (let i = 0; i < preRoll.length; i++) pcmChunks.push(preRoll[i]);
+          preRoll = [];
+        }
+        speechSeen = true;
+        silentFrames = 0;
+      } else if (speechSeen) {
+        silentFrames += 1;
+      }
+      if (!speechSeen) {
+        for (let i = 0; i < inputData.length; i++) preRoll.push(inputData[i]);
+        if (preRoll.length > preRollMax) {
+          preRoll.splice(0, preRoll.length - preRollMax);
+        }
+      } else {
+        for (let i = 0; i < inputData.length; i++) {
+          pcmChunks.push(inputData[i]);
+        }
+      }
+      // Hush length from Settings (dictationSilenceSec).
+      const silenceSec = dictationSilenceSec();
+      const framesForSilence = Math.max(
+        8,
+        Math.round((silenceSec * (audioCtx?.sampleRate || 48000)) / bufferSize)
+      );
+      if (speechSeen && silentFrames >= framesForSilence) {
+        finishDictation(session, input, base, lang);
+      }
+    };
+    source.connect(processor);
+    processor.connect(mute);
+    mute.connect(audioCtx.destination);
+  } catch {
+    teardownMic();
     toast(window.I18n.t("chatPick.micError"), "error");
     return;
   }
-  recognition = rec;
-  const session = ++dictationSession;
-  dictationBase = String(input.value || "").trim();
-  rec.lang = speechLang();
-  rec.interimResults = true;
-  rec.continuous = false;
-  rec.maxAlternatives = 1;
 
-  rec.onstart = () => {
-    if (session !== dictationSession) return;
-    listening = true;
-    syncTaskUi();
-  };
-  rec.onerror = (ev) => {
-    if (session !== dictationSession) return;
-    const err = String(ev?.error || "");
-    stopDictation();
-    if (err === "not-allowed" || err === "service-not-allowed") {
-      toast(window.I18n.t("chatPick.micDenied"), "error");
-    } else if (err !== "aborted" && err !== "no-speech") {
-      toast(window.I18n.t("chatPick.micError"), "error");
-    }
-  };
-  rec.onend = () => {
-    if (session !== dictationSession) return;
-    listening = false;
-    if (recognition === rec) recognition = null;
-    syncTaskUi();
-    if (taskBusy) return;
-    if (String(input.value || "").trim()) {
-      toast(window.I18n.t("chatPick.micReady"), "ok");
-    }
-  };
-  rec.onresult = (event) => {
-    if (session !== dictationSession || taskBusy) return;
-    let finalText = "";
-    let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const piece = event.results[i]?.[0]?.transcript || "";
-      if (event.results[i].isFinal) finalText += piece;
-      else interim += piece;
-    }
-    const spoken = String(finalText || interim || "").trim();
-    const next = [dictationBase, spoken].filter(Boolean).join(" ").trim();
-    input.value = next;
-    if (finalText.trim()) dictationBase = next;
-  };
-  try {
-    rec.start();
-  } catch {
-    stopDictation();
-    toast(window.I18n.t("chatPick.micError"), "error");
+  listening = true;
+  syncTaskUi();
+  clearDictationMaxTimer();
+  const maxMs = dictationMaxMs();
+  if (maxMs > 0) {
+    dictationMaxTimer = setTimeout(() => {
+      if (session !== dictationSession) return;
+      finishDictation(session, input, base, lang);
+    }, maxMs);
   }
 }
 
@@ -512,7 +730,13 @@ $("btn-task-cancel")?.addEventListener("click", (e) => {
 });
 $("btn-task-mic")?.addEventListener("click", (e) => {
   e.preventDefault();
-  startDictation();
+  void startDictation();
+});
+$("task-dictate-auto-send")?.addEventListener("change", async (e) => {
+  e.preventDefault();
+  dictateAutoSend = e.target.checked === true;
+  await window.keycode.saveSettings({ deckDictateAutoSend: dictateAutoSend });
+  syncTaskUi();
 });
 $("task-input")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {

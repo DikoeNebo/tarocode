@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#120a1c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Keycode Remote</title>
-    <link rel="stylesheet" href="remote.css?v=20260723h" />
+    <link rel="stylesheet" href="remote.css?v=20260905d" />
   </head>
   <body>
     <header class="top">
@@ -64,69 +64,125 @@
       </div>
     </header>
 
-    <section class="target-bar">
-      <label class="target-label" id="target-label" for="target-select">Chat</label>
-      <select id="target-select"></select>
+    <section class="target-bar" id="target-bar">
+      <button
+        type="button"
+        class="chat-pick-btn"
+        id="btn-chat-pick"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="chat-sheet"
+      >
+        <span class="chat-pick-label" id="target-label">Chat</span>
+        <span class="chat-pick-name" id="chat-pick-name">—</span>
+      </button>
+      <button
+        type="button"
+        class="ghost"
+        id="btn-chat-new"
+        title="New chat"
+        aria-label="New chat"
+      >+</button>
       <button type="button" class="ghost" id="btn-refresh" title="Refresh">↻</button>
+      <select id="target-select" class="sr-only" tabindex="-1" aria-hidden="true"></select>
     </section>
 
     <main class="transcript" id="transcript" aria-live="polite">
       <p class="empty" id="transcript-empty">Pick a Cursor chat to see messages already loaded on the PC.</p>
     </main>
 
-    <section class="composer" id="composer">
-      <div class="composer-toolbar" id="composer-toolbar">
-        <label class="composer-select-wrap">
-          <span class="sr-only" id="mode-label">Mode</span>
-          <select id="composer-mode" aria-labelledby="mode-label">
-            <option value="agent">Agent</option>
-            <option value="plan">Plan</option>
-          </select>
-        </label>
-        <label class="composer-select-wrap">
-          <span class="sr-only" id="model-label">Model</span>
-          <select id="composer-model" aria-labelledby="model-label" disabled>
-            <option value="">Model</option>
-          </select>
-        </label>
-      </div>
-      <div id="clarifications" class="clarifications hidden" aria-live="polite"></div>
-      <label class="sr-only" id="composer-label" for="composer-input">Message</label>
-      <div class="composer-shell">
-        <textarea
-          id="composer-input"
-          rows="3"
-          maxlength="20000"
-          placeholder="Type a message…"
-          enterkeyhint="send"
-          autocomplete="off"
-          autocorrect="on"
-          autocapitalize="sentences"
-        ></textarea>
-        <div class="composer-footer">
-          <span class="composer-hint" id="composer-hint">Type a message, then tap Send</span>
-          <div class="composer-actions">
-            <button
-              type="button"
-              class="mic-btn"
-              id="btn-mic"
-              title="Dictate"
-              aria-label="Dictate"
-              aria-pressed="false"
-            >🎤</button>
-            <button type="button" class="send-btn" id="btn-send" data-kind="send">Send</button>
+    <div
+      class="layout-split"
+      id="layout-split"
+      role="separator"
+      aria-orientation="horizontal"
+      aria-valuemin="22"
+      aria-valuemax="72"
+      aria-valuenow="42"
+      tabindex="0"
+    ></div>
+
+    <section class="bottom-dock" id="bottom-dock">
+      <section class="composer" id="composer">
+        <div class="composer-body" id="composer-body">
+          <div class="composer-toolbar" id="composer-toolbar">
+            <label class="composer-select-wrap">
+              <span class="sr-only" id="mode-label">Mode</span>
+              <select id="composer-mode" aria-labelledby="mode-label">
+                <option value="agent">Agent</option>
+                <option value="plan">Plan</option>
+                <option value="ask">Ask</option>
+                <option value="debug">Debug</option>
+              </select>
+            </label>
+            <label class="composer-select-wrap composer-model-wrap">
+              <span class="sr-only" id="model-label">Model</span>
+              <span id="composer-model" class="composer-model-label" aria-labelledby="model-label">—</span>
+            </label>
+          </div>
+          <div id="clarifications" class="clarifications hidden" aria-live="polite"></div>
+          <label class="sr-only" id="composer-label" for="composer-input">Message</label>
+          <div class="composer-shell">
+            <textarea
+              id="composer-input"
+              rows="3"
+              maxlength="20000"
+              placeholder="Type a message…"
+              enterkeyhint="send"
+              autocomplete="off"
+              autocorrect="on"
+              autocapitalize="sentences"
+            ></textarea>
+            <div class="composer-footer">
+              <span class="composer-hint" id="composer-hint">Type a message, then tap Send</span>
+              <div class="composer-actions">
+                <button
+                  type="button"
+                  class="mic-btn"
+                  id="btn-mic"
+                  title="Dictate"
+                  aria-label="Dictate"
+                  aria-pressed="false"
+                >🎤</button>
+                <button type="button" class="send-btn" id="btn-send" data-kind="send">Send</button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <section class="cards-dock" id="cards-dock" aria-label="Cards">
+        <span class="busy hidden" id="busy-badge">Sending…</span>
+        <div class="cards" id="cards"></div>
+      </section>
     </section>
 
-    <section class="cards-dock" id="cards-dock">
-      <div class="cards-head">
-        <span id="cards-label">Cards</span>
-        <span class="busy hidden" id="busy-badge">Sending…</span>
+    <div
+      id="chat-sheet"
+      class="sheet hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chat-sheet-title"
+      hidden
+    >
+      <button type="button" class="sheet-backdrop" id="chat-sheet-backdrop" aria-label="Close"></button>
+      <div class="sheet-panel">
+        <div class="sheet-head">
+          <h2 id="chat-sheet-title">Chats</h2>
+          <button type="button" class="sheet-close" id="chat-sheet-close" aria-label="Close">✕</button>
+        </div>
+        <div class="sheet-tabs" role="tablist">
+          <button type="button" class="sheet-tab active" id="tab-chats" role="tab" aria-selected="true">
+            Open chats
+          </button>
+          <button type="button" class="sheet-tab" id="tab-new" role="tab" aria-selected="false">
+            New chat
+          </button>
+        </div>
+        <div class="sheet-body" id="sheet-chats" role="tabpanel"></div>
+        <div class="sheet-body hidden" id="sheet-projects" role="tabpanel" hidden></div>
       </div>
-      <div class="cards" id="cards"></div>
-    </section>
+    </div>
 
     <div id="toast" class="toast hidden" role="status"></div>
     <div id="auth-gate" class="auth-gate hidden">
@@ -140,6 +196,6 @@
       </div>
     </div>
 
-    <script src="remote.js?v=20260723h"></script>
+    <script src="remote.js?v=20260905d"></script>
   </body>
 </html>

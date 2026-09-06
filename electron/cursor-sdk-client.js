@@ -121,10 +121,6 @@ function createCursorSdkClient(deps = {}) {
       modelLabel: modelId,
       models: cachedModels,
       generating: busy,
-      modes: [
-        { id: "agent", label: "Agent" },
-        { id: "plan", label: "Plan" },
-      ],
     });
     return { ok: true, composer, clarifications: [] };
   }

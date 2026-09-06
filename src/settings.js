@@ -99,6 +99,30 @@ function fillSettingsForm() {
   $("set-preserve-focus").checked = state.settings?.preserveFocus !== false;
   $("set-auto-enter").checked = state.settings?.autoEnter === true;
   $("set-hotkey").value = state.settings?.showHotkey || "F9";
+  if ($("set-show-deck-on-startup")) {
+    $("set-show-deck-on-startup").checked =
+      state.settings?.showDeckOnStartup === true;
+  }
+  if ($("set-auto-check-updates")) {
+    $("set-auto-check-updates").checked =
+      state.settings?.autoCheckUpdates !== false;
+  }
+  if ($("set-dictation-engine")) {
+    const eng = String(state.settings?.dictationEngine || "gigaam").toLowerCase();
+    $("set-dictation-engine").value = eng === "windows" ? "windows" : "gigaam";
+  }
+  if ($("set-dictation-silence")) {
+    const silence = Number(state.settings?.dictationSilenceSec);
+    $("set-dictation-silence").value = String(
+      Number.isFinite(silence) ? silence : 3.5
+    );
+  }
+  if ($("set-dictation-max")) {
+    const maxSec = Number(state.settings?.dictationMaxSec);
+    $("set-dictation-max").value = String(
+      Number.isFinite(maxSec) && maxSec > 0 ? Math.round(maxSec) : 0
+    );
+  }
   if ($("set-cdp-port")) {
     $("set-cdp-port").value = String(state.settings?.cdpPort ?? 9222);
   }
@@ -119,26 +143,48 @@ function fillSettingsForm() {
   }
   $("set-edge-hover").checked = state.settings?.edgeHover !== false;
   $("set-edge-threshold").value = String(state.settings?.edgeThreshold ?? 14);
+  const hideDelayMs = Number(state.settings?.hideDelayMs) || 450;
+  if ($("set-hide-delay")) $("set-hide-delay").value = String(hideDelayMs);
+  if ($("set-hide-delay-val")) {
+    $("set-hide-delay-val").textContent = `${hideDelayMs}ms`;
+  }
   $("set-card-preview").checked = state.settings?.showCardPreview !== false;
   if ($("set-side-card-layout")) {
     $("set-side-card-layout").value =
       state.settings?.sideCardLayout === "strip" ? "strip" : "table";
   }
   const scalePct = Math.round((state.settings?.panelScale ?? 1) * 100);
+  const chatPct = Math.round((state.settings?.chatScale ?? 1) * 100);
   const uiPct = Math.round((state.settings?.uiOpacity ?? 0.8) * 100);
   const titlePct = Math.round((state.settings?.titleOpacity ?? 1) * 100);
   const tarotPx = Number(state.settings?.cardTarotFontPx) || 16;
   const actionPx = Number(state.settings?.cardActionFontPx) || 13;
+  const chatMessagePx = Number(state.settings?.chatMessageFontPx) || 10;
+  const chatComposerPx = Number(state.settings?.chatComposerFontPx) || 10;
   $("set-panel-scale").value = String(scalePct);
+  if ($("set-chat-scale")) $("set-chat-scale").value = String(chatPct);
+  if ($("set-chat-message-font")) {
+    $("set-chat-message-font").value = String(chatMessagePx);
+  }
+  if ($("set-chat-composer-font")) {
+    $("set-chat-composer-font").value = String(chatComposerPx);
+  }
   $("set-ui-opacity").value = String(uiPct);
   $("set-title-opacity").value = String(titlePct);
   $("set-tarot-font").value = String(tarotPx);
   $("set-action-font").value = String(actionPx);
   $("set-panel-scale-val").textContent = `${scalePct}%`;
+  if ($("set-chat-scale-val")) $("set-chat-scale-val").textContent = `${chatPct}%`;
   $("set-ui-opacity-val").textContent = `${uiPct}%`;
   $("set-title-opacity-val").textContent = `${titlePct}%`;
   $("set-tarot-font-val").textContent = `${tarotPx}px`;
   $("set-action-font-val").textContent = `${actionPx}px`;
+  if ($("set-chat-message-font-val")) {
+    $("set-chat-message-font-val").textContent = `${chatMessagePx}px`;
+  }
+  if ($("set-chat-composer-font-val")) {
+    $("set-chat-composer-font-val").textContent = `${chatComposerPx}px`;
+  }
   syncDockButtons(state.settings?.dock || "right");
 }
 
@@ -163,6 +209,10 @@ function showSettingsPage(page) {
     );
   });
   document.querySelector(".settings-pages")?.scrollTo({ top: 0 });
+  if (selected === "decks" && !state.editingCardId) {
+    const first = state.deck?.cards?.[0];
+    if (first) selectCard(first.id);
+  }
 }
 
 function bindSettingsNavigation() {
@@ -349,6 +399,13 @@ function selectCard(cardId) {
   state.editingCardId = cardId;
   renderCardsList();
   syncCardForm();
+  const promptEl = $("card-prompt");
+  if (promptEl && state.editingCardId) {
+    requestAnimationFrame(() => {
+      promptEl.focus({ preventScroll: true });
+      promptEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  }
 }
 
 async function saveGeneralSettings() {
@@ -356,16 +413,30 @@ async function saveGeneralSettings() {
   const preserveFocus = $("set-preserve-focus").checked;
   const autoEnter = $("set-auto-enter").checked;
   const showHotkey = $("set-hotkey").value || "F9";
+  const showDeckOnStartup = $("set-show-deck-on-startup")?.checked === true;
+  const autoCheckUpdates = $("set-auto-check-updates")?.checked !== false;
+  const dictationRaw = String($("set-dictation-engine")?.value || "").toLowerCase();
+  const dictationEngine =
+    dictationRaw === "windows" || dictationRaw === "gigaam" ? dictationRaw : null;
+  const silenceRaw = Number($("set-dictation-silence")?.value);
+  const dictationSilenceSec = Number.isFinite(silenceRaw) ? silenceRaw : 3.5;
+  const maxRaw = Number($("set-dictation-max")?.value);
+  const dictationMaxSec =
+    Number.isFinite(maxRaw) && maxRaw > 0 ? Math.round(maxRaw) : 0;
   const edgeHover = $("set-edge-hover").checked;
   const edgeThreshold = Number($("set-edge-threshold").value) || 14;
+  const hideDelayMs = Number($("set-hide-delay")?.value) || 450;
   const showCardPreview = $("set-card-preview").checked;
   const sideCardLayout =
     $("set-side-card-layout")?.value === "strip" ? "strip" : "table";
   const panelScale = (Number($("set-panel-scale").value) || 100) / 100;
+  const chatScale = (Number($("set-chat-scale")?.value) || 100) / 100;
   const uiOpacity = (Number($("set-ui-opacity").value) || 80) / 100;
   const titleOpacity = (Number($("set-title-opacity").value) || 100) / 100;
   const cardTarotFontPx = Number($("set-tarot-font").value) || 16;
   const cardActionFontPx = Number($("set-action-font").value) || 13;
+  const chatMessageFontPx = Number($("set-chat-message-font")?.value) || 10;
+  const chatComposerFontPx = Number($("set-chat-composer-font")?.value) || 10;
   const cdpPort = Number($("set-cdp-port")?.value) || 9222;
   const cursorBackend =
     state.sdkBackendEnabled === true &&
@@ -381,15 +452,24 @@ async function saveGeneralSettings() {
     preserveFocus,
     autoEnter,
     showHotkey,
+    showDeckOnStartup,
+    autoCheckUpdates,
+    ...(dictationEngine ? { dictationEngine } : {}),
+    dictationSilenceSec,
+    dictationMaxSec,
     edgeHover,
     edgeThreshold,
+    hideDelayMs,
     showCardPreview,
     sideCardLayout,
     panelScale,
+    chatScale,
     uiOpacity,
     titleOpacity,
     cardTarotFontPx,
     cardActionFontPx,
+    chatMessageFontPx,
+    chatComposerFontPx,
     cdpPort,
     cursorBackend,
     ...(state.sdkBackendEnabled === true ? { cursorApiKey } : {}),
@@ -528,11 +608,52 @@ function bindLiveGeneralSettings() {
     persist({ panelScale: pct / 100 });
   });
 
+  $("set-chat-scale")?.addEventListener("input", (e) => {
+    const pct = Number(e.target.value) || 100;
+    if ($("set-chat-scale-val")) $("set-chat-scale-val").textContent = `${pct}%`;
+    preview({ chatScale: pct / 100 });
+  });
+  $("set-chat-scale")?.addEventListener("change", (e) => {
+    const pct = Number(e.target.value) || 100;
+    persist({ chatScale: pct / 100 });
+  });
+
+  $("set-chat-message-font")?.addEventListener("input", (e) => {
+    const px = Number(e.target.value) || 10;
+    if ($("set-chat-message-font-val")) {
+      $("set-chat-message-font-val").textContent = `${px}px`;
+    }
+    preview({ chatMessageFontPx: px });
+  });
+  $("set-chat-message-font")?.addEventListener("change", (e) => {
+    persist({ chatMessageFontPx: Number(e.target.value) || 10 });
+  });
+
+  $("set-chat-composer-font")?.addEventListener("input", (e) => {
+    const px = Number(e.target.value) || 10;
+    if ($("set-chat-composer-font-val")) {
+      $("set-chat-composer-font-val").textContent = `${px}px`;
+    }
+    preview({ chatComposerFontPx: px });
+  });
+  $("set-chat-composer-font")?.addEventListener("change", (e) => {
+    persist({ chatComposerFontPx: Number(e.target.value) || 10 });
+  });
+
   $("set-edge-hover").addEventListener("change", (e) => {
     persist({ edgeHover: e.target.checked });
   });
   $("set-edge-threshold").addEventListener("change", (e) => {
     persist({ edgeThreshold: Number(e.target.value) || 14 });
+  });
+  $("set-hide-delay")?.addEventListener("input", (e) => {
+    const ms = Number(e.target.value) || 450;
+    if ($("set-hide-delay-val")) {
+      $("set-hide-delay-val").textContent = `${ms}ms`;
+    }
+  });
+  $("set-hide-delay")?.addEventListener("change", (e) => {
+    persist({ hideDelayMs: Number(e.target.value) || 450 });
   });
   $("set-card-preview").addEventListener("change", (e) => {
     persist({ showCardPreview: e.target.checked });
@@ -557,6 +678,27 @@ function bindLiveGeneralSettings() {
   });
   $("set-hotkey").addEventListener("change", (e) => {
     persist({ showHotkey: e.target.value || "F9" });
+  });
+  $("set-show-deck-on-startup")?.addEventListener("change", (e) => {
+    persist({ showDeckOnStartup: e.target.checked });
+  });
+  $("set-auto-check-updates")?.addEventListener("change", (e) => {
+    persist({ autoCheckUpdates: e.target.checked });
+  });
+  $("set-dictation-engine")?.addEventListener("change", (e) => {
+    const raw = String(e.target.value || "gigaam").toLowerCase();
+    const dictationEngine = raw === "windows" ? "windows" : "gigaam";
+    persist({ dictationEngine });
+  });
+  $("set-dictation-silence")?.addEventListener("change", (e) => {
+    const n = Number(e.target.value);
+    persist({ dictationSilenceSec: Number.isFinite(n) ? n : 3.5 });
+  });
+  $("set-dictation-max")?.addEventListener("change", (e) => {
+    const n = Number(e.target.value);
+    persist({
+      dictationMaxSec: Number.isFinite(n) && n > 0 ? Math.round(n) : 0,
+    });
   });
 
   $("dock-pad").addEventListener("click", async (e) => {
@@ -1275,11 +1417,216 @@ function bindRemoteControls() {
 }
 
 async function init() {
+  // Tour listener must be ready before main's settings-focus (load race).
+  bindSettingsTour();
   bindEvents();
   await refresh();
   await refreshRemotePanel();
   const first = state.deck?.cards?.[0];
   if (first) selectCard(first.id);
+  window.keycode.settingsUiReady?.();
+}
+
+function placeSettingsTourCoach(targetEl) {
+  const hole = $("settings-onboarding-hole");
+  const card = $("settings-onboarding-card");
+  const arrow = $("settings-onboarding-arrow");
+  if (!hole || !card) return;
+  const pad = 6;
+  const gap = 20;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cardW = Math.min(320, vw - 24);
+  card.style.width = `${cardW}px`;
+  if (!targetEl) {
+    hole.style.display = "none";
+    if (arrow) arrow.style.visibility = "hidden";
+    const cardH = Math.max(card.offsetHeight || 160, 140);
+    card.style.left = `${Math.max(12, (vw - cardW) / 2)}px`;
+    card.style.top = `${Math.max(12, (vh - cardH) / 2)}px`;
+    return;
+  }
+  const r = targetEl.getBoundingClientRect();
+  const holeLeft = Math.max(4, r.left - pad);
+  const holeTop = Math.max(4, r.top - pad);
+  const holeW = Math.min(vw - 8, r.width + pad * 2);
+  const holeH = Math.min(vh - 16, r.height + pad * 2);
+  const holeRight = holeLeft + holeW;
+  const holeBottom = holeTop + holeH;
+  const holeCx = holeLeft + holeW / 2;
+  const holeCy = holeTop + holeH / 2;
+  hole.style.display = "block";
+  hole.style.left = `${holeLeft}px`;
+  hole.style.top = `${holeTop}px`;
+  hole.style.width = `${holeW}px`;
+  hole.style.height = `${holeH}px`;
+  const cardH = Math.max(card.offsetHeight || 160, 140);
+  const holeBox = {
+    left: holeLeft,
+    top: holeTop,
+    right: holeRight,
+    bottom: holeBottom,
+  };
+  const candidates = [
+    { place: "below", left: holeCx - cardW / 2, top: holeBottom + gap },
+    { place: "above", left: holeCx - cardW / 2, top: holeTop - gap - cardH },
+    { place: "right", left: holeRight + gap, top: holeCy - cardH / 2 },
+    { place: "left", left: holeLeft - gap - cardW, top: holeCy - cardH / 2 },
+  ];
+  let best = null;
+  for (const c of candidates) {
+    const left = Math.min(Math.max(10, c.left), vw - cardW - 10);
+    const top = Math.min(Math.max(10, c.top), vh - cardH - 10);
+    const box = { left, top, right: left + cardW, bottom: top + cardH };
+    const overlap = !(
+      box.right + 8 <= holeBox.left ||
+      box.left - 8 >= holeBox.right ||
+      box.bottom + 8 <= holeBox.top ||
+      box.top - 8 >= holeBox.bottom
+    );
+    if (overlap) continue;
+    const score = Math.abs(left - c.left) + Math.abs(top - c.top);
+    if (!best || score < best.score) best = { place: c.place, left, top, score };
+  }
+  if (!best) {
+    best = {
+      place: "below",
+      left: Math.min(Math.max(10, holeRight - cardW), vw - cardW - 10),
+      top: Math.min(holeBottom + gap, vh - cardH - 10),
+    };
+  }
+  card.style.left = `${best.left}px`;
+  card.style.top = `${best.top}px`;
+  if (arrow) {
+    arrow.style.visibility = "visible";
+    arrow.className = `onboarding-arrow ${best.place}`;
+    if (best.place === "below" || best.place === "above") {
+      arrow.style.left = `${Math.min(Math.max(16, holeCx - best.left - 6), cardW - 28)}px`;
+      arrow.style.right = "auto";
+      arrow.style.top = best.place === "below" ? "-7px" : "auto";
+      arrow.style.bottom = best.place === "above" ? "-7px" : "auto";
+    } else {
+      arrow.style.top = `${Math.min(Math.max(16, holeCy - best.top - 6), cardH - 28)}px`;
+      arrow.style.bottom = "auto";
+      arrow.style.left = best.place === "right" ? "-7px" : "auto";
+      arrow.style.right = best.place === "left" ? "-7px" : "auto";
+    }
+  }
+}
+
+function hideSettingsTour() {
+  $("settings-onboarding")?.classList.add("hidden");
+}
+
+function showSettingsTour(data = {}) {
+  const root = $("settings-onboarding");
+  if (!root) return;
+  const step = Number(data.step) || 6;
+  const stepCount = Number(data.stepCount) || 8;
+  const page = data.page || "phone";
+  const hasMore = data.hasMore !== false;
+  showSettingsPage(page);
+  const title = $("settings-onboarding-title");
+  const body = $("settings-onboarding-body");
+  const next = $("settings-onboarding-next");
+  const dots = $("settings-onboarding-dots");
+  if (title) title.textContent = window.I18n.t(`onboarding.s${step}.title`);
+  if (body) body.innerHTML = window.I18n.t(`onboarding.s${step}.body`);
+  if (next) {
+    next.textContent = window.I18n.t(hasMore ? "onboarding.next" : "onboarding.bravo");
+  }
+  if (dots) {
+    dots.innerHTML = "";
+    for (let i = 0; i < stepCount; i++) {
+      const d = document.createElement("span");
+      d.className = "onboarding-dot" + (i === step - 1 ? " active" : "");
+      dots.appendChild(d);
+    }
+  }
+  root.classList.remove("hidden");
+  const highlightSel = data.highlight || "#settings-phone-spotlight";
+  const target =
+    document.querySelector(highlightSel) ||
+    document.querySelector(`[data-settings-nav="${page}"]`);
+  if (page === "phone") {
+    refreshRemotePanel().catch(() => {});
+  }
+  requestAnimationFrame(() => {
+    target?.scrollIntoView?.({ block: "center", inline: "nearest" });
+    placeSettingsTourCoach(target);
+    requestAnimationFrame(() => {
+      placeSettingsTourCoach(target);
+      aimSettingsOnboardingNext();
+    });
+  });
+}
+
+function aimSettingsOnboardingNext() {
+  const btn = $("settings-onboarding-next");
+  if (!btn) return;
+  const aim = () => {
+    try {
+      btn.focus({ preventScroll: true });
+    } catch {
+      try {
+        btn.focus();
+      } catch {
+        /* ignore */
+      }
+    }
+    const r = btn.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      window.keycode.pointerMoveInWindow?.({
+        x: r.left + r.width / 2,
+        y: r.top + r.height / 2,
+      });
+    }
+  };
+  aim();
+  setTimeout(aim, 60);
+  setTimeout(aim, 180);
+}
+
+function bindSettingsTour() {
+  window.keycode.onSettingsFocus?.((data) => {
+    if (!data) return;
+    if (data.page) showSettingsPage(data.page);
+    if (data.tour) {
+      showSettingsTour(data);
+    } else if (data.highlight) {
+      hideSettingsTour();
+      const el = document.querySelector(data.highlight);
+      el?.scrollIntoView?.({ block: "nearest" });
+      el?.classList?.add("tour-pulse");
+      setTimeout(() => el?.classList?.remove("tour-pulse"), 1600);
+    }
+  });
+  window.keycode.onSettingsTourClear?.(() => hideSettingsTour());
+  $("settings-onboarding-next")?.addEventListener("click", async () => {
+    await window.keycode.tourHostAdvance?.();
+  });
+  $("settings-onboarding-skip")?.addEventListener("click", async () => {
+    hideSettingsTour();
+    await window.keycode.settingsFocusClear?.();
+    await window.keycode.tourHostSkip?.();
+  });
+  window.addEventListener("resize", () => {
+    if ($("settings-onboarding")?.classList.contains("hidden")) return;
+    const page =
+      document.querySelector(".settings-page.active")?.getAttribute("data-settings-page") ||
+      "phone";
+    const target =
+      document.querySelector("#settings-phone-tour") ||
+      document.querySelector("#settings-nav") ||
+      document.querySelector(`[data-settings-nav="${page}"]`);
+    placeSettingsTourCoach(target);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if ($("settings-onboarding")?.classList.contains("hidden")) return;
+    hideSettingsTour();
+    window.keycode.tourHostSkip?.();
+  });
 }
 
 init();

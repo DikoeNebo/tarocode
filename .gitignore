@@ -2,6 +2,8 @@ node_modules/
 dist/
 dist_*/
 dist2/
+dist-release/
+dist-release-*/
 .cursor/
 *.log
 .DS_Store
@@ -11,4 +13,8 @@ tarot
 tmp-*.png
 tmp-*.jpg
 tmp-*.jpeg
+tmp-*.js
+gigastt-bin/
+gigastt-models/
+data/locales/**/*-v1.1.json
 *.local.md

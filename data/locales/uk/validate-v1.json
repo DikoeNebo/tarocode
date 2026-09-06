@@ -1,76 +1,76 @@
 {
   "id": "validate-v1",
-  "name": "01 Валідація",
+  "name": "01 Перевірка ідеї",
   "cards": [
     {
       "id": "problem",
-      "title": "Проблема",
-      "description": "Fool: who hurts, what breaks, testable hypothesis",
-      "prompt": "State the target audience, the observable problem, the current workaround, and a testable hypothesis. Analysis only — no product, no code.\n\nMark unknowns as assumptions. Do not invent users, quotes, or market size.\n\nOutput:\n- Who\n- Problem (observable)\n- Workaround today\n- Hypothesis (if we ship X, Y will happen)\n- Open questions\n\nNext card: Evidence plan.",
+      "title": "Кого болить",
+      "description": "Шут: у кого біль, що перевіряємо",
+      "prompt": "Сформулюй, чию проблему ми перевіряємо. Лише аналіз — без продукту й коду.\n\nВивід:\n1. Цільова аудиторія (конкретно, не «всі»)\n2. Спостережувана проблема\n3. Як люди справляються зараз\n4. Гіпотеза: «Якщо зробимо X для Y, то Z зміниться»\n5. Що треба довести до розробки\n6. Відкриті питання\n\nЯкщо ввідних мало — щонайбільше 3 питання. Невідоме позначай як припущення.\nЗаборонено: вигадувати користувачів, цитати, попит, ринок; пропонувати код чи функції.\n\nДалі: карта «Як перевірити».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — ввідних достатньо для плану перевірки\nабо\nKEYCODE_STATUS: NEED_DATA — потрібні відповіді користувача",
       "image": "fool",
-      "hotkey": "F1"
+      "hotkey": ""
     },
     {
       "id": "evidence-plan",
-      "title": "План перевірки",
-      "description": "Hierophant: cheapest proof, metric, stop rule",
-      "prompt": "Pick the cheapest way to test the hypothesis. Write the success metric, threshold, deadline, and stop/pivot rule BEFORE any experiment.\n\nDo not treat AI research as external proof. Interviews, waitlist signups, clicks, and preorders count. Opinions in this chat do not.\n\nOutput:\n- Method (interview / landing / fake door / preorder / other)\n- Metric + threshold + date\n- What FAIL means\n- What the human must do\n\nDo not start coding the product.",
+      "title": "Як перевірити",
+      "description": "Ієрофант: найдешевший спосіб, метрика, правило стоп",
+      "prompt": "Напиши найдешевший план перевірки гіпотези з «Кого болить». Зафіксуй план ДО будь-якого експерименту.\n\nПравила:\n- Дослідження ШІ та думки в чаті — не доказ. Доказ: інтерв’ю, заявки, кліки, передзамовлення.\n- Один метод: інтерв’ю / лендинг / fake door / список очікування / передзамовлення / пост / опитування.\n- Якщо готовий продукт уже вирішує це — також запусти «Що вже є».\n- Без порога план не готовий. Поріг потім не змінюй.\n- Якщо метод потребує грошей чи реклами — спочатку попередь.\n\nВивід: гіпотеза · метод · метрика · поріг (число) · строк · що означає FAIL · що робить людина.\nПриклади порогів: 5 інтерв’ю за 7 днів; 10 заявок за 5 днів; 2 передзамовлення чи контакти.\n\nКод продукту не пиши. Не вигадуй числа.\nДалі: «Питання людям» або «Міні-перевірка» — за обраним методом.\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — план і поріг задані\nабо\nKEYCODE_STATUS: NEED_DATA — даних для плану бракує",
       "image": "hierophant",
-      "hotkey": "F2"
+      "hotkey": ""
     },
     {
       "id": "interview",
-      "title": "Інтерв’ю",
-      "description": "Two of Cups: questions or real answers — no invented people",
-      "prompt": "Prepare non-leading interview questions, or analyze answers the user actually provided.\n\nForbidden: inventing respondents, quotes, or \"typical users\". If no real answers exist, output only the question list and how to run the talks.\n\nIf real notes exist: pains, current tools, willingness to pay, disconfirming evidence.\n\nNext: Market (if still missing) or Verdict (if enough talks exist).",
+      "title": "Питання людям",
+      "description": "Двійка келихів: інтерв’ю без вигаданих людей",
+      "prompt": "Працюй лише в одному режимі.\n\nРежим 1 — є реальні нотатки інтерв’ю. Розбери лише їх: болі, обхідні шляхи, частота, докази готовності платити чи діяти, спростування, скільки розмов, чи досягнуто поріг із «Як перевірити».\n\nРежим 2 — відповідей ще немає. Підготуй 7–10 питань і інструкцію: питай про останній раз, частоту, вартість, поточний інструмент; не питай «чи купив би?»; не продавай ідею; потрібно мінімум 3–5 реальних розмов.\n\nЗаборонено: вигадувати респондентів чи цитати; змішувати режими; вважати думки в чаті доказом.\n\nЯкщо відповідей мало — продовжуй збирати. Якщо вони вбивають гіпотезу — «Змінити ідею». Якщо достатньо — «Що вже є» або «Вердикт».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — реальних відповідей достатньо для наступного кроку\nабо\nKEYCODE_STATUS: NEED_DATA — відповідей немає або замало",
       "image": "cups_02",
-      "hotkey": "F3"
+      "hotkey": ""
     },
     {
       "id": "market",
-      "title": "Ринок",
-      "description": "Wheel: competitors, licenses, reuse — not a copy dump",
-      "prompt": "Map competitors, substitutes, licenses, and reusable references. Competitors are a market signal, not an automatic fail.\n\nIf you cannot browse the web, ask for sources instead of guessing GitHub/npm names.\n\nFor each reference: what it does, license, risk of reuse, what NOT to copy.\n\nDo not dump or paste third-party code.",
+      "title": "Що вже є",
+      "description": "Колесо: конкуренти, open source, що взяти",
+      "prompt": "Знайди, що вже вирішує цю проблему. Не винаходи колесо заново.\n\n1. Конкуренти (2–4): що роблять, слабке місце, що доводить попит. Немає конкурентів — підозріло: ніша, нова проблема або неважлива. Конкуренти є = ринок є — це не провал.\n2. Open source (2–4 репозиторії): що взяти, ліцензія, свіжість, ризик, що НЕ копіювати. Немає доступу до мережі — проси посилання; не вгадуй назви. Не вставляй чужий код.\n3. Замінники: таблиці, чати, ручна робота — що працює і що ламається.\n\nВердикт: взяти готове / взяти частково / ринок неясний.\nКод продукту не пиши. Далі: «Міні-перевірка» або «Вердикт».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — аналіз на основі даних або посилань користувача\nабо\nKEYCODE_STATUS: NEED_DATA — потрібні посилання чи факти",
       "image": "wheel_of_fortune",
-      "hotkey": "F4"
+      "hotkey": ""
     },
     {
       "id": "experiment",
-      "title": "Експеримент",
-      "description": "Magician: smoke / fake door / waitlist; success bar already set",
-      "prompt": "Design the smallest smoke / fake-door / waitlist experiment using the threshold already written in the evidence plan. Do not invent a new success bar after the fact.\n\nChange files only if the user explicitly asked to create the landing/asset. Otherwise describe copy, layout, and how to count results.\n\nNo payment integration, no production deploy.",
+      "title": "Міні-перевірка",
+      "description": "Маг: smoke / fake door / waitlist із фіксованим порогом",
+      "prompt": "Зроби найменшу перевірку попиту з порогом із «Як перевірити». Один формат: лендинг із формою; fake door; список очікування; передзамовлення; пост або опитування в релевантному чаті.\n\nПоріг не змінюй. Створюй файли лише якщо користувач явно просив лендинг. Інакше лише текст: заголовок, CTA, як рахувати. Без платежів, без production-деплою. Не обіцяй того, чого немає; «скоро» / «early access» — ок.\n\nНе вигадуй кліки чи заявки. Результатів ще немає — скажи запустити тест і повернутися з цифрами. Результати є — «Вердикт».\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — результати можна оцінити\nабо\nKEYCODE_STATUS: NEED_DATA — тест ще треба запустити",
       "image": "magician",
-      "hotkey": "F5"
+      "hotkey": ""
     },
     {
       "id": "evidence-review",
       "title": "Вердикт",
-      "description": "Justice: only facts you have; PASS or FAIL",
-      "prompt": "Judge ONLY evidence the user actually provided (notes, counts, links). Missing evidence is a gap, not a pass.\n\nDo not invent subscriber counts. A number without a source is FAIL.\n\nEnd with exactly these two lines (choose PASS or FAIL, and a known stock id):\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "description": "Справедливість: лише реальні факти → PASS або FAIL",
+      "prompt": "Виріши: продовжувати чи ні. Оцінюй ЛИШЕ те, що користувач реально дав: нотатки, цифри з джерелом, посилання, скріншоти, логи чату.\n\nОдне правило: порівняй із порогом із «Як перевірити».\n- поріг досягнуто → PASS;\n- поріг провалено, немає фактів, число без джерела, немає порога або дані не тієї гіпотези → FAIL.\nДумки в чаті та дослідження ШІ — не доказ. Не став PASS зі співчуття чи тому що «ідея гарна».\n\nСпочатку перелічи докази, поріг і прогалини — потім рішення.\nPASS → специфікація. FAIL → «Змінити ідею». Немає порога → «Як перевірити».\n\nПроєкт може бути порожнім — немає факту = не PASS.\nЗаборонено: вигадувати докази; ставити PASS зі співчуття чи тому що «ідея гарна»; лестити.\n\nЗаверши рівно двома рядками:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nабо:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
       "image": "justice",
-      "hotkey": "F6"
+      "hotkey": ""
     },
     {
       "id": "pivot",
-      "title": "Поворот",
-      "description": "Hanged Man: keep facts, shrink audience / problem / channel",
-      "prompt": "Using the failed criterion, shrink audience, problem, or channel. Keep collected facts. Do not throw away interviews.\n\nOutput: what stays true · what changes · new hypothesis · next evidence plan.\n\nDo not write product code.",
+      "title": "Змінити ідею",
+      "description": "Повішений: звузити аудиторію / проблему / канал; факти лишити",
+      "prompt": "Перевірка провалилась. Зміни лише одну частину; факти лиши.\n\nОбери одне: звузити аудиторію; звузити проблему; змінити канал; взяти готове замість будувати.\nДва–три півоти без нових даних — стоп: продовжувати марно. Немає фактів — назад до «Кого болить». Якщо користувач хоче змінити все одразу — попроси обрати одне.\n\nВивід: що лишається істинним · що змінюється · нова гіпотеза · наступний крок («Як перевірити» / «Питання людям» / «Що вже є» / «Міні-перевірка»).\nКод не пиши. Не вигадуй факти, щоб виправдати півот.\n\nПроєкт може бути порожнім; правил може не бути. Не вигадуй того, чого немає.\nЗаборонено: вигадувати факти, імена, цифри чи файли; писати код (ця карта — лише розбір); ускладнювати «на потім»; лестити; немає даних — питай, не вгадуй.\n\nЗаверши одним рядком:\nKEYCODE_STATUS: READY — нова гіпотеза і наступний крок зрозумілі\nабо\nKEYCODE_STATUS: BLOCKED — продовжувати марно; немає нових фактів",
       "image": "hanged_man",
-      "hotkey": "F7"
+      "hotkey": ""
     },
     {
       "id": "validation-cycle",
-      "title": "Повний цикл",
-      "description": "World: run the check; stop where a human must act",
-      "prompt": "Run the validation loop with what is already known: problem → evidence plan → available interviews/market/experiment.\n\nStop and ask the human wherever real-world data is required. Do not fabricate that data.\n\nGive a final gate ONLY if real evidence exists. Then end with:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nor:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/pivot",
+      "title": "Чекліст",
+      "description": "Світ: перевірка за планом; без реальних даних — стоп",
+      "prompt": "Проведи перевірку ідеї з тим, що вже відомо.\n\nОбов’язково:\n1. проблема сформульована («Кого болить»);\n2. план із порогом («Як перевірити»);\n3. метод, обраний у плані, реально зроблений (інтерв’ю та/або міні-перевірка — не обов’язково обидва);\n4. конкуренти/open source, якщо це впливає на рішення;\n5. поріг досягнуто.\n\nБракує реальних даних для обов’язкового пункту — не PASS; поверни до тієї карти. Не вигадуй дані. Той самий пункт провалюється 2–3 рази — зміни метод, звузь ідею або зупинись.\n\nФінальний PASS лише якщо поріг закрито фактами.\n\nПроєкт може бути порожнім — немає факту = не PASS.\nЗаборонено: вигадувати докази; ставити PASS зі співчуття чи тому що «ідея гарна»; лестити.\n\nЗаверши рівно двома рядками:\nKEYCODE_GATE: PASS\nKEYCODE_NEXT: spec-v1/brief\n\nабо:\nKEYCODE_GATE: FAIL\nKEYCODE_NEXT: validate-v1/evidence-plan\n\n(якщо знаєш відсутню карту — замініть evidence-plan на problem, interview, market, experiment або pivot)",
       "image": "world",
-      "hotkey": "F8"
+      "hotkey": ""
     },
     {
       "id": "summary",
-      "title": "Зведення",
-      "description": "High Priestess: hypothesis / evidence / gaps / next",
-      "prompt": "Read this chat. Do not write or change code. Do not invent evidence.\n\nReply in four short blocks (1–3 bullets each):\n1. Hypothesis\n2. Evidence (only what exists)\n3. Gaps\n4. Next step (name Problem / Evidence plan / Interview / Market / Experiment / Verdict / Pivot)\n\nNo KEYCODE_SCORE, KEYCODE_GATE, or KEYCODE_NEXT lines.",
+      "title": "Підсумок",
+      "description": "Верховна жриця: гіпотеза / докази / прогалини / далі",
+      "prompt": "Прочитай цей чат. Не пиши й не змінюй код. Не вигадуй докази.\n\nЧотири короткі блоки (по 1–3 пункти):\n1. Гіпотеза\n2. Докази (лише те, що є)\n3. Прогалини\n4. Наступний крок — одна карта: Кого болить / Як перевірити / Питання людям / Що вже є / Міні-перевірка / Вердикт / Змінити ідею / Чекліст\n\nПроєкт може бути порожнім — пиши лише те, що видно в чаті.\nЗаборонено: вигадувати виконану роботу; писати чи змінювати код; додавати рядки KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT або KEYCODE_STATUS.\n\nНе додавай рядки KEYCODE_SCORE, KEYCODE_GATE, KEYCODE_NEXT або KEYCODE_STATUS.",
       "image": "high_priestess",
       "hotkey": ""
     }

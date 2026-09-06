@@ -20,13 +20,37 @@ let state = {
   transcriptHash: "",
   transcriptStickBottom: true,
   transcriptTargetId: "",
+  chatComposer: null,
+  clarifications: [],
+  chatBusy: false,
   /** @type {Array<{ cardId: string, rank: 1 | 2 }>} */
   suggestions: [],
+  /** @type {Record<string, string>} Cursor-like status per target id */
+  chatStatuses: {},
 };
 
 /** @type {ReturnType<typeof setInterval> | null} */
 let transcriptPollTimer = null;
+/** @type {ReturnType<typeof setInterval> | null} */
+let statusPollTimer = null;
+let statusPollBusy = false;
 let transcriptBusy = false;
+let deckListening = false;
+let deckDictationSession = 0;
+let deckDictationBase = "";
+/** @type {ReturnType<typeof setTimeout> | null} */
+let deckDictationMaxTimer = null;
+/** @type {MediaStream | null} */
+let deckMicStream = null;
+/** @type {AudioContext | null} */
+let deckAudioCtx = null;
+/** @type {ScriptProcessorNode | null} */
+let deckProcessor = null;
+/** @type {number[]} */
+let deckPcmChunks = [];
+let deckSpeechSeen = false;
+let deckSilentFrames = 0;
+let deckDictationBusy = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -68,7 +92,13 @@ function applyDockClass(dock, horizontal, expanded) {
   document.querySelectorAll(".dock-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-dock") === state.dock);
   });
+  // Side docks don't need the frozen edge width used by top/bottom chat.
+  if (state.dock !== "top" && state.dock !== "bottom") {
+    const col = document.querySelector(".deck-col");
+    if (col) col.style.minWidth = "";
+  }
   applySideLayoutClass();
+  syncDeckCards();
 }
 
 function isSideDock() {
@@ -162,23 +192,52 @@ function applyCardFonts(settings) {
   document.documentElement.style.setProperty("--card-action-size", `${action}px`);
 }
 
-/** Карты и кнопки одной ширины: масштаб задаёт размер кнопки → ширина полосы = ширина карты */
+function applyChatFonts(settings) {
+  const clamp = (value) => Math.min(20, Math.max(8, Number(value) || 10));
+  document.documentElement.style.setProperty(
+    "--chat-message-font-size",
+    `${clamp(settings?.chatMessageFontPx)}px`
+  );
+  document.documentElement.style.setProperty(
+    "--chat-composer-font-size",
+    `${clamp(settings?.chatComposerFontPx)}px`
+  );
+}
+
+/**
+ * Card scale and chat scale are independent.
+ * Control chrome (👁⚙…) never shrinks below 100% so buttons stay usable when cards get smaller.
+ * Card pixel size comes only from Settings → panelScale (never from chat height).
+ * UI 100% matches the former 75% look (PANEL_SCALE_VISUAL_REF).
+ */
 function applyPanelScale(settings) {
-  const s = Math.min(1.5, Math.max(0.75, Number(settings?.panelScale) || 1));
-  const btn = Math.round(24 * s);
-  const gap = Math.max(1, Math.round(2 * s));
-  const cardGap = Math.max(1, Math.round(2 * s));
+  const PANEL_SCALE_MIN = 0.3;
+  const PANEL_SCALE_MAX = 3;
+  const PANEL_SCALE_VISUAL_REF = 0.75;
+  const stored = Math.min(
+    PANEL_SCALE_MAX,
+    Math.max(PANEL_SCALE_MIN, Number(settings?.panelScale) || 1)
+  );
+  const cardS = stored * PANEL_SCALE_VISUAL_REF;
+  const chatS = Math.min(1.5, Math.max(0.75, Number(settings?.chatScale) || 1));
+  const btnS = Math.max(1, cardS);
+  const btn = Math.round(24 * btnS);
+  const gap = Math.max(1, Math.round(2 * btnS));
+  const cardGap = Math.max(1, Math.round(2 * cardS));
   const root = document.documentElement;
   root.style.setProperty("--corner-btn-size", `${btn}px`);
   root.style.setProperty("--corner-gap", `${gap}px`);
   root.style.setProperty("--titlebar-h", `${btn}px`);
   root.style.setProperty("--card-gap", `${cardGap}px`);
   root.style.setProperty("--hub-w", `${Math.round(btn + 12)}px`);
-  root.style.setProperty("--rail-w", `${Math.round(148 * s)}px`);
-  root.style.setProperty("--radius", `${Math.round(8 * s)}px`);
-  root.style.setProperty("--radius-inner", `${Math.round(6 * s)}px`);
-  root.style.setProperty("--corner-font-size", `${Math.max(11, Math.round(14 * s))}px`);
-  root.style.setProperty("--table-gap", `${Math.max(2, Math.round(4 * s))}px`);
+  root.style.setProperty("--rail-w", `${Math.round(148 * btnS)}px`);
+  root.style.setProperty("--radius", `${Math.round(8 * btnS)}px`);
+  root.style.setProperty("--radius-inner", `${Math.round(6 * btnS)}px`);
+  root.style.setProperty("--corner-font-size", `${Math.max(11, Math.round(14 * btnS))}px`);
+  root.style.setProperty("--table-gap", `${Math.max(2, Math.round(4 * cardS))}px`);
+  root.style.setProperty("--card-scale", String(cardS / btnS));
+  root.style.setProperty("--chat-scale", String(chatS));
+  applyTranscriptHeight(settings?.deckTranscriptHeightPx);
 }
 
 function waitForCardImages(timeoutMs = 1200) {
@@ -218,6 +277,10 @@ function applyI18nPack(pack) {
     const hotkey = state.settings?.showHotkey || "F9";
     hide.title = window.I18n.t("deck.hideTitle", { hotkey });
   }
+  syncTranscriptToggleBtn(state.settings?.deckTranscriptOpen !== false);
+  syncCardsToggleBtn(state.settings?.deckCardsOpen !== false);
+  syncManualToggleBtn(deckComposerWanted());
+  if (isOnboardingVisible()) renderOnboardingStep();
 }
 
 async function refresh() {
@@ -231,6 +294,7 @@ async function refresh() {
   applyFullscreenEdit(!!data.fullscreenEdit);
   applyOpacity(data.settings);
   applyCardFonts(data.settings);
+  applyChatFonts(data.settings);
   applyPanelScale(data.settings);
   renderAll();
   maybeShowOnboarding();
@@ -240,8 +304,8 @@ function renderAll() {
   renderDeckSelect();
   syncTargetsBadge();
   renderDestBar();
-  syncDeckTranscript();
   renderCards();
+  syncDeckTranscript();
   renderPhaseNext();
   document.body.classList.toggle("edit-mode", state.editMode);
 }
@@ -343,6 +407,68 @@ function shortDestLabel(name, max = 10) {
   return s.slice(0, max - 1) + "…";
 }
 
+/** Prefer live solo transcript signals over stale sidebar scrape. */
+function effectiveChatStatus(targetId) {
+  const id = String(targetId || "");
+  if (!id) return "";
+  const mode = String(state.settings?.pasteMode || "").toLowerCase();
+  if (mode === "solo" && id === state.settings?.activeTargetId) {
+    if (state.chatComposer?.generating === true) return "running";
+    if (Array.isArray(state.clarifications) && state.clarifications.length) {
+      return "needs-attention";
+    }
+  }
+  return String(state.chatStatuses?.[id] || "");
+}
+
+function stopStatusPoll() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
+  }
+}
+
+function startStatusPoll() {
+  stopStatusPoll();
+  statusPollTimer = setInterval(() => {
+    refreshChatStatuses().catch(() => {});
+  }, 3000);
+}
+
+async function refreshChatStatuses() {
+  const targets = (state.settings?.targets || []).filter((t) => t.driver === "cdp");
+  if (!targets.length) {
+    state.chatStatuses = {};
+    stopStatusPoll();
+    return;
+  }
+  if (statusPollBusy) return;
+  if (!state.revealed && !state.pinnedOpen && !state.fullscreenEdit) return;
+  statusPollBusy = true;
+  try {
+    const result = await window.keycode.deckChatStatuses();
+    if (result?.ok && result.statuses && typeof result.statuses === "object") {
+      state.chatStatuses = result.statuses;
+    }
+    applyDestChipStatuses();
+  } catch {
+    /* ignore transient CDP blips */
+  } finally {
+    statusPollBusy = false;
+  }
+}
+
+function applyDestChipStatuses() {
+  const chipsEl = $("dest-chips");
+  if (!chipsEl) return;
+  for (const btn of chipsEl.querySelectorAll("[data-target]")) {
+    const id = btn.getAttribute("data-target") || "";
+    const status = effectiveChatStatus(id);
+    if (status) btn.setAttribute("data-status", status);
+    else btn.removeAttribute("data-status");
+  }
+}
+
 function renderDestBar() {
   const bar = $("dest-bar");
   const presetsEl = $("dest-presets");
@@ -354,6 +480,8 @@ function renderDestBar() {
     bar.classList.add("hidden");
     presetsEl.innerHTML = "";
     chipsEl.innerHTML = "";
+    state.chatStatuses = {};
+    stopStatusPoll();
     return;
   }
 
@@ -377,13 +505,29 @@ function renderDestBar() {
   chipsEl.innerHTML = targets
     .map((t) => {
       const active = mode === "solo" && t.id === activeTargetId;
+      const status = t.driver === "cdp" ? effectiveChatStatus(t.id) : "";
+      const statusAttr = status ? ` data-status="${escapeAttr(status)}"` : "";
       return `<button type="button" class="dest-chip${active ? " active" : ""}" data-target="${escapeAttr(
         t.id
-      )}" title="${escapeAttr(t.name)}" aria-pressed="${active ? "true" : "false"}">${escapeHtml(
+      )}"${statusAttr} title="${escapeAttr(t.name)}" aria-pressed="${active ? "true" : "false"}"><span class="dest-chip-dot" aria-hidden="true"></span><span class="dest-chip-label">${escapeHtml(
         shortDestLabel(t.name, 9)
-      )}</button>`;
+      )}</span></button>`;
     })
     .join("");
+
+  const pruneBtn = $("btn-dest-prune");
+  if (pruneBtn) {
+    const showPrune = mode === "solo" && activeTargetId && targets.length > 1;
+    pruneBtn.classList.toggle("hidden", !showPrune);
+  }
+
+  const hasCdp = targets.some((t) => t.driver === "cdp");
+  if (hasCdp) {
+    if (!statusPollTimer) startStatusPoll();
+    refreshChatStatuses().catch(() => {});
+  } else {
+    stopStatusPoll();
+  }
 }
 
 async function selectDestSolo(targetId) {
@@ -431,6 +575,34 @@ async function selectDestPreset(presetId) {
     activePresetId: presetId,
     targets,
   });
+  renderAll();
+}
+
+async function removeOtherDestinations() {
+  const mode = String(state.settings?.pasteMode || "").toLowerCase();
+  const activeId = state.settings?.activeTargetId || "";
+  const targets = state.settings?.targets || [];
+  if (mode !== "solo" || !activeId || targets.length <= 1) {
+    toast(window.I18n.t("dest.removeOthersNone"), "error");
+    return;
+  }
+  const kept = targets.find((t) => t.id === activeId);
+  if (!kept) return;
+  const removed = targets.length - 1;
+  const targetPresets = (state.settings?.targetPresets || [])
+    .map((p) => ({
+      ...p,
+      targetIds: (p.targetIds || []).filter((id) => id === activeId),
+    }))
+    .filter((p) => (p.targetIds || []).length > 0);
+  state.settings = await window.keycode.saveSettings({
+    targets: [kept],
+    targetPresets,
+    pasteMode: "solo",
+    activeTargetId: activeId,
+    activePresetId: "",
+  });
+  toast(window.I18n.t("dest.removeOthersDone", { n: removed }), "ok");
   renderAll();
 }
 
@@ -517,15 +689,88 @@ function startTranscriptPoll() {
 
 function clampTranscriptHeight(px) {
   const n = Number(px);
-  if (!Number.isFinite(n)) return 168;
-  return Math.min(420, Math.max(80, Math.round(n)));
+  if (!Number.isFinite(n)) return 208;
+  return Math.min(900, Math.max(80, Math.round(n)));
 }
 
+function transcriptComposerVisible() {
+  const controls = $("deck-chat-controls");
+  return controls && !controls.classList.contains("hidden");
+}
+
+function deckComposerWanted() {
+  return state.settings?.deckComposerOpen === true;
+}
+
+function syncManualToggleBtn(open) {
+  const btn = $("btn-deck-manual");
+  if (!btn) return;
+  const isOpen = open === true;
+  btn.setAttribute("aria-pressed", isOpen ? "true" : "false");
+  const titleKey = isOpen ? "deck.manualHide" : "deck.manualShow";
+  const title = window.I18n.t(titleKey);
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+  const label = btn.querySelector(".deck-manual-label");
+  if (label) label.textContent = title;
+  const icon = btn.querySelector(".deck-manual-icon");
+  if (icon) icon.textContent = isOpen ? "▴" : "⌨";
+}
+
+async function toggleDeckComposer() {
+  const open = deckComposerWanted();
+  const next = !open;
+  const chatS = Math.min(1.5, Math.max(0.75, Number(state.settings?.chatScale) || 1));
+  const patch = { deckComposerOpen: next };
+  if (next) {
+    // Grow chat so composer does not steal message space; cards shift down.
+    const cur = clampTranscriptHeight(state.settings?.deckTranscriptHeightPx);
+    const want = Math.max(cur, Math.round(220 * chatS));
+    if (want > cur) patch.deckTranscriptHeightPx = Math.min(900, want);
+  }
+  state.settings = await window.keycode.saveSettings(patch);
+  const allowed =
+    String(state.settings?.pasteMode || "").toLowerCase() === "solo" &&
+    !!soloCdpTarget() &&
+    state.settings?.deckTranscriptOpen !== false;
+  setDeckChatControlsVisible(allowed);
+  // Composer appeared/disappeared — refresh click-through hit targets
+  lastIgnoreMouse = null;
+  syncMousePassthroughFromCursor();
+  if (next) {
+    requestAnimationFrame(() => $("deck-composer-input")?.focus());
+  }
+}
+
+function transcriptMinHeight() {
+  const chatS = Math.min(1.5, Math.max(0.75, Number(state.settings?.chatScale) || 1));
+  if (transcriptComposerVisible()) {
+    // Composer + toolbar must stay fully visible (scaled).
+    return Math.round(148 * chatS);
+  }
+  return 80;
+}
+
+/** Chat height only — never changes card size (that is Settings → panelScale). */
 function applyTranscriptHeight(px) {
   const pane = $("deck-transcript");
   if (!pane) return;
-  const h = clampTranscriptHeight(px ?? state.settings?.deckTranscriptHeightPx);
-  pane.style.height = `${h}px`;
+
+  const minH = transcriptMinHeight();
+  let want = clampTranscriptHeight(px ?? state.settings?.deckTranscriptHeightPx);
+  want = Math.max(want, minH);
+
+  let applied = want;
+  if (document.body.classList.contains("side-layout-table") && isSideDock()) {
+    const header = document.querySelector(".deck-hub");
+    const headerH = Number(header?.offsetHeight || 0);
+    const viewport = window.innerHeight * 0.96;
+    // Allow chat almost full height; cards keep settings size and scroll below if needed.
+    const maxChat = Math.max(minH, Math.floor(viewport - headerH - 16));
+    applied = Math.min(want, maxChat);
+  }
+
+  pane.style.height = `${applied}px`;
 }
 
 function syncTranscriptToggleBtn(open) {
@@ -541,12 +786,63 @@ function syncTranscriptToggleBtn(open) {
   if (icon) icon.textContent = isOpen ? "▴" : "▾";
 }
 
+function syncCardsToggleBtn(open) {
+  const btn = $("btn-cards-toggle");
+  if (!btn) return;
+  const isOpen = open !== false;
+  btn.setAttribute("aria-pressed", isOpen ? "true" : "false");
+  const titleKey = isOpen ? "deck.cardsHide" : "deck.cardsShow";
+  const title = window.I18n.t(titleKey);
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+  const icon = btn.querySelector("span");
+  if (icon) icon.textContent = isOpen ? "▦" : "▢";
+}
+
 async function toggleDeckTranscript() {
   const open = state.settings?.deckTranscriptOpen !== false;
   state.settings = await window.keycode.saveSettings({
     deckTranscriptOpen: !open,
   });
   syncDeckTranscript();
+}
+
+async function toggleDeckCards() {
+  const open = state.settings?.deckCardsOpen !== false;
+  state.settings = await window.keycode.saveSettings({
+    deckCardsOpen: !open,
+  });
+  syncDeckCards();
+}
+
+function syncDeckCards() {
+  const wantOpen = state.settings?.deckCardsOpen !== false;
+  const col = document.querySelector(".deck-col");
+  const topBottom = state.dock === "top" || state.dock === "bottom";
+  const wasCollapsed = document.body.classList.contains("cards-collapsed");
+
+  // Freeze column width before hiding cards so chat stays full-width on top/bottom.
+  if (topBottom && col && !wantOpen && !wasCollapsed) {
+    const w = Math.ceil(col.getBoundingClientRect().width);
+    if (w > 80) col.style.minWidth = `${w}px`;
+  } else if (wantOpen && col) {
+    col.style.minWidth = "";
+  } else if (topBottom && col && !wantOpen && wasCollapsed && !col.style.minWidth) {
+    const n = Math.max(1, (state.deck?.cards || []).length);
+    const cardEl = document.querySelector(".card");
+    const cw = cardEl ? cardEl.getBoundingClientRect().width : 0;
+    if (cw > 20) {
+      col.style.minWidth = `${Math.ceil(n * cw + (n - 1) * 2)}px`;
+    }
+  }
+
+  document.body.classList.toggle("cards-collapsed", !wantOpen);
+  syncCardsToggleBtn(wantOpen);
+  const btn = $("btn-cards-toggle");
+  const targets = state.settings?.targets || [];
+  if (btn) btn.classList.toggle("hidden", !targets.length);
+  // Hotkeys still work while cards are hidden — only the strip is folded.
+  syncMousePassthroughFromCursor();
 }
 
 function syncDeckTranscript() {
@@ -560,10 +856,12 @@ function syncDeckTranscript() {
   const wantOpen = state.settings?.deckTranscriptOpen !== false;
   applyTranscriptHeight(state.settings?.deckTranscriptHeightPx);
   syncTranscriptToggleBtn(wantOpen);
+  syncDeckCards();
 
   if (!targets.length) {
     pane.classList.add("hidden");
     if (toggle) toggle.classList.add("hidden");
+    setDeckChatControlsVisible(false);
     stopTranscriptPoll();
     state.transcriptHash = "";
     state.transcriptTargetId = "";
@@ -574,6 +872,7 @@ function syncDeckTranscript() {
 
   if (!wantOpen) {
     pane.classList.add("hidden");
+    setDeckChatControlsVisible(false);
     stopTranscriptPoll();
     return;
   }
@@ -582,6 +881,7 @@ function syncDeckTranscript() {
   pane.classList.remove("hidden");
 
   if (mode !== "solo") {
+    setDeckChatControlsVisible(false);
     stopTranscriptPoll();
     state.transcriptHash = "";
     state.transcriptTargetId = "";
@@ -595,6 +895,7 @@ function syncDeckTranscript() {
 
   const target = soloCdpTarget();
   if (!target) {
+    setDeckChatControlsVisible(false);
     stopTranscriptPoll();
     state.transcriptHash = "";
     state.transcriptTargetId = "";
@@ -608,15 +909,19 @@ function syncDeckTranscript() {
 
   const switched = state.transcriptTargetId !== target.id;
   if (switched) {
+    stopDeckDictation();
     state.transcriptTargetId = target.id;
     state.transcriptHash = "";
     state.transcriptStickBottom = true;
+    state.chatComposer = null;
+    state.clarifications = [];
     clearDeckSuggestions();
     $("deck-transcript-msgs").innerHTML = "";
     empty.classList.remove("hidden");
     empty.textContent = window.I18n.t("deck.transcriptLoading");
     refreshDeckTranscript({ select: true }).catch(() => {});
   }
+  setDeckChatControlsVisible(true);
   if (!transcriptPollTimer) startTranscriptPoll();
 }
 
@@ -637,6 +942,7 @@ async function refreshDeckTranscript({ select = false } = {}) {
     });
     if (!soloCdpTarget() || soloCdpTarget()?.id !== target.id) return;
     if (!result?.ok) {
+      setDeckChatControlsVisible(false);
       if (!state.transcriptHash) {
         empty.classList.remove("hidden");
         empty.textContent =
@@ -653,9 +959,18 @@ async function refreshDeckTranscript({ select = false } = {}) {
       clearDeckSuggestions();
       return;
     }
+    setDeckChatControlsVisible(true);
     const hash = String(result.hash || "");
+    state.chatComposer = result.composer
+      ? { ...state.chatComposer, ...result.composer }
+      : state.chatComposer;
+    state.clarifications = Array.isArray(result.clarifications)
+      ? result.clarifications
+      : [];
+    renderDeckChatControls();
     if (hash && hash === state.transcriptHash) {
       pane.classList.toggle("is-generating", result.generating === true);
+      applyDestChipStatuses();
       // Still apply suggestions when idle (deck may have changed)
       if (result.generating !== true && Array.isArray(result.suggestions)) {
         applyDeckSuggestions(result.suggestions);
@@ -665,6 +980,7 @@ async function refreshDeckTranscript({ select = false } = {}) {
     state.transcriptHash = hash || state.transcriptHash;
     renderDeckMessages(result.messages || []);
     pane.classList.toggle("is-generating", result.generating === true);
+    applyDestChipStatuses();
     if (result.generating === true) {
       // Keep cleared/frozen highlights while Cursor is generating
     } else if (Array.isArray(result.suggestions)) {
@@ -674,6 +990,551 @@ async function refreshDeckTranscript({ select = false } = {}) {
     }
   } finally {
     transcriptBusy = false;
+  }
+}
+
+function setDeckChatControlsVisible(allowed) {
+  const controls = $("deck-chat-controls");
+  const bar = $("deck-manual-bar");
+  const open = !!allowed && deckComposerWanted();
+  if (controls) controls.classList.toggle("hidden", !open);
+  if (bar) bar.classList.toggle("hidden", !allowed);
+  syncManualToggleBtn(open);
+  if (!open) {
+    stopDeckDictation();
+  }
+  if (!allowed) {
+    state.clarifications = [];
+    $("deck-clarifications")?.classList.add("hidden");
+  } else if (open) {
+    renderDeckChatControls();
+  }
+  applyTranscriptHeight(state.settings?.deckTranscriptHeightPx);
+}
+
+function setDeckChatStatus(key, vars) {
+  const el = $("deck-composer-status");
+  if (el) el.textContent = window.I18n.t(key, vars);
+}
+
+function renderDeckClarifications() {
+  const root = $("deck-clarifications");
+  if (!root) return;
+  root.innerHTML = "";
+  const list = Array.isArray(state.clarifications) ? state.clarifications : [];
+  if (!list.length) {
+    root.classList.add("hidden");
+    return;
+  }
+  root.classList.remove("hidden");
+  const frag = document.createDocumentFragment();
+  for (const question of list) {
+    if (!Array.isArray(question?.options) || !question.options.length) continue;
+    const card = document.createElement("section");
+    card.className = "deck-clarification";
+    const prompt = document.createElement("p");
+    prompt.className = "deck-clarification-prompt";
+    prompt.textContent = String(question.prompt || "");
+    card.appendChild(prompt);
+    const options = document.createElement("div");
+    options.className = "deck-clarification-options";
+    for (const option of question.options) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "deck-clarify-option";
+      button.dataset.qid = String(question.id || "");
+      button.dataset.oid = String(option.id || "");
+      button.dataset.label = String(option.label || "");
+      button.dataset.prompt = String(question.prompt || "");
+      button.textContent = String(option.label || "");
+      button.disabled = state.chatBusy || state.chatComposer?.generating === true;
+      options.appendChild(button);
+    }
+    card.appendChild(options);
+    frag.appendChild(card);
+  }
+  root.appendChild(frag);
+  if (!root.childElementCount) root.classList.add("hidden");
+}
+
+function renderDeckModelLabel() {
+  const modelEl = $("deck-model");
+  if (!modelEl) return;
+  const composer = state.chatComposer || {};
+  const label = String(composer.modelLabel || composer.modelId || "").trim();
+  const text = label || "—";
+  modelEl.textContent = text;
+  modelEl.title = label ? text : window.I18n.t("deck.chatModel");
+}
+
+function renderDeckChatControls() {
+  const controls = $("deck-chat-controls");
+  if (!controls || controls.classList.contains("hidden")) return;
+  const composer = state.chatComposer || {};
+  const busy = state.chatBusy;
+  const generating = composer.generating === true;
+  const modeEl = $("deck-mode");
+  if (modeEl) {
+    const modes = Array.isArray(composer.modes) && composer.modes.length
+      ? composer.modes
+      : [
+          { id: "agent", label: "Agent" },
+          { id: "plan", label: "Plan" },
+          { id: "ask", label: "Ask" },
+          { id: "debug", label: "Debug" },
+        ];
+    const cur = String(composer.mode || "agent").toLowerCase();
+    const prev = modeEl.dataset.modeOpts || "";
+    const next = modes.map((m) => m.id).join(",");
+    if (prev !== next) {
+      modeEl.innerHTML = modes
+        .map((m) => {
+          const id = String(m.id || "").trim();
+          const label =
+            window.I18n.t(`deck.mode_${id}`) !== `deck.mode_${id}`
+              ? window.I18n.t(`deck.mode_${id}`)
+              : String(m.label || id);
+          return `<option value="${id}">${label}</option>`;
+        })
+        .join("");
+      modeEl.dataset.modeOpts = next;
+    }
+    if ([...modeEl.options].some((o) => o.value === cur)) modeEl.value = cur;
+    else modeEl.value = "agent";
+    modeEl.disabled = busy;
+  }
+  renderDeckModelLabel();
+  const input = $("deck-composer-input");
+  const send = $("btn-deck-send");
+  const mic = $("btn-deck-mic");
+  if (input) input.disabled = busy || generating;
+  if (send) {
+    send.disabled = busy || generating || !String(input?.value || "").trim();
+    send.textContent =
+      String(composer.submitLabel || "").trim().slice(0, 24) ||
+      window.I18n.t(composer.submitKind === "build" ? "deck.chatBuild" : "deck.chatSend");
+  }
+  if (mic) {
+    mic.disabled = busy || generating || deckDictationBusy;
+    mic.classList.toggle("listening", deckListening);
+    mic.setAttribute("aria-pressed", deckListening ? "true" : "false");
+    mic.title = window.I18n.t("deck.chatMicTitle");
+    mic.setAttribute("aria-label", mic.title);
+  }
+  const autoSend = $("deck-dictate-auto-send");
+  if (autoSend) {
+    autoSend.checked = state.settings?.deckDictateAutoSend === true;
+    autoSend.disabled = busy || generating || deckDictationBusy;
+  }
+  if (deckListening) {
+    setDeckChatStatus("deck.chatListening");
+  } else if (deckDictationBusy) {
+    setDeckChatStatus("deck.chatTranscribing");
+  } else {
+    setDeckChatStatus(
+      state.chatBusy
+        ? "deck.chatSending"
+        : generating
+          ? "deck.chatWorking"
+          : "deck.chatReady"
+    );
+  }
+  renderDeckClarifications();
+}
+
+function deckDictationEngine() {
+  return String(state.settings?.dictationEngine || "gigaam").toLowerCase() ===
+    "windows"
+    ? "windows"
+    : "gigaam";
+}
+
+function deckSpeechLang() {
+  const loc = String(
+    window.I18n?.getUiLocale?.() ||
+      state.settings?.uiLocale ||
+      navigator.language ||
+      "en"
+  ).toLowerCase();
+  if (loc === "system") {
+    return deckSpeechLangFromTag(navigator.language || "en");
+  }
+  return deckSpeechLangFromTag(loc);
+}
+
+function deckSpeechLangFromTag(tag) {
+  const loc = String(tag || "en").toLowerCase();
+  if (loc.startsWith("ru")) return "ru-RU";
+  if (loc.startsWith("uk")) return "uk-UA";
+  if (loc.startsWith("de")) return "de-DE";
+  if (loc.startsWith("es")) return "es-ES";
+  if (loc.startsWith("fr")) return "fr-FR";
+  if (loc.startsWith("pt")) return "pt-BR";
+  if (loc.startsWith("zh")) return "zh-CN";
+  if (loc.startsWith("ja")) return "ja-JP";
+  if (loc.startsWith("pl")) return "pl-PL";
+  return "en-US";
+}
+
+function clearDeckDictationMaxTimer() {
+  if (deckDictationMaxTimer) {
+    clearTimeout(deckDictationMaxTimer);
+    deckDictationMaxTimer = null;
+  }
+}
+
+function teardownDeckMic() {
+  clearDeckDictationMaxTimer();
+  try {
+    deckProcessor?.disconnect();
+  } catch {
+    /* ignore */
+  }
+  deckProcessor = null;
+  try {
+    deckAudioCtx?.close();
+  } catch {
+    /* ignore */
+  }
+  deckAudioCtx = null;
+  if (deckMicStream) {
+    for (const track of deckMicStream.getTracks()) {
+      try {
+        track.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  deckMicStream = null;
+}
+
+function stopDeckDictation() {
+  deckDictationSession += 1;
+  deckListening = false;
+  teardownDeckMic();
+  renderDeckChatControls();
+}
+
+function downsampleTo16k(float32, inputRate) {
+  const rate = Number(inputRate) || 48000;
+  if (rate === 16000) return float32;
+  const ratio = rate / 16000;
+  const outLen = Math.max(1, Math.floor(float32.length / ratio));
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const idx = Math.floor(i * ratio);
+    out[i] = float32[idx] || 0;
+  }
+  return out;
+}
+
+function rmsOf(buffer) {
+  let sum = 0;
+  for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+  return Math.sqrt(sum / Math.max(1, buffer.length));
+}
+
+/** Seconds of hush before auto-end; Settings → General. */
+function deckDictationSilenceSec() {
+  const n = Number(state.settings?.dictationSilenceSec);
+  if (!Number.isFinite(n)) return 3.5;
+  return Math.min(15, Math.max(1, n));
+}
+
+/** Max take ms; 0 = unlimited. */
+function deckDictationMaxMs() {
+  const n = Number(state.settings?.dictationMaxSec);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(1800, Math.max(5, Math.round(n))) * 1000;
+}
+
+async function finishDeckDictation(session, input, base, lang) {
+  if (session !== deckDictationSession || deckDictationBusy) return;
+  deckDictationBusy = true;
+  // Invalidate duplicate finishers (silence + max timer + click).
+  deckDictationSession += 1;
+  deckListening = false;
+  const chunks = deckPcmChunks;
+  const inputRate = deckAudioCtx?.sampleRate || 48000;
+  teardownDeckMic();
+  renderDeckChatControls();
+  setDeckChatStatus("deck.chatTranscribing");
+
+  try {
+    if (!chunks.length) {
+      toast(window.I18n.t("deck.chatMicError"), "error");
+      return;
+    }
+    const merged = new Float32Array(chunks.length);
+    for (let i = 0; i < chunks.length; i++) merged[i] = chunks[i];
+    const pcm16k = downsampleTo16k(merged, inputRate);
+    // Pass a plain number[] — ArrayBuffer can arrive empty/odd via Electron IPC.
+    const samples = Array.from(pcm16k);
+    const result = await window.keycode.dictateTranscribe({
+      lang,
+      engine: deckDictationEngine(),
+      samples,
+      sampleRate: 16000,
+    });
+    if (!result?.ok) {
+      const key =
+        result?.hint === "no_speech"
+          ? "deck.chatMicError"
+          : result?.hint === "no_lang"
+            ? "deck.chatMicNoLang"
+            : result?.hint === "gigaam_setup_failed"
+              ? "deck.chatMicGigaamSetup"
+              : result?.hint === "gigaam_failed"
+                ? "deck.chatMicGigaamFail"
+                : /denied|access|микрофон|microphone/i.test(
+                      String(result?.error || "")
+                    )
+                  ? "deck.chatMicDenied"
+                  : "deck.chatMicError";
+      const detail = String(result?.error || "").trim();
+      toast(
+        detail && key === "deck.chatMicError"
+          ? `${window.I18n.t(key)} (${detail.slice(0, 120)})`
+          : window.I18n.t(key),
+        "error"
+      );
+      return;
+    }
+    const spoken = String(result.text || "").trim();
+    if (!spoken) {
+      toast(window.I18n.t("deck.chatMicError"), "error");
+      return;
+    }
+    if (input) {
+      input.value = [base, spoken].filter(Boolean).join(" ").trim();
+    }
+    renderDeckChatControls();
+    if (state.settings?.deckDictateAutoSend === true) {
+      await sendDeckChatText();
+      return;
+    }
+    const engLabel =
+      result.engine === "windows"
+        ? window.I18n.t("deck.chatMicEngineWindows")
+        : window.I18n.t("deck.chatMicEngineGigaam");
+    toast(`${engLabel}: ${window.I18n.t("chatPick.micReady")}`, "ok");
+  } catch {
+    toast(window.I18n.t("deck.chatMicError"), "error");
+  } finally {
+    deckDictationBusy = false;
+    deckListening = false;
+    renderDeckChatControls();
+  }
+}
+
+async function startDeckDictation() {
+  if (state.chatBusy || deckDictationBusy) return;
+  if (deckListening) {
+    const input = $("deck-composer-input");
+    const session = deckDictationSession;
+    const base = deckDictationBase;
+    const lang = deckSpeechLang();
+    await finishDeckDictation(session, input, base, lang);
+    return;
+  }
+  const input = $("deck-composer-input");
+  if (!input) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    toast(window.I18n.t("deck.chatMicUnsupported"), "error");
+    return;
+  }
+
+  const lang = deckSpeechLang();
+  const base = String(input.value || "").trim();
+  deckDictationBase = base;
+  deckPcmChunks = [];
+  deckSpeechSeen = false;
+  deckSilentFrames = 0;
+  const session = ++deckDictationSession;
+
+  try {
+    deckMicStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+      video: false,
+    });
+  } catch {
+    toast(window.I18n.t("deck.chatMicDenied"), "error");
+    return;
+  }
+
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    deckAudioCtx = new Ctx();
+    const source = deckAudioCtx.createMediaStreamSource(deckMicStream);
+    const bufferSize = 4096;
+    deckProcessor = deckAudioCtx.createScriptProcessor(bufferSize, 1, 1);
+    const mute = deckAudioCtx.createGain();
+    mute.gain.value = 0;
+    // Keep ~0.2s before speech so word onsets are not clipped; drop earlier hush.
+    const preRollMax = Math.max(
+      bufferSize,
+      Math.round(0.2 * (deckAudioCtx.sampleRate || 48000))
+    );
+    /** @type {number[]} */
+    let preRoll = [];
+    deckProcessor.onaudioprocess = (ev) => {
+      if (session !== deckDictationSession) return;
+      const inputData = ev.inputBuffer.getChannelData(0);
+      const rms = rmsOf(inputData);
+      if (rms >= 0.015) {
+        if (!deckSpeechSeen && preRoll.length) {
+          for (let i = 0; i < preRoll.length; i++) deckPcmChunks.push(preRoll[i]);
+          preRoll = [];
+        }
+        deckSpeechSeen = true;
+        deckSilentFrames = 0;
+      } else if (deckSpeechSeen) {
+        deckSilentFrames += 1;
+      }
+      if (!deckSpeechSeen) {
+        for (let i = 0; i < inputData.length; i++) preRoll.push(inputData[i]);
+        if (preRoll.length > preRollMax) {
+          preRoll.splice(0, preRoll.length - preRollMax);
+        }
+      } else {
+        for (let i = 0; i < inputData.length; i++) {
+          deckPcmChunks.push(inputData[i]);
+        }
+      }
+      // Hush length from Settings (dictationSilenceSec). Click mic to finish sooner.
+      const silenceSec = deckDictationSilenceSec();
+      const framesForSilence = Math.max(
+        8,
+        Math.round((silenceSec * (deckAudioCtx?.sampleRate || 48000)) / bufferSize)
+      );
+      if (deckSpeechSeen && deckSilentFrames >= framesForSilence) {
+        finishDeckDictation(session, input, base, lang);
+      }
+    };
+    source.connect(deckProcessor);
+    deckProcessor.connect(mute);
+    mute.connect(deckAudioCtx.destination);
+  } catch {
+    teardownDeckMic();
+    toast(window.I18n.t("deck.chatMicError"), "error");
+    return;
+  }
+
+  deckListening = true;
+  renderDeckChatControls();
+  setDeckChatStatus("deck.chatListening");
+  clearDeckDictationMaxTimer();
+  const maxMs = deckDictationMaxMs();
+  if (maxMs > 0) {
+    deckDictationMaxTimer = setTimeout(() => {
+      if (session !== deckDictationSession) return;
+      finishDeckDictation(session, input, base, lang);
+    }, maxMs);
+  }
+}
+
+async function sendDeckChatText() {
+  const target = soloCdpTarget();
+  const input = $("deck-composer-input");
+  const text = String(input?.value || "");
+  if (!target || state.chatBusy || !text.trim()) return;
+  state.chatBusy = true;
+  renderDeckChatControls();
+  try {
+    const result = await window.keycode.pasteTextToTarget({
+      targetId: target.id,
+      text,
+    });
+    if (!result?.ok) {
+      toast(result?.error || window.I18n.t("deck.chatSendFailed"), "error");
+      return;
+    }
+    input.value = "";
+    toast(window.I18n.t("deck.chatSent"), "ok");
+    window.setTimeout(() => refreshDeckTranscript({ select: false }).catch(() => {}), 350);
+  } catch (error) {
+    toast(String(error?.message || error) || window.I18n.t("deck.chatSendFailed"), "error");
+  } finally {
+    state.chatBusy = false;
+    renderDeckChatControls();
+  }
+}
+
+function deckModeErrorMessage(result) {
+  const code = String(result?.hint || result?.error || "").toLowerCase();
+  if (code === "mode_not_applied") {
+    return window.I18n.t("deck.chatModeNotApplied");
+  }
+  if (code === "mode_not_found") {
+    return window.I18n.t("deck.chatModeNotFound");
+  }
+  if (code === "mode_ui_missing" || code === "composer_ui_missing") {
+    return window.I18n.t("deck.chatModeUiMissing");
+  }
+  if (
+    code === "chat_missing" ||
+    code === "chat_not_found" ||
+    code === "rebind" ||
+    /rebind|chat_not_found/i.test(String(result?.error || ""))
+  ) {
+    return window.I18n.t("deck.chatModeNeedRebind");
+  }
+  return result?.error || window.I18n.t("deck.chatModeFailed");
+}
+
+async function changeDeckChatMode(mode) {
+  const target = soloCdpTarget();
+  const want = String(mode || "").trim().toLowerCase();
+  if (!target || !want || state.chatBusy) return;
+  state.chatBusy = true;
+  renderDeckChatControls();
+  try {
+    const result = await window.keycode.setDeckChatMode({
+      targetId: target.id,
+      mode: want,
+    });
+    if (!result?.ok) {
+      toast(deckModeErrorMessage(result), "error");
+      renderDeckChatControls();
+      return;
+    }
+    if (result.composer) state.chatComposer = result.composer;
+    else state.chatComposer = { ...state.chatComposer, mode: want };
+    toast(window.I18n.t("deck.chatModeChanged"), "ok");
+  } finally {
+    state.chatBusy = false;
+    renderDeckChatControls();
+  }
+}
+
+async function answerDeckQuestion(button) {
+  const target = soloCdpTarget();
+  if (!target || state.chatBusy) return;
+  state.chatBusy = true;
+  renderDeckChatControls();
+  try {
+    const result = await window.keycode.answerDeckClarification({
+      targetId: target.id,
+      clarificationId: button.dataset.qid || "",
+      optionId: button.dataset.oid || "",
+      text: button.dataset.label || "",
+      prompt: button.dataset.prompt || "",
+    });
+    if (!result?.ok) {
+      toast(result?.error || window.I18n.t("deck.chatAnswerFailed"), "error");
+      return;
+    }
+    state.clarifications = [];
+    toast(window.I18n.t("deck.chatAnswered"), "ok");
+    window.setTimeout(() => refreshDeckTranscript({ select: false }).catch(() => {}), 250);
+  } finally {
+    state.chatBusy = false;
+    renderDeckChatControls();
   }
 }
 
@@ -999,6 +1860,9 @@ function showCardPreview(card, anchorEl) {
 }
 
 let lastIgnoreMouse = null;
+/** @type {ReturnType<typeof setInterval> | null} */
+let passthroughPollTimer = null;
+let passthroughPollBusy = false;
 
 function pointInRect(x, y, r, pad = 0) {
   return (
@@ -1060,6 +1924,14 @@ function hitCapturesMouse(x, y) {
     transcript &&
     !transcript.classList.contains("hidden") &&
     pointInRect(x, y, transcript.getBoundingClientRect(), 4)
+  ) {
+    return true;
+  }
+  const manualBar = document.getElementById("deck-manual-bar");
+  if (
+    manualBar &&
+    !manualBar.classList.contains("hidden") &&
+    pointInRect(x, y, manualBar.getBoundingClientRect(), 4)
   ) {
     return true;
   }
@@ -1130,6 +2002,37 @@ async function syncMousePassthroughFromCursor() {
   }
 }
 
+/**
+ * Windows often stops forwarding mousemove while another app is focused
+ * (setIgnoreMouseEvents + forward). Poll screen cursor so buttons stay clickable.
+ */
+function startPassthroughPoll() {
+  if (passthroughPollTimer) return;
+  passthroughPollTimer = setInterval(() => {
+    if (!state.revealed || passthroughPollBusy) return;
+    passthroughPollBusy = true;
+    window.keycode
+      .getCursorClient?.()
+      .then((p) => {
+        if (!p || typeof p.x !== "number" || !state.revealed) return;
+        updateMousePassthrough(p.x, p.y);
+      })
+      .catch(() => {
+        /* ignore */
+      })
+      .finally(() => {
+        passthroughPollBusy = false;
+      });
+  }, 50);
+}
+
+function stopPassthroughPoll() {
+  if (!passthroughPollTimer) return;
+  clearInterval(passthroughPollTimer);
+  passthroughPollTimer = null;
+  passthroughPollBusy = false;
+}
+
 function renderCards() {
   const root = $("cards");
   const cards = state.deck?.cards || [];
@@ -1156,7 +2059,8 @@ function renderCards() {
     .map((card, index) => {
       const preset = window.tarotPreset(card.image);
       const src = window.tarotImageUrl(card.image);
-      const action = shortAction(card.title || card.description);
+      const action =
+        String(card.title || "").trim() || shortAction(card.description, 4);
       const sug = (state.suggestions || []).find(
         (s) => s.cardId === card.id && (!s.deckId || s.deckId === active)
       );
@@ -1206,6 +2110,393 @@ function renderCards() {
     .join("");
 }
 
+const ONBOARDING_STEP_COUNT = 11;
+let onboardingStep = 0;
+let onboardingLayoutBound = false;
+
+/**
+ * Top → bottom on the deck, then Settings phone/decks, with mid + finale celebrations.
+ */
+const ONBOARDING_STEPS = [
+  { target: "#btn-corner-cdp", prepare: "cdp", pad: 6 },
+  { target: "#corner-dock", pad: 4 },
+  { target: "#deck-pager", pad: 5 },
+  { target: "#btn-new-chat", fallback: "#dest-bar", prepare: "dest", pad: 6 },
+  { target: "#deck-transcript", prepare: "transcript", pad: 6 },
+  {
+    target: "#deck-composer-shell",
+    fallback: "#btn-deck-manual",
+    prepare: "manual",
+    pad: 6,
+  },
+  { center: true, art: "assets/onboarding-mid.png", celebrate: true },
+  { target: "#cards", prepare: "cards", pad: 6 },
+  {
+    host: "settings",
+    settings: { page: "phone", highlight: "#settings-phone-spotlight" },
+  },
+  {
+    host: "settings",
+    settings: { page: "decks", highlight: "#settings-decks-tour" },
+  },
+  {
+    center: true,
+    art: "assets/onboarding-finale.png",
+    celebrate: true,
+    prepare: "farewell",
+    bravo: true,
+  },
+];
+
+function isOnboardingVisible() {
+  const el = $("onboarding");
+  return !!(el && !el.classList.contains("hidden"));
+}
+
+function resolveOnboardingTarget(sel) {
+  if (!sel) return null;
+  const el = document.querySelector(sel);
+  if (!el) return null;
+  if (el.classList.contains("hidden")) return null;
+  if (sel === "#cards") {
+    const first = el.querySelector(".card, button.card, [data-card-id]");
+    return first || el;
+  }
+  return el;
+}
+
+function rectsOverlap(a, b, margin = 0) {
+  return !(
+    a.right + margin <= b.left ||
+    a.left - margin >= b.right ||
+    a.bottom + margin <= b.top ||
+    a.top - margin >= b.bottom
+  );
+}
+
+function placeOnboardingCoach(targetEl, opts = {}) {
+  const hole = $("onboarding-hole");
+  const card = $("onboarding-card");
+  const arrow = $("onboarding-arrow");
+  if (!hole || !card) return;
+
+  const pad = opts.pad ?? 5;
+  const gap = 20;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const celebrate = !!opts.celebrate;
+  const cardW = Math.min(celebrate ? 360 : 300, vw - 24);
+
+  card.classList.toggle("celebrate", celebrate);
+  card.style.width = `${cardW}px`;
+
+  if (!targetEl) {
+    hole.style.display = "none";
+    if (arrow) {
+      arrow.className = "onboarding-arrow";
+      arrow.style.visibility = "hidden";
+    }
+    const cardH = Math.max(card.offsetHeight || 200, 160);
+    card.style.left = `${Math.max(12, (vw - cardW) / 2)}px`;
+    card.style.top = `${Math.max(12, (vh - cardH) / 2)}px`;
+    return;
+  }
+
+  const r = targetEl.getBoundingClientRect();
+  const holeLeft = Math.max(4, r.left - pad);
+  const holeTop = Math.max(4, r.top - pad);
+  const holeW = Math.min(vw - 8, r.width + pad * 2);
+  const holeH = Math.min(vh - 8, r.height + pad * 2);
+  const holeRight = holeLeft + holeW;
+  const holeBottom = holeTop + holeH;
+  const holeCx = holeLeft + holeW / 2;
+  const holeCy = holeTop + holeH / 2;
+  const holeBox = {
+    left: holeLeft,
+    top: holeTop,
+    right: holeRight,
+    bottom: holeBottom,
+  };
+
+  hole.style.display = "block";
+  hole.style.left = `${holeLeft}px`;
+  hole.style.top = `${holeTop}px`;
+  hole.style.width = `${holeW}px`;
+  hole.style.height = `${holeH}px`;
+
+  const cardH = Math.max(card.offsetHeight || 170, 140);
+
+  const candidates = [
+    { place: "below", left: holeCx - cardW / 2, top: holeBottom + gap },
+    { place: "above", left: holeCx - cardW / 2, top: holeTop - gap - cardH },
+    { place: "right", left: holeRight + gap, top: holeCy - cardH / 2 },
+    { place: "left", left: holeLeft - gap - cardW, top: holeCy - cardH / 2 },
+  ];
+
+  let best = null;
+  for (const c of candidates) {
+    const left = Math.min(Math.max(10, c.left), vw - cardW - 10);
+    const top = Math.min(Math.max(10, c.top), vh - cardH - 10);
+    const box = {
+      left,
+      top,
+      right: left + cardW,
+      bottom: top + cardH,
+    };
+    if (rectsOverlap(box, holeBox, 8)) continue;
+    const score = Math.abs(left - c.left) + Math.abs(top - c.top);
+    if (!best || score < best.score) {
+      best = { place: c.place, left, top, score };
+    }
+  }
+
+  if (!best) {
+    best = {
+      place: "below",
+      left: Math.min(Math.max(10, holeRight - cardW), vw - cardW - 10),
+      top: Math.min(holeBottom + gap, vh - cardH - 10),
+      score: 9999,
+    };
+  }
+
+  card.style.left = `${best.left}px`;
+  card.style.top = `${best.top}px`;
+
+  if (arrow) {
+    arrow.style.visibility = "visible";
+    arrow.className = `onboarding-arrow ${best.place}`;
+    if (best.place === "below" || best.place === "above") {
+      const ax = Math.min(Math.max(16, holeCx - best.left - 6), cardW - 28);
+      arrow.style.left = `${ax}px`;
+      arrow.style.right = "auto";
+      arrow.style.top = best.place === "below" ? "-7px" : "auto";
+      arrow.style.bottom = best.place === "above" ? "-7px" : "auto";
+    } else {
+      const ay = Math.min(Math.max(16, holeCy - best.top - 6), cardH - 28);
+      arrow.style.top = `${ay}px`;
+      arrow.style.bottom = "auto";
+      arrow.style.left = best.place === "right" ? "-7px" : "auto";
+      arrow.style.right = best.place === "left" ? "-7px" : "auto";
+    }
+  }
+}
+
+async function prepareOnboardingStep(step) {
+  if (!step) return;
+  if (step.prepare === "cdp") {
+    await refreshCdpCornerState();
+  }
+  if (step.prepare === "dest") {
+    const bar = $("dest-bar");
+    if (bar) bar.classList.remove("hidden");
+    $("btn-new-chat")?.classList.remove("hidden");
+  }
+  if (
+    step.prepare === "transcript" ||
+    step.prepare === "manual" ||
+    step.prepare === "cards"
+  ) {
+    const patch = {};
+    if (state.settings?.deckTranscriptOpen === false) {
+      patch.deckTranscriptOpen = true;
+    }
+    if (state.settings?.deckCardsOpen === false) {
+      patch.deckCardsOpen = true;
+    }
+    if (step.prepare === "manual" && state.settings?.deckComposerOpen !== true) {
+      patch.deckComposerOpen = true;
+      const chatS = Math.min(
+        1.5,
+        Math.max(0.75, Number(state.settings?.chatScale) || 1)
+      );
+      const cur = clampTranscriptHeight(state.settings?.deckTranscriptHeightPx);
+      const want = Math.max(cur, Math.round(220 * chatS));
+      if (want > cur) patch.deckTranscriptHeightPx = Math.min(900, want);
+    }
+    if (Object.keys(patch).length) {
+      state.settings = await window.keycode.saveSettings(patch);
+    }
+    syncDeckTranscript();
+    syncDeckCards();
+    $("deck-transcript")?.classList.remove("hidden");
+    if (step.prepare === "cards") {
+      $("cards-zone")?.classList.remove("hidden");
+      document.body.classList.remove("cards-collapsed");
+    }
+    if (step.prepare === "manual") {
+      $("deck-manual-bar")?.classList.remove("hidden");
+      setDeckChatControlsVisible(true);
+      syncManualToggleBtn(true);
+    }
+  }
+  if (step.prepare === "farewell") {
+    window.keycode.settingsFocusClear?.();
+    await window.keycode.closeSettings?.();
+    await window.keycode.closeTargets?.();
+    await window.keycode.focusDeck?.();
+    await new Promise((r) => setTimeout(r, 120));
+  }
+}
+
+function layoutOnboardingStep() {
+  if (!isOnboardingVisible()) return;
+  const root = $("onboarding");
+  const step = ONBOARDING_STEPS[onboardingStep] || {};
+  root?.classList.toggle("host-settings", step.host === "settings");
+  root?.classList.remove("host-targets");
+  if (step.host === "settings") {
+    return;
+  }
+  let target = resolveOnboardingTarget(step.target);
+  if (!target && step.fallback) {
+    target = resolveOnboardingTarget(step.fallback);
+  }
+  if (step.center) target = null;
+  placeOnboardingCoach(target, {
+    pad: step.pad,
+    celebrate: step.celebrate,
+  });
+}
+
+function ensureOnboardingLayoutListeners() {
+  if (onboardingLayoutBound) return;
+  onboardingLayoutBound = true;
+  window.addEventListener("resize", () => {
+    if (isOnboardingVisible()) layoutOnboardingStep();
+  });
+}
+
+function syncOnboardingArt(step) {
+  const art = $("onboarding-art");
+  if (!art) return;
+  if (step?.art) {
+    art.src = step.art;
+    art.classList.remove("hidden");
+  } else {
+    art.removeAttribute("src");
+    art.classList.add("hidden");
+  }
+}
+
+function renderOnboardingStep() {
+  if (!isOnboardingVisible()) return;
+  const idx = Math.max(0, Math.min(onboardingStep, ONBOARDING_STEP_COUNT - 1));
+  onboardingStep = idx;
+  const n = idx + 1;
+  const step = ONBOARDING_STEPS[idx] || {};
+  const title = $("onboarding-step-title");
+  const body = $("onboarding-body");
+  const next = $("onboarding-next");
+  const dots = $("onboarding-dots");
+  syncOnboardingArt(step);
+  if (title) title.textContent = window.I18n.t(`onboarding.s${n}.title`);
+  if (body) body.innerHTML = window.I18n.t(`onboarding.s${n}.body`);
+  if (next) {
+    const last = idx >= ONBOARDING_STEP_COUNT - 1;
+    const bravo = !!step.bravo;
+    next.textContent = window.I18n.t(
+      bravo ? "onboarding.bravo" : last ? "onboarding.done" : "onboarding.next"
+    );
+  }
+  if (dots) {
+    dots.innerHTML = "";
+    for (let i = 0; i < ONBOARDING_STEP_COUNT; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "onboarding-dot" + (i === idx ? " active" : "");
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", i === idx ? "true" : "false");
+      btn.setAttribute("aria-label", String(i + 1));
+      btn.addEventListener("click", () => {
+        goOnboardingStep(i);
+      });
+      dots.appendChild(btn);
+    }
+  }
+  prepareOnboardingStep(step)
+    .then(() => {
+      layoutOnboardingStep();
+      requestAnimationFrame(() => {
+        layoutOnboardingStep();
+        focusOnboardingNext();
+      });
+      syncOnboardingHostFocus();
+    })
+    .catch(() => {
+      layoutOnboardingStep();
+      focusOnboardingNext();
+      syncOnboardingHostFocus();
+    });
+}
+
+function syncOnboardingHostFocus() {
+  const step = ONBOARDING_STEPS[onboardingStep] || {};
+  const common = {
+    tour: true,
+    step: onboardingStep + 1,
+    stepCount: ONBOARDING_STEP_COUNT,
+    hasMore: onboardingStep < ONBOARDING_STEP_COUNT - 1,
+  };
+  if (step.settings) {
+    window.keycode.openSettings?.({
+      page: step.settings.page,
+      highlight: step.settings.highlight,
+      ...common,
+    });
+    // Re-nudge after open in case the first focus event was missed.
+    setTimeout(() => window.keycode.settingsUiReady?.(), 80);
+    return;
+  }
+  window.keycode.settingsFocusClear?.();
+  if (state.targetsWindowOpen) {
+    window.keycode.closeTargets?.();
+  }
+}
+
+function focusOnboardingNext() {
+  const step = ONBOARDING_STEPS[onboardingStep];
+  if (step?.host === "settings") return;
+  const btn = $("onboarding-next");
+  if (!btn || btn.closest?.(".hidden")) return;
+  const aim = () => {
+    try {
+      btn.focus({ preventScroll: true });
+    } catch {
+      try {
+        btn.focus();
+      } catch {
+        /* ignore */
+      }
+    }
+    const r = btn.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      window.keycode.pointerMoveInWindow?.({
+        x: r.left + r.width / 2,
+        y: r.top + r.height / 2,
+      });
+    }
+  };
+  aim();
+  setTimeout(aim, 60);
+  setTimeout(aim, 180);
+}
+
+function goOnboardingStep(i) {
+  onboardingStep = Math.max(0, Math.min(i, ONBOARDING_STEP_COUNT - 1));
+  renderOnboardingStep();
+}
+
+function startOnboarding() {
+  const el = $("onboarding");
+  if (!el) return;
+  onboardingStep = 0;
+  el.classList.remove("hidden", "host-settings", "host-targets");
+  window.keycode.setModalHold?.(true);
+  ensureOnboardingLayoutListeners();
+  renderOnboardingStep();
+  requestAnimationFrame(() => layoutOnboardingStep());
+}
+
 function maybeShowOnboarding() {
   const el = $("onboarding");
   if (!el) return;
@@ -1213,13 +2504,24 @@ function maybeShowOnboarding() {
     el.classList.add("hidden");
     return;
   }
-  el.classList.remove("hidden");
-  window.keycode.setModalHold?.(true);
+  startOnboarding();
+}
+
+function advanceOnboarding() {
+  if (onboardingStep >= ONBOARDING_STEP_COUNT - 1) {
+    dismissOnboarding();
+    return;
+  }
+  onboardingStep += 1;
+  renderOnboardingStep();
 }
 
 async function dismissOnboarding() {
   const el = $("onboarding");
-  if (el) el.classList.add("hidden");
+  if (el) {
+    el.classList.add("hidden");
+    el.classList.remove("host-settings", "host-targets");
+  }
   window.keycode.setModalHold?.(false);
   await window.keycode.dismissFirstRun?.();
   state.settings = { ...state.settings, firstRunDone: true };
@@ -1446,6 +2748,11 @@ function openCardEditor(cardId) {
 
   $("modal-card").classList.remove("hidden");
   window.keycode.setModalHold?.(true);
+  requestAnimationFrame(() => {
+    const promptEl = $("card-prompt");
+    promptEl?.focus({ preventScroll: true });
+    promptEl?.scrollIntoView({ block: "nearest" });
+  });
 }
 
 function closeCardEditor() {
@@ -1551,6 +2858,12 @@ function bindEvents() {
     window.keycode.hideDeck();
   });
 
+  $("btn-corner-help")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideCardPreview();
+    startOnboarding();
+  });
+
   $("btn-corner-settings").addEventListener("click", (e) => {
     e.stopPropagation();
     hideCardPreview();
@@ -1590,10 +2903,22 @@ function bindEvents() {
   });
 
   $("dest-bar")?.addEventListener("click", (e) => {
+    const pruneBtn = e.target.closest?.("#btn-dest-prune");
+    if (pruneBtn) {
+      e.stopPropagation();
+      removeOtherDestinations();
+      return;
+    }
     const toggleBtn = e.target.closest?.("#btn-transcript-toggle");
     if (toggleBtn) {
       e.stopPropagation();
       toggleDeckTranscript();
+      return;
+    }
+    const cardsBtn = e.target.closest?.("#btn-cards-toggle");
+    if (cardsBtn) {
+      e.stopPropagation();
+      toggleDeckCards();
       return;
     }
     const presetBtn = e.target.closest?.("[data-preset]");
@@ -1609,16 +2934,75 @@ function bindEvents() {
     }
   });
 
+  $("btn-new-chat")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideCardPreview();
+    window.keycode.openChatPick();
+  });
+
+  $("btn-deck-manual")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleDeckComposer();
+  });
+
+  $("deck-composer-input")?.addEventListener("input", () => {
+    renderDeckChatControls();
+  });
+  $("deck-composer-input")?.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      sendDeckChatText();
+    }
+  });
+  $("btn-deck-send")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sendDeckChatText();
+  });
+  $("btn-deck-mic")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    startDeckDictation();
+  });
+  $("deck-dictate-auto-send")?.addEventListener("change", async (e) => {
+    e.stopPropagation();
+    state.settings = await window.keycode.saveSettings({
+      deckDictateAutoSend: e.target.checked === true,
+    });
+    renderDeckChatControls();
+  });
+  $("deck-mode")?.addEventListener("change", (e) => {
+    e.stopPropagation();
+    changeDeckChatMode(e.target.value);
+  });
+  window.addEventListener("resize", () => {
+    applyTranscriptHeight(state.settings?.deckTranscriptHeightPx);
+  });
+  $("deck-clarifications")?.addEventListener("click", (e) => {
+    const button = e.target.closest?.(".deck-clarify-option");
+    if (!button) return;
+    e.stopPropagation();
+    answerDeckQuestion(button);
+  });
+
   {
     let resizeStartY = 0;
     let resizeStartH = 0;
     let resizing = false;
+    // Top dock: drag bottom edge down to grow (Windows). Bottom dock: drag top edge up to grow.
+    // Use screenY so bottom-dock window moves don't invert client coordinates mid-drag.
+    const resizeDelta = (screenY) => {
+      const dy = screenY - resizeStartY;
+      return state.dock === "bottom" ? resizeStartH - dy : resizeStartH + dy;
+    };
     const onMove = (e) => {
       if (!resizing) return;
-      const dy = e.clientY - resizeStartY;
-      const next = clampTranscriptHeight(resizeStartH + dy);
+      const next = clampTranscriptHeight(resizeDelta(e.screenY));
       applyTranscriptHeight(next);
       if (state.settings) state.settings.deckTranscriptHeightPx = next;
+      // Keep the Electron window edge glued to the cursor on top/bottom docks.
+      if (state.dock === "top" || state.dock === "bottom") {
+        window.keycode.previewSettings?.({ deckTranscriptHeightPx: next });
+      }
     };
     const onUp = async () => {
       if (!resizing) return;
@@ -1640,7 +3024,7 @@ function bindEvents() {
       const pane = $("deck-transcript");
       if (!pane || pane.classList.contains("hidden")) return;
       resizing = true;
-      resizeStartY = e.clientY;
+      resizeStartY = e.screenY;
       resizeStartH = pane.getBoundingClientRect().height;
       document.body.classList.add("transcript-resizing");
       window.addEventListener("mousemove", onMove);
@@ -1675,7 +3059,8 @@ function bindEvents() {
     toast(window.I18n.t("cards.hiddenBg"), "");
   });
 
-  $("onboarding-ok")?.addEventListener("click", () => dismissOnboarding());
+  $("onboarding-skip")?.addEventListener("click", () => dismissOnboarding());
+  $("onboarding-next")?.addEventListener("click", () => advanceOnboarding());
 
   $("btn-deck-prev")?.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -1695,6 +3080,18 @@ $("card-cancel").addEventListener("click", closeCardEditor);
   $("card-delete").addEventListener("click", deleteEditingCard);
 
   document.addEventListener("keydown", (e) => {
+    if (
+      (e.key === "Enter" || e.key === " ") &&
+      isOnboardingVisible() &&
+      !ONBOARDING_STEPS[onboardingStep]?.host
+    ) {
+      const tag = String(e.target?.tagName || "").toLowerCase();
+      if (tag !== "textarea" && tag !== "input") {
+        e.preventDefault();
+        advanceOnboarding();
+        return;
+      }
+    }
     if (e.key === "Escape") {
       if (!$("modal-card")?.classList.contains("hidden")) {
         closeCardEditor();
@@ -1743,18 +3140,21 @@ $("card-cancel").addEventListener("click", closeCardEditor);
     document.body.classList.remove("concealing", "booting");
     setPreviewAllowed(false);
     startCdpStatusWatch();
+    startPassthroughPoll();
     // Два кадра — окно успевает показаться скрытым, потом плавный выезд
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setRevealed(true);
         const zone = document.querySelector(".cards-zone");
         if (zone) zone.scrollTop = 0;
+        syncMousePassthroughFromCursor();
       });
     });
   });
   window.keycode.onDeckConceal(() => {
     setRevealed(false);
     stopCdpStatusWatch();
+    stopPassthroughPoll();
   });
   window.keycode.onPanelExpanded((data) => {
     applyDockClass(state.dock, state.horizontal, !!data?.expanded);
@@ -1781,19 +3181,41 @@ $("card-cancel").addEventListener("click", closeCardEditor);
   });
   window.keycode.onSettingsClosed(() => {
     state.settingsWindowOpen = false;
-  });
-  window.keycode.onTargetsOpen(() => {
-    state.targetsWindowOpen = true;
-    hideCardPreview();
+    if (isOnboardingVisible() && ONBOARDING_STEPS[onboardingStep]?.host === "settings") {
+      // Stay on this step; user can reopen via Next / re-sync
+      syncOnboardingHostFocus();
+    }
   });
   window.keycode.onTargetsClosed(() => {
     state.targetsWindowOpen = false;
+    if (isOnboardingVisible() && ONBOARDING_STEPS[onboardingStep]?.host === "targets") {
+      syncOnboardingHostFocus();
+    }
+  });
+  window.keycode.onTourHostAdvance?.(() => {
+    advanceOnboarding();
+  });
+  window.keycode.onTourHostSkip?.(() => {
+    dismissOnboarding();
+  });
+  // Back-compat aliases if older preload still fires these names
+  window.keycode.onSettingsTourDone?.(() => advanceOnboarding());
+  window.keycode.onSettingsTourSkip?.(() => dismissOnboarding());
+  window.keycode.onTargetsOpen(() => {
+    state.targetsWindowOpen = true;
+    hideCardPreview();
   });
   window.keycode.onSettingsPreview((partial) => {
     state.settings = { ...state.settings, ...partial };
     applyOpacity(state.settings);
     applyCardFonts(state.settings);
-    if (partial.panelScale != null) applyPanelScale(state.settings);
+    applyChatFonts(state.settings);
+    if (partial.panelScale != null || partial.chatScale != null) {
+      applyPanelScale(state.settings);
+    }
+    if (partial.deckTranscriptHeightPx != null) {
+      applyTranscriptHeight(partial.deckTranscriptHeightPx);
+    }
     if (partial.sideCardLayout != null) {
       applySideLayoutClass();
     }
@@ -1823,8 +3245,9 @@ $("card-cancel").addEventListener("click", closeCardEditor);
 
   window.keycode.onDeckFocusChanged?.((data) => {
     setDeckWindowFocused(!!data?.focused);
-    if (!deckWindowFocused) return;
+    // Always resync hit-test: blur often breaks mouse-forward until next move
     syncMousePassthroughFromCursor().then(() => {
+      if (!deckWindowFocused) return;
       window.keycode.getCursorClient?.().then((p) => {
         if (!p || typeof p.x !== "number" || !deckWindowFocused) return;
         updatePreviewHover(p.x, p.y);
@@ -1836,6 +3259,7 @@ $("card-cancel").addEventListener("click", closeCardEditor);
   window.addEventListener("blur", () => {
     focusCheckGen += 1;
     setDeckWindowFocused(false);
+    syncMousePassthroughFromCursor();
   });
   window.addEventListener("focus", async () => {
     const gen = (focusCheckGen += 1);

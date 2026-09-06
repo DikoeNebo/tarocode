@@ -1,16 +1,29 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
+  const DEFAULT_MODES = [
+    { id: "agent", label: "Agent" },
+    { id: "plan", label: "Plan" },
+    { id: "ask", label: "Ask" },
+    { id: "debug", label: "Debug" },
+  ];
+  const MODE_IDS = new Set(DEFAULT_MODES.map((m) => m.id));
+  const LS_BOTTOM_DOCK_PCT = "keycode.remote.bottomDockPct";
+
   const state = {
     token: "",
     cards: [],
     decks: [],
     deck: null,
     targets: [],
+    projects: [],
     suggestions: [],
     targetId: "",
     busy: false,
     deckBusy: false,
+    sheetOpen: false,
+    sheetTab: "chats",
+    createBusy: false,
     es: null,
     stickBottom: true,
     generating: false,
@@ -78,8 +91,30 @@
       answering: "Answering…",
       answered: "Answered",
       modeFailed: "Could not switch mode",
+      modeNotApplied: "Cursor did not apply the mode — try again",
+      modeNotFound: "That mode is not in Cursor’s menu",
+      modeUiMissing: "Cursor mode menu not found — open a chat composer",
+      modeNeedRebind: "Chat not found — rebind it in Chats",
       modelFailed: "Could not switch model",
+      modelNotApplied: "Cursor did not apply the model — try again",
+      modelNotFound: "That model is not in Cursor’s list",
+      modelUiMissing: "Cursor model picker not found — open a chat",
+      modelNeedRebind: "Chat not found — rebind it in Chats",
       noModel: "Model picker unavailable",
+      chats: "Chats",
+      openChats: "Open chats",
+      newChat: "New chat",
+      noProjects: "No projects found — open a folder in Cursor",
+      creating: "Creating chat…",
+      createFailed: "Could not create chat",
+      created: "Chat created",
+      resizeSplit: "Drag to resize chat and cards",
+      closeSheet: "Close",
+      mode_agent: "Agent",
+      mode_plan: "Plan",
+      mode_ask: "Ask",
+      mode_edit: "Edit",
+      mode_debug: "Debug",
     },
     ru: {
       connected: "Подключено",
@@ -131,8 +166,30 @@
       answering: "Ответ…",
       answered: "Ответ отправлен",
       modeFailed: "Не удалось сменить режим",
+      modeNotApplied: "Cursor не применил режим — попробуйте ещё раз",
+      modeNotFound: "Такого режима нет в меню Cursor",
+      modeUiMissing: "Не найдено меню режима — откройте чат с полем ввода",
+      modeNeedRebind: "Чат не найден — привяжите его заново в Чатах",
       modelFailed: "Не удалось сменить модель",
+      modelNotApplied: "Cursor не применил модель — попробуйте ещё раз",
+      modelNotFound: "Такой модели нет в списке Cursor",
+      modelUiMissing: "Не найден выбор модели — откройте чат с полем ввода",
+      modelNeedRebind: "Чат не найден — привяжите его заново в Чатах",
       noModel: "Выбор модели недоступен",
+      chats: "Чаты",
+      openChats: "Открытые",
+      newChat: "Новый чат",
+      noProjects: "Нет проектов — откройте папку в Cursor",
+      creating: "Создаём чат…",
+      createFailed: "Не удалось создать чат",
+      created: "Чат создан",
+      resizeSplit: "Тяните, чтобы изменить высоту чата и карт",
+      closeSheet: "Закрыть",
+      mode_agent: "Agent",
+      mode_plan: "Plan",
+      mode_ask: "Ask",
+      mode_edit: "Edit",
+      mode_debug: "Debug",
     },
   };
   let audioContext = null;
@@ -147,6 +204,27 @@
       }
     }
     return s;
+  }
+
+  function remoteModeErrorMessage(body) {
+    const code = String(body?.hint || body?.error || "").toLowerCase();
+    if (code === "mode_not_applied") return tr("modeNotApplied");
+    if (code === "mode_not_found") return tr("modeNotFound");
+    if (code === "mode_ui_missing" || code === "composer_ui_missing") {
+      return tr("modeUiMissing");
+    }
+    if (
+      code === "chat_missing" ||
+      code === "chat_not_found" ||
+      code === "rebind" ||
+      /rebind|chat_not_found/i.test(String(body?.error || ""))
+    ) {
+      return tr("modeNeedRebind");
+    }
+    if (body?.error && !/^[a-z_]+$/i.test(String(body.error))) {
+      return String(body.error);
+    }
+    return tr("modeFailed");
   }
 
   function toast(message, type = "") {
@@ -434,7 +512,8 @@
         return;
       }
       applyDeckState(body);
-      $("cards-label").textContent = tr("cards");
+      const cardsDock = $("cards-dock");
+      if (cardsDock) cardsDock.setAttribute("aria-label", tr("cards"));
       applyComposerLabels();
       renderPhaseNext();
     } catch (e) {
@@ -443,6 +522,14 @@
       state.deckBusy = false;
       renderDeckPager();
     }
+  }
+
+  function shortAction(text, maxWords = 2) {
+    const words = String(text || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    return words.slice(0, maxWords).join(" ");
   }
 
   function renderCards() {
@@ -459,6 +546,15 @@
         (rank === 1 ? " suggested-primary" : rank === 2 ? " suggested-secondary" : "");
       btn.disabled = state.busy || !currentTargetId();
       btn.dataset.id = card.id;
+      const action =
+        String(card.title || "").trim() ||
+        shortAction(card.description, 4) ||
+        "Card";
+      const arcana = String(card.arcana || "").trim();
+      btn.setAttribute("aria-label", action + (card.hotkey ? `, ${card.hotkey}` : ""));
+
+      const art = document.createElement("div");
+      art.className = "card-art";
 
       const img = document.createElement("img");
       img.alt = "";
@@ -473,19 +569,68 @@
         img.style.display = "none";
       };
 
-      const title = document.createElement("div");
-      title.className = "title";
-      title.textContent = card.title || "Card";
+      const overlay = document.createElement("div");
+      overlay.className = "card-overlay";
+      const top = document.createElement("div");
+      top.className = "card-overlay-top";
+      if (arcana) {
+        const tarot = document.createElement("div");
+        tarot.className = "card-tarot";
+        tarot.textContent = arcana;
+        top.appendChild(tarot);
+      }
+      const bottom = document.createElement("div");
+      bottom.className = "card-overlay-bottom";
+      const actionEl = document.createElement("div");
+      actionEl.className = "card-action";
+      actionEl.textContent = action;
+      bottom.appendChild(actionEl);
+      overlay.appendChild(top);
+      overlay.appendChild(bottom);
 
-      const desc = document.createElement("div");
-      desc.className = "desc";
-      desc.textContent = card.description || "";
+      art.appendChild(img);
+      art.appendChild(overlay);
+      if (card.hotkey) {
+        const hk = document.createElement("div");
+        hk.className = "card-hotkey";
+        hk.textContent = card.hotkey;
+        art.appendChild(hk);
+      }
 
-      btn.appendChild(img);
-      btn.appendChild(title);
-      if (card.description) btn.appendChild(desc);
+      btn.appendChild(art);
       btn.addEventListener("click", () => onPaste(card.id));
       root.appendChild(btn);
+    }
+  }
+
+  function targetDisplayName(t) {
+    if (!t) return "—";
+    const title = t.name || t.chatTitle || t.id;
+    const win = String(t.windowTitle || "").trim();
+    if (
+      win &&
+      win.length > 2 &&
+      !win.toLowerCase().includes(String(title).toLowerCase())
+    ) {
+      return `${title} · ${win.slice(0, 28)}`;
+    }
+    return title || "—";
+  }
+
+  function updateChatPickLabel() {
+    const nameEl = $("chat-pick-name");
+    const pickBtn = $("btn-chat-pick");
+    if (!nameEl) return;
+    const current = state.targets.find((t) => t.id === state.targetId);
+    const label = current
+      ? targetDisplayName(current)
+      : state.targets.length
+        ? tr("pickChat")
+        : tr("noChats");
+    nameEl.textContent = label;
+    nameEl.title = label;
+    if (pickBtn) {
+      pickBtn.setAttribute("aria-expanded", state.sheetOpen ? "true" : "false");
     }
   }
 
@@ -499,17 +644,14 @@
       opt.textContent = tr("noChats");
       sel.appendChild(opt);
       state.targetId = "";
+      updateChatPickLabel();
+      if (state.sheetOpen) renderSheetBodies();
       return;
     }
     for (const t of state.targets) {
       const opt = document.createElement("option");
       opt.value = t.id;
-      const title = t.name || t.chatTitle || t.id;
-      const win = String(t.windowTitle || "").trim();
-      opt.textContent =
-        win && win.length > 2 && !win.toLowerCase().includes(String(title).toLowerCase())
-          ? `${title} · ${win.slice(0, 28)}`
-          : title;
+      opt.textContent = targetDisplayName(t);
       sel.appendChild(opt);
     }
     if (prev && state.targets.some((t) => t.id === prev)) {
@@ -519,6 +661,22 @@
       sel.value = state.targets[0].id;
       state.targetId = state.targets[0].id;
     }
+    updateChatPickLabel();
+    if (state.sheetOpen) renderSheetBodies();
+  }
+
+  function normalizeModeId(raw) {
+    const s = String(raw || "")
+      .trim()
+      .toLowerCase();
+    if (MODE_IDS.has(s)) return s;
+    if (/^plan\b|план/.test(s) || s.includes("plan")) return "plan";
+    if (/^ask\b|вопрос/.test(s) || s.includes("ask")) return "ask";
+    if (/^debug\b|отлад/.test(s) || s.includes("debug") || s.includes("отлад"))
+      return "debug";
+    if (/^agent\b|агент/.test(s) || s.includes("agent")) return "agent";
+    // Cursor no longer exposes Edit/Manual in the + menu — treat as Agent.
+    return "agent";
   }
 
   function currentTargetId() {
@@ -558,9 +716,7 @@
       mic.setAttribute("aria-label", mic.title);
     }
     const modeEl = $("composer-mode");
-    const modelEl = $("composer-model");
     if (modeEl) modeEl.disabled = lock;
-    if (modelEl) modelEl.disabled = lock || modelEl.options.length <= 1;
   }
 
   function applySubmitButtonLabel() {
@@ -594,6 +750,12 @@
     syncComposer();
   }
 
+  function modeOptionLabel(id) {
+    const key = `mode_${id}`;
+    const translated = tr(key);
+    return translated !== key ? translated : id;
+  }
+
   function renderComposerChrome(composer) {
     if (composer && typeof composer === "object") {
       state.composer = composer;
@@ -602,14 +764,13 @@
     const modeEl = $("composer-mode");
     const modelEl = $("composer-model");
     if (modeEl) {
-      const modes = Array.isArray(c.modes) && c.modes.length
-        ? c.modes
-        : [
-            { id: "agent", label: "Agent" },
-            { id: "plan", label: "Plan" },
-          ];
-      const cur = c.mode === "plan" ? "plan" : "agent";
-      modeEl.innerHTML = modes
+      // Modes Cursor exposes in the + menu (AGENTS.md). Server/CDP may report only current.
+      const list = DEFAULT_MODES.map((m) => ({
+        id: m.id,
+        label: modeOptionLabel(m.id),
+      }));
+      const cur = normalizeModeId(c.mode || c.modeLabel);
+      modeEl.innerHTML = list
         .map(
           (m) =>
             `<option value="${escapeAttr(m.id)}"${m.id === cur ? " selected" : ""}>${escapeHtml(
@@ -617,28 +778,12 @@
             )}</option>`
         )
         .join("");
-      modeEl.value = cur;
+      modeEl.value = MODE_IDS.has(cur) ? cur : "agent";
     }
     if (modelEl) {
-      const models = Array.isArray(c.models) ? c.models : [];
-      const curModel = String(c.modelId || c.modelLabel || "");
-      if (!models.length) {
-        modelEl.innerHTML = `<option value="">${escapeHtml(
-          c.modelLabel || tr("noModel")
-        )}</option>`;
-        modelEl.disabled = true;
-      } else {
-        modelEl.innerHTML = models
-          .map(
-            (m) =>
-              `<option value="${escapeAttr(m.id)}"${
-                m.id === curModel || m.label === curModel ? " selected" : ""
-              }>${escapeHtml(m.label || m.id)}</option>`
-          )
-          .join("");
-        modelEl.disabled = !!state.busy;
-        if (curModel) modelEl.value = curModel;
-      }
+      const label = String(c.modelLabel || c.modelId || "").trim();
+      modelEl.textContent = label || "—";
+      modelEl.title = label || tr("model");
     }
     applySubmitButtonLabel();
     syncComposer();
@@ -887,6 +1032,7 @@
     const { res, body } = await api("/api/chats");
     if (!body?.ok) {
       state.targets = [];
+      state.projects = [];
       renderTargets();
       renderCards();
       syncComposer();
@@ -901,6 +1047,7 @@
       return { ok: false, hint };
     }
     state.targets = body.chats || [];
+    state.projects = Array.isArray(body.projects) ? body.projects : [];
     renderTargets();
     renderCards();
     syncComposer();
@@ -911,6 +1058,286 @@
       );
     }
     return { ok: true };
+  }
+
+  function clampBottomPct(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 42;
+    return Math.min(72, Math.max(22, Math.round(v)));
+  }
+
+  function applyBottomDockPct(pct) {
+    const next = clampBottomPct(pct);
+    document.documentElement.style.setProperty("--bottom-dock-pct", `${next}%`);
+    const split = $("layout-split");
+    if (split) {
+      split.setAttribute("aria-valuenow", String(next));
+      split.title = tr("resizeSplit");
+      split.setAttribute("aria-label", tr("resizeSplit"));
+    }
+    return next;
+  }
+
+  function readBottomDockPct() {
+    try {
+      const v = localStorage.getItem(LS_BOTTOM_DOCK_PCT);
+      if (v != null && v !== "") return clampBottomPct(v);
+    } catch {
+      /* ignore */
+    }
+    return 42;
+  }
+
+  function initLayoutSplit() {
+    applyBottomDockPct(readBottomDockPct());
+    const split = $("layout-split");
+    if (!split) return;
+
+    let dragging = false;
+
+    const onMove = (clientY) => {
+      if (!dragging) return;
+      const body = document.body;
+      const top = body.getBoundingClientRect().top;
+      const h = body.clientHeight || window.innerHeight;
+      if (!(h > 0)) return;
+      const fromBottom = ((h - (clientY - top)) / h) * 100;
+      applyBottomDockPct(fromBottom);
+    };
+
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.classList.remove("split-dragging");
+      try {
+        localStorage.setItem(
+          LS_BOTTOM_DOCK_PCT,
+          String(clampBottomPct(
+            parseFloat(
+              getComputedStyle(document.documentElement)
+                .getPropertyValue("--bottom-dock-pct")
+            ) || 42
+          ))
+        );
+      } catch {
+        /* ignore */
+      }
+    };
+
+    split.addEventListener("pointerdown", (e) => {
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      dragging = true;
+      document.body.classList.add("split-dragging");
+      try {
+        split.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      onMove(e.clientY);
+    });
+    split.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      onMove(e.clientY);
+    });
+    split.addEventListener("pointerup", endDrag);
+    split.addEventListener("pointercancel", endDrag);
+    split.addEventListener("lostpointercapture", endDrag);
+
+    split.addEventListener("keydown", (e) => {
+      const cur = clampBottomPct(
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--bottom-dock-pct"
+          )
+        ) || 42
+      );
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const next = applyBottomDockPct(cur + 3);
+        try {
+          localStorage.setItem(LS_BOTTOM_DOCK_PCT, String(next));
+        } catch {
+          /* ignore */
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = applyBottomDockPct(cur - 3);
+        try {
+          localStorage.setItem(LS_BOTTOM_DOCK_PCT, String(next));
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  }
+
+  function setSheetTab(tab) {
+    state.sheetTab = tab === "new" ? "new" : "chats";
+    const tabChats = $("tab-chats");
+    const tabNew = $("tab-new");
+    const sheetChats = $("sheet-chats");
+    const sheetProjects = $("sheet-projects");
+    const chatsOn = state.sheetTab === "chats";
+    if (tabChats) {
+      tabChats.classList.toggle("active", chatsOn);
+      tabChats.setAttribute("aria-selected", chatsOn ? "true" : "false");
+    }
+    if (tabNew) {
+      tabNew.classList.toggle("active", !chatsOn);
+      tabNew.setAttribute("aria-selected", chatsOn ? "false" : "true");
+    }
+    if (sheetChats) {
+      sheetChats.classList.toggle("hidden", !chatsOn);
+      sheetChats.hidden = !chatsOn;
+    }
+    if (sheetProjects) {
+      sheetProjects.classList.toggle("hidden", chatsOn);
+      sheetProjects.hidden = chatsOn;
+    }
+    renderSheetBodies();
+  }
+
+  function renderSheetBodies() {
+    const sheetChats = $("sheet-chats");
+    const sheetProjects = $("sheet-projects");
+    if (sheetChats) {
+      if (!state.targets.length) {
+        sheetChats.innerHTML = `<p class="sheet-empty">${escapeHtml(tr("noChats"))}</p>`;
+      } else {
+        sheetChats.innerHTML = state.targets
+          .map((t) => {
+            const active = t.id === state.targetId ? " active" : "";
+            const sub = t.projectName
+              ? `<span class="sheet-item-sub">${escapeHtml(t.projectName)}</span>`
+              : "";
+            return `<button type="button" class="sheet-item${active}" data-target-id="${escapeAttr(
+              t.id
+            )}"><span class="sheet-item-title">${escapeHtml(
+              t.chatTitle || t.name || t.id
+            )}</span>${sub}</button>`;
+          })
+          .join("");
+      }
+    }
+    if (sheetProjects) {
+      if (!state.projects.length) {
+        sheetProjects.innerHTML = `<p class="sheet-empty">${escapeHtml(
+          tr("noProjects")
+        )}</p>`;
+      } else {
+        sheetProjects.innerHTML = state.projects
+          .map((p) => {
+            const win = p.windowTitle
+              ? `<span class="sheet-item-sub">${escapeHtml(
+                  String(p.windowTitle).slice(0, 40)
+                )}</span>`
+              : "";
+            return `<button type="button" class="sheet-item sheet-project" data-project="${escapeAttr(
+              p.name
+            )}" data-cdp="${escapeAttr(p.cdpTargetId || "")}"${
+              state.createBusy ? " disabled" : ""
+            }><span class="sheet-item-title">${escapeHtml(
+              p.name
+            )}</span>${win}<span class="sheet-item-action">+</span></button>`;
+          })
+          .join("");
+      }
+    }
+  }
+
+  function openChatSheet(tab) {
+    const sheet = $("chat-sheet");
+    if (!sheet) return;
+    state.sheetOpen = true;
+    sheet.classList.remove("hidden");
+    sheet.hidden = false;
+    setSheetTab(tab || state.sheetTab || "chats");
+    updateChatPickLabel();
+    // Refresh list when opening so phone sees current Cursor chats.
+    loadChats().catch(() => {});
+  }
+
+  function closeChatSheet() {
+    const sheet = $("chat-sheet");
+    if (!sheet) return;
+    state.sheetOpen = false;
+    sheet.classList.add("hidden");
+    sheet.hidden = true;
+    updateChatPickLabel();
+  }
+
+  async function selectTarget(targetId) {
+    const id = String(targetId || "").trim();
+    if (!id || id === state.targetId) {
+      closeChatSheet();
+      return;
+    }
+    state.targetId = id;
+    const sel = $("target-select");
+    if (sel) sel.value = id;
+    state.suggestions = [];
+    renderCards();
+    renderPhaseNext();
+    syncComposer();
+    updateChatPickLabel();
+    closeChatSheet();
+    await loadChat();
+    connectSse();
+  }
+
+  async function createChatInProject(projectName, cdpTargetId) {
+    const name = String(projectName || "").trim();
+    if (!name || state.createBusy) return;
+    state.createBusy = true;
+    renderSheetBodies();
+    setStatus(tr("creating"), "warn");
+    try {
+      const { body } = await api("/api/chats/create", {
+        method: "POST",
+        body: JSON.stringify({
+          projectName: name,
+          cdpTargetId: String(cdpTargetId || "").trim(),
+        }),
+      });
+      if (!body?.ok || !body.chat?.id) {
+        toast(body?.hint || body?.error || tr("createFailed"), "error");
+        setStatus(tr("createFailed"), "err");
+        return;
+      }
+      toast(tr("created"), "ok");
+      await loadChats();
+      await selectTarget(body.chat.id);
+      setStatus(tr("live"), "ok");
+    } catch (e) {
+      toast(String(e.message || e), "error");
+      setStatus(tr("createFailed"), "err");
+    } finally {
+      state.createBusy = false;
+      renderSheetBodies();
+    }
+  }
+
+  function applyRemoteLabels() {
+    $("target-label").textContent = tr("chat");
+    const sheetTitle = $("chat-sheet-title");
+    if (sheetTitle) sheetTitle.textContent = tr("chats");
+    const tabChats = $("tab-chats");
+    const tabNew = $("tab-new");
+    if (tabChats) tabChats.textContent = tr("openChats");
+    if (tabNew) tabNew.textContent = tr("newChat");
+    const btnNew = $("btn-chat-new");
+    if (btnNew) {
+      btnNew.title = tr("newChat");
+      btnNew.setAttribute("aria-label", tr("newChat"));
+    }
+    const closeBtn = $("chat-sheet-close");
+    const backdrop = $("chat-sheet-backdrop");
+    if (closeBtn) closeBtn.setAttribute("aria-label", tr("closeSheet"));
+    if (backdrop) backdrop.setAttribute("aria-label", tr("closeSheet"));
+    const cardsDock = $("cards-dock");
+    if (cardsDock) cardsDock.setAttribute("aria-label", tr("cards"));
+    applyBottomDockPct(readBottomDockPct());
   }
 
   function renderBackendBadge() {
@@ -994,7 +1421,7 @@
         return;
       }
       applyDeckState(body);
-      $("cards-label").textContent = tr("cards");
+      applyRemoteLabels();
       applyComposerLabels();
     } catch (e) {
       toast(String(e.message || e), "error");
@@ -1008,8 +1435,7 @@
     const { body } = await api("/api/state");
     if (!body?.ok) throw new Error(body?.error || "state_failed");
     applyDeckState(body);
-    $("cards-label").textContent = tr("cards");
-    $("target-label").textContent = tr("chat");
+    applyRemoteLabels();
     $("transcript-empty").textContent = tr("emptyChat");
     applyComposerLabels();
     renderSoundToggle();
@@ -1127,7 +1553,7 @@
       setBusy(false);
     } else if (event === "deck") {
       applyDeckState(payload);
-      $("cards-label").textContent = tr("cards");
+      applyRemoteLabels();
       applyComposerLabels();
     }
   }
@@ -1289,14 +1715,30 @@
     });
 
     $("target-select").addEventListener("change", async (e) => {
-      state.targetId = e.target.value || "";
-      state.suggestions = [];
-      renderCards();
-      renderPhaseNext();
-      syncComposer();
-      await loadChat();
-      connectSse();
+      await selectTarget(e.target.value || "");
     });
+
+    $("btn-chat-pick")?.addEventListener("click", () => openChatSheet("chats"));
+    $("btn-chat-new")?.addEventListener("click", () => openChatSheet("new"));
+    $("chat-sheet-close")?.addEventListener("click", () => closeChatSheet());
+    $("chat-sheet-backdrop")?.addEventListener("click", () => closeChatSheet());
+    $("tab-chats")?.addEventListener("click", () => setSheetTab("chats"));
+    $("tab-new")?.addEventListener("click", () => setSheetTab("new"));
+    $("sheet-chats")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-target-id]");
+      if (!btn) return;
+      selectTarget(btn.getAttribute("data-target-id") || "");
+    });
+    $("sheet-projects")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".sheet-project");
+      if (!btn || state.createBusy) return;
+      createChatInProject(
+        btn.getAttribute("data-project") || "",
+        btn.getAttribute("data-cdp") || ""
+      );
+    });
+
+    initLayoutSplit();
 
     $("btn-deck-prev")?.addEventListener("click", () => cycleDeck(-1));
     $("btn-deck-next")?.addEventListener("click", () => cycleDeck(1));
@@ -1346,7 +1788,7 @@
 
     $("composer-mode")?.addEventListener("change", async (e) => {
       const targetId = currentTargetId();
-      const mode = e.target.value === "plan" ? "plan" : "agent";
+      const mode = normalizeModeId(e.target.value);
       if (!targetId || state.busy) return;
       setBusy(true);
       try {
@@ -1355,35 +1797,12 @@
           body: JSON.stringify({ targetId, mode }),
         });
         if (!body?.ok) {
-          toast(body?.error || tr("modeFailed"), "error");
+          toast(remoteModeErrorMessage(body), "error");
           renderComposerChrome(state.composer);
           return;
         }
         if (body.composer) renderComposerChrome(body.composer);
         else renderComposerChrome({ ...(state.composer || {}), mode });
-      } catch (err) {
-        toast(String(err.message || err), "error");
-      } finally {
-        setBusy(false);
-      }
-    });
-
-    $("composer-model")?.addEventListener("change", async (e) => {
-      const targetId = currentTargetId();
-      const model = String(e.target.value || "").trim();
-      if (!targetId || !model || state.busy) return;
-      setBusy(true);
-      try {
-        const { body } = await api("/api/composer/model", {
-          method: "POST",
-          body: JSON.stringify({ targetId, model }),
-        });
-        if (!body?.ok) {
-          toast(body?.hint || body?.error || tr("modelFailed"), "error");
-          renderComposerChrome(state.composer);
-          return;
-        }
-        if (body.composer) renderComposerChrome(body.composer);
       } catch (err) {
         toast(String(err.message || err), "error");
       } finally {

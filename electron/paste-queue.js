@@ -53,6 +53,29 @@ class PasteQueue {
     );
     return run;
   }
+
+  /**
+   * Wait for the current job, then run. Use for mode/model so a list-models
+   * load does not reject the user's next pick.
+   * @template T
+   * @param {() => Promise<T>} fn
+   * @returns {Promise<T>}
+   */
+  enqueueWait(fn) {
+    const run = this._chain.then(async () => {
+      this._busy = true;
+      try {
+        return await fn();
+      } finally {
+        this._busy = false;
+      }
+    });
+    this._chain = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
 }
 
 module.exports = { PasteQueue };
