@@ -18,3 +18,5 @@ gigastt-bin/
 gigastt-models/
 data/locales/**/*-v1.1.json
 *.local.md
+
+dist-out/
