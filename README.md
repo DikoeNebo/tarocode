@@ -1,6 +1,8 @@
-# Keycode — Lazy Coder
+# TaroCode (Prompt Tarot Lazy Code)
 
 Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F8** for hotkeyed cards) pastes a saved prompt into Cursor chats **without stealing focus** — your game or other app stays in front.
+
+Formerly shipped as **Keycode**; GitHub repo stays [`DikoeNebo/keycode`](https://github.com/DikoeNebo/keycode).
 
 ![Deck — Idea check](docs/screenshots/keycode-cycle.png)
 
@@ -19,9 +21,9 @@ Always-on-top **prompt cards** for Windows (up to **9**). One click (or **F1–F
 
 ### Quick start (2 minutes)
 
-1. Download `Keycode-*-portable.exe` from Releases and run it.
+1. Download `Keycode-*-portable.exe` from the v0.5.0 Release (old filename) and run it — or a newer `TaroCode-*` build when published.
 2. Press **F9** (or the eye button) to show the deck.
-3. **◎** or **Settings → Cursor → Always enable (shortcut)** once → close Cursor → open Cursor from the Keycode shortcut (or “Launch Cursor with CDP”).
+3. **◎** or **Settings → Cursor → Always enable (shortcut)** once → close Cursor → open Cursor from the TaroCode / Keycode shortcut (or “Launch Cursor with CDP”).
 4. **💬 Chats → + chat** → pick a Cursor chat (or a chip on the destination bar) → click a card (or F1–F8).
 
 Optional: **Phone remote** on the same Wi‑Fi (Settings → enable → scan QR). Anyone on that Wi‑Fi with the link can control the remote — do not share the secret. Phone remote UI languages: English and Russian (desktop UI has 10 locales).
@@ -37,9 +39,11 @@ Launch posts and demo script: [`docs/LAUNCH.md`](docs/LAUNCH.md). Publish checkl
 
 ---
 
-# Keycode — Lazy Coder (RU)
+# TaroCode (Prompt Tarot Lazy Code) — RU
 
 Прозрачная колода из **до 9 карточек-промптов** поверх всех окон. Клик или **F1–F8** (если у карты есть горячая клавиша) вставляет текст в отмеченные чаты — в том числе в Cursor **без перехвата фокуса** (игра/другое окно остаются активными).
+
+Раньше приложение называлось **Keycode**; репозиторий по-прежнему `DikoeNebo/keycode`.
 
 **Официальные сборки:** только [GitHub Releases](https://github.com/DikoeNebo/keycode/releases) репозитория `DikoeNebo/keycode`. Сверяйте SHA-256 из `SHA256SUMS.txt` (portable: `426c3a65…fba1e`).
 

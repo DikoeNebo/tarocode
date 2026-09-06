@@ -1,8 +1,10 @@
-# AGENTS.md — Lazy Coder (keycode)
+# AGENTS.md — TaroCode (Prompt Tarot Lazy Code)
 
-> **Status:** APPROVED (user: «сделай», 2026-07-09; public-release plan 2026-07-19)
+> **Status:** APPROVED (user: «сделай», 2026-07-09; public-release plan 2026-07-19; display name TaroCode 2026-09-06)
 >
 > Do not implement features not described here without updating this file.
+
+**Product name:** **TaroCode** (Prompt Tarot Lazy Code). GitHub repo / protocol markers stay `keycode` / `KEYCODE_*` for compatibility. Windows builds from v0.5.0 shipped as `TaroCode-*.exe`; newer builds use `productName` **TaroCode**.
 
 ---
 
@@ -22,7 +24,7 @@
 4. Five bundled decks in four phases: Validation → Specification → Work (Hobby + Production) → Release; switch in settings or the deck pager.
 5. Evaluation uses a project quality score 0–10: &lt;7 = redo; 7–10 = acceptable; card «Доведи» loops until score 9–10. Score cards end with `KEYCODE_SCORE: N`. Gate cards may also end with `KEYCODE_GATE: PASS|FAIL` and `KEYCODE_NEXT: deck-id/card-id`. Hints never block paste.
 6. **Public readiness:** clean Windows 10/11 install → within ~2 minutes user adds a target and successfully sends a card; every failure shows a clear next action in the UI.
-7. **Phone remote (opt-in):** mobile web remote for Cursor — list **all open Cursor chats** from CDP (no need to add them in Keycode first), pick one active chat on the phone, read its loaded transcript live, send a deck card to that chat only. **Current access:** same Wi‑Fi (LAN): Keycode binds `0.0.0.0`, phone opens `http://{pc-lan-ip}:{port}/#token=…` with bearer secret. **Later:** Tailscale Serve for away-from-home. Not Funnel / not a cloud account.
+7. **Phone remote (opt-in):** mobile web remote for Cursor — list **all open Cursor chats** from CDP (no need to add them in TaroCode first), pick one active chat on the phone, read its loaded transcript live, send a deck card to that chat only. **Current access:** same Wi‑Fi (LAN): TaroCode binds `0.0.0.0`, phone opens `http://{pc-lan-ip}:{port}/#token=…` with bearer secret. **Later:** Tailscale Serve for away-from-home. Not Funnel / not a cloud account.
 8. **Next-card hints (rules, not AI):** for the selected solo Cursor chat (desktop strip + phone), parse last pasted card + `KEYCODE_SCORE: N` / `KEYCODE_GATE` / `KEYCODE_NEXT`; highlight up to 3 cards in the active deck (1 bright primary + up to 2 dimmer secondary). Cross-deck NEXT is a clickable hint only (no auto-switch, no lock). Frozen while Cursor is generating.
 
 **Out of scope (v1):**
@@ -116,7 +118,7 @@ Edge hover on/off — только в Settings (на полосе карт от�
 - `uia-quiet` — UIA `ValuePattern` write without activating the window (simple apps only). Created by «+ поле» when «Не забирать фокус» is on.
 - `win32-field` / `uia` — legacy focus + Ctrl+V paths; used only when setting «Не забирать фокус» is **off**.
 
-**No-focus mode (default on):** never call `SetForegroundWindow` / SendInput into other apps. Game stays focused. **Cursor path (product):** paste into open IDE chats via local CDP. Cursor must be started with `--remote-debugging-port=9222` bound to `127.0.0.1` (Keycode shortcut preferred). Keycode never kills Cursor. If Cursor is already open without CDP, a centered deck dialog asks the user to close it, then a big button launches Cursor with CDP flags. **Cursor API / SDK:** code kept (`electron/cursor-sdk-client.js`, settings keys, remote branches) but **hidden from UI**; re-enable later with env `KEYCODE_ENABLE_SDK=1` when finishing that path.
+**No-focus mode (default on):** never call `SetForegroundWindow` / SendInput into other apps. Game stays focused. **Cursor path (product):** paste into open IDE chats via local CDP. Cursor must be started with `--remote-debugging-port=9222` bound to `127.0.0.1` (TaroCode shortcut preferred). TaroCode never kills Cursor. If Cursor is already open without CDP, a centered deck dialog asks the user to close it, then a big button launches Cursor with CDP flags. **Cursor API / SDK:** code kept (`electron/cursor-sdk-client.js`, settings keys, remote branches) but **hidden from UI**; re-enable later with env `KEYCODE_ENABLE_SDK=1` when finishing that path.
 
 ### First-run onboarding
 
@@ -143,7 +145,7 @@ Skippable **coach-mark tour** (~11 steps, Skip / Esc anytime): one zone at a tim
 | 9 | Наборы | Save current checkboxes as a named preset (≤4); apply (broadcast + sync checkboxes); rename; delete |
 | 10 | Window chrome | Minimize / maximize / close (OS), resize by edges |
 
-**Flow (no-focus):** bind CDP chats from hierarchical project → chat list (Keycode expands Cursor sidebar sections + “See more” on refresh) → enable or pick a preset / solo chat on the strip → click card → for each resolved CDP target: select chat in DOM → insert text (+ Enter if on). No Alt+Tab.
+**Flow (no-focus):** bind CDP chats from hierarchical project → chat list (TaroCode expands Cursor sidebar sections + “See more” on refresh) → enable or pick a preset / solo chat on the strip → click card → for each resolved CDP target: select chat in DOM → insert text (+ Enter if on). No Alt+Tab.
 
 **New chat from pick:** in the project tree, **+** on a project creates a new Cursor agent/chat in that section via CDP DOM click, saves it to destinations, then opens a task prompt (text + mic STT: GigaAM or Windows Speech, same as deck composer). Enter/Send submits into that chat only (same paste queue as phone free text).
 
@@ -159,7 +161,7 @@ Skippable **coach-mark tour** (~11 steps, Skip / Esc anytime): one zone at a tim
 |------|----------|
 | General | **UI language** (system / 10 locales), **arcana name language** (English default / follow UI / locale), **dictation** (`gigaam` \| `windows`; changing UI language sets default), **silence before auto-stop** (`dictationSilenceSec`, default 3.5), **max dictation length** (`dictationMaxSec`, default 0 = unlimited), pause between targets, Enter, hotkey, **show deck on startup**, **check for updates automatically** (notify and ask before opening GitHub Releases; never download silently), **Не забирать фокус**, data folder, logs folder, manual update check |
 | Appearance | Dock side, **side layout** (table 3×3 default / classic strip), edge hover + **hide delay**, **card size** + **chat controls size** + independent **message font size** and **composer font size**, opacity, card fonts, card preview |
-| Cursor (CDP) | Optional cdpPort; probe debug port; **install permanent Start Menu + Desktop shortcut** with CDP flags (preferred); launch Cursor with CDP after the user closes it (Keycode does not kill Cursor); diagnostics; same dialog on deck (◎), Chats, and chat-pick when CDP is closed |
+| Cursor (CDP) | Optional cdpPort; probe debug port; **install permanent Start Menu + Desktop shortcut** with CDP flags (preferred); launch Cursor with CDP after the user closes it (TaroCode does not kill Cursor); diagnostics; same dialog on deck (◎), Chats, and chat-pick when CDP is closed |
 | Cursor API / SDK (shelved) | Implemented but **not shown** in Settings; future finish: API key, sdkProjects (folder + chats), phone `Project · Chat`. Dev re-enable: `KEYCODE_ENABLE_SDK=1` |
 | Phone | Opt-in LAN server (`0.0.0.0`); show port + LAN IP URL; QR with secret in URL fragment; rotate secret; diagnose; Tailscale Serve UI marked “later” |
 | Decks | Select/rename deck; new / export / import / delete; card list (≤9); card editor (title, description, prompt, tarot image, optional hotkey F1–F8 or empty for click-only; stock defaults empty) |
@@ -178,13 +180,13 @@ Skippable **coach-mark tour** (~11 steps, Skip / Esc anytime): one zone at a tim
 | 1 | Chat select | Button shows the active chat; tap opens a sheet with the live CDP chat list + refresh. **+** creates a new Cursor chat in a chosen project (same CDP path as desktop), then selects it. |
 | 2 | Transcript | Messages loaded in IDE chat; update live (SSE); no forced scroll for older history |
 | 3 | Free text | Type or dictate → Send/Build (label mirrors Cursor) into the active phone-selected chat/agent and always submit. Composer clears after a successful send. No prompt logging. |
-| 3b | Mode / model | Composer toolbar: Agent / Plan / Ask / Debug (whatever Cursor’s mode menu exposes; defaults list these four). Model is read-only (shows Cursor’s current model; switching in Keycode later). |
+| 3b | Mode / model | Composer toolbar: Agent / Plan / Ask / Debug (whatever Cursor’s mode menu exposes; defaults list these four). Model is read-only (shows Cursor’s current model; switching in TaroCode later). |
 | 3c | Plan questions | When Cursor shows clarifying choices, phone shows option chips; tap answers via CDP click. |
 | 4 | Mic (dictation) | Tap mic → on-device speech-to-text into the composer (Web Speech API). Sends as text via the same paste path — not raw audio into Cursor. May be blocked on plain LAN `http://` (not a secure context); keyboard dictation still works. HTTPS/Tailscale later unlocks browser mic more reliably. |
 | 5 | Cards | Tap card → paste into the **active** phone-selected chat/agent and **always submit** (desktop still follows Settings → Enter). Cards show arcana + action labels on the image in **2 rows** with sideways scroll. Primary CTA may read Send or Build. Same next-card glow (`suggestions[]`). |2 from chat SSE). |
 | 6 | Status | Connection / Cursor working / task completed / CDP closed / chat missing / queue busy |
 
-**Access (current):** Keycode binds `0.0.0.0` (reachable on the home LAN). Phone and PC on the same Wi‑Fi. Auth = Keycode bearer secret only (secret in URL `#token=…`, sent as header; never logged). Warn in UI: anyone on that Wi‑Fi with the link can use the remote. **Later:** Tailscale Serve mode (identity header + token). Funnel / open internet remain out of scope.
+**Access (current):** TaroCode binds `0.0.0.0` (reachable on the home LAN). Phone and PC on the same Wi‑Fi. Auth = TaroCode bearer secret only (secret in URL `#token=…`, sent as header; never logged). Warn in UI: anyone on that Wi‑Fi with the link can use the remote. **Later:** Tailscale Serve mode (identity header + token). Funnel / open internet remain out of scope.
 
 **Completion alert (current):** while the phone page is open, a confirmed Cursor transition from generating to idle plays a short local chime, vibrates when supported, and shows a visible completion status. No background push on LAN HTTP; the user can mute the chime on the phone.
 
@@ -220,7 +222,7 @@ New / rename / delete deck; export / import JSON — same as before, now inside 
 | Deck Cursor chat | Solo chat selected on strip | Saved CDP target id | Loaded DOM messages + live poll; plan answers / mode / model label / free text / mic only when manual mode is on; sent only to that chat |
 | Deck manual mode | Small button above cards | — | Shows/hides composer block; cards shift down when open (`deckComposerOpen`) |
 | Next-card hints | Solo CDP chat (deck or phone) | Transcript + active deck prompts | Up to 3 cards highlighted (`rank` 1 primary, 2 secondary); frozen while generating |
-| Phone list chats | Open remote / refresh / chat sheet | CDP probe + listChats | All open Cursor chats (ephemeral ids; not only saved Keycode targets) |
+| Phone list chats | Open remote / refresh / chat sheet | CDP probe + listChats | All open Cursor chats (ephemeral ids; not only saved TaroCode targets) |
 | Phone new chat | + in chat sheet | Project name + Cursor window (CDP) | New chat created via CDP; selected as active phone target |
 | Phone paste | Tap card on remote UI | Card id + phone-selected live chat | Text pasted and submitted to that CDP chat only; same queue |
 | Phone free text | Type + Send on remote | Custom text + phone-selected live chat | Text pasted to that CDP chat only; same queue; text never logged; composer clears on success |
@@ -294,7 +296,7 @@ or `FAIL` plus a known stock `deck-id/card-id`. Unknown NEXT ids are ignored. `F
 | Stack | Electron + vanilla HTML/CSS/JS |
 | No-focus paste | CDP DOM inject for Cursor; UIA ValuePattern when possible; never steal focus when `preserveFocus` |
 | Focus paste (opt-in) | Clipboard + Win32/UIA + Ctrl+V |
-| Cursor background | Permanent Keycode shortcut (CDP flags) + `--remote-debugging-port=9222` + `--remote-debugging-address=127.0.0.1` + `electron/cdp-client.js`; user closes Cursor, then launches it with CDP — Keycode does not kill Cursor |
+| Cursor background | Permanent TaroCode shortcut (CDP flags) + `--remote-debugging-port=9222` + `--remote-debugging-address=127.0.0.1` + `electron/cdp-client.js`; user closes Cursor, then launches it with CDP — TaroCode does not kill Cursor |
 | Cursor SDK (shelved, future) | `@cursor/sdk` via `electron/cursor-sdk-client.js`; hidden unless `KEYCODE_ENABLE_SDK=1`; not product path |
 | Phone remote | `electron/remote-server.js` bind `0.0.0.0` (LAN); static `src/remote/`; bearer token; live CDP chat list + transcript + composer bar + single-active-chat paste; chat SSE carries rule-based `suggestions[]`; Tailscale mode later |
 | Next-card rules | `electron/card-suggestions.js` | Parse last pasted card + `KEYCODE_SCORE` / `KEYCODE_GATE` / `KEYCODE_NEXT` / test outcome; stock catalog only; no models |

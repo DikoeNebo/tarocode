@@ -1,4 +1,4 @@
-# Keycode v0.5.0 launch kit
+# TaroCode v0.5.0 launch kit
 
 Ready-to-copy community posts. Full release text: [`RELEASE-NOTES-v0.5.0.md`](RELEASE-NOTES-v0.5.0.md).  
 Release page: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
@@ -30,13 +30,13 @@ Still only you can do:
 
 **Title:**
 
-> Keycode: open-source prompt deck and phone remote for Cursor
+> TaroCode: open-source prompt deck and phone remote for Cursor
 
 **Post:**
 
 I kept repeating the same actions in Cursor: explain the idea, ask for a plan, review the result, run tests, fix problems, and prepare a release. The prompts were useful, but finding and retyping them broke the flow.
 
-So I built **Keycode**, an open-source Windows companion for Cursor. It puts up to nine prompt cards in a small always-on-top deck. Choose a chat and click a card; Keycode sends the prompt without taking focus away from the window you are currently using.
+So I built **TaroCode** (Prompt Tarot Lazy Code), an open-source Windows companion for Cursor. It puts up to nine prompt cards in a small always-on-top deck. Choose a chat and click a card; Keycode sends the prompt without taking focus away from the window you are currently using.
 
 ![Keycode prompt deck](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-cycle.png)
 
@@ -44,7 +44,7 @@ The part I use most is the **phone remote**. When the PC and phone are on the sa
 
 ![Deck and prompt editor](https://raw.githubusercontent.com/DikoeNebo/keycode/v0.5.0/docs/screenshots/keycode-decks.png)
 
-Keycode v0.5.0 includes:
+TaroCode v0.5.0 includes:
 
 - a deliberately simple interface for “lazy coding” workflows;
 - five ready-made prompt decks for idea validation, specification, hobby or production work, and release;
@@ -66,11 +66,11 @@ I am also looking for work in vibe coding and automation. If you are building AI
 
 **Title:**
 
-> I built an open-source phone remote and prompt deck for Cursor
+> I built TaroCode — an open-source phone remote and prompt deck for Cursor
 
 **Text:**
 
-Keycode turns recurring Cursor workflows into an always-on-top deck of prompt cards: validate an idea, write a spec, build, test, fix, and prepare a release without searching for the same prompts again.
+TaroCode turns recurring Cursor workflows into an always-on-top deck of prompt cards: validate an idea, write a spec, build, test, fix, and prepare a release without searching for the same prompts again.
 
 It can control any open Cursor chat from a phone on the same Wi‑Fi, send prompts without stealing desktop focus, and dictate tasks through its own GigaAM/Windows Speech path. Windows, MIT licensed, first public preview.
 
@@ -82,11 +82,11 @@ I am open to work in vibe coding and automation: https://github.com/DikoeNebo
 
 **Заголовок:**
 
-> Сделал опенсорс-пульт с телефона и колоду готовых промптов для Cursor
+> Сделал TaroCode — опенсорс-пульт с телефона и колоду готовых промптов для Cursor
 
 **Текст:**
 
-Keycode превращает повторяющуюся работу с Cursor в небольшую колоду поверх окон: проверка идеи, спецификация, работа, тесты, исправления и релиз — без постоянного поиска одних и тех же промптов.
+TaroCode превращает повторяющуюся работу с Cursor в небольшую колоду поверх окон: проверка идеи, спецификация, работа, тесты, исправления и релиз — без постоянного поиска одних и тех же промптов.
 
 Приложение позволяет управлять любым открытым чатом Cursor с телефона в одной Wi‑Fi-сети, отправляет промпты без перехвата фокуса на компьютере и умеет надиктовывать задачи через собственный маршрут GigaAM/Windows Speech. Windows, лицензия MIT, первая публичная preview-версия.
 
@@ -98,7 +98,7 @@ Keycode превращает повторяющуюся работу с Cursor �
 
 Я заметил, что при работе с Cursor повторяю не только одни и те же промпты, но и целые цепочки: сначала проверить идею, затем сформулировать требования, попросить план, проконтролировать реализацию, тесты и релиз. Сами модели ускоряют написание кода, но управление этим процессом быстро превращается в отдельную рутину.
 
-Поэтому я сделал Keycode — открытое Windows-приложение с колодой готовых промптов, отдельной диктовкой и локальным пультом для Cursor с телефона. В статье разберу, какую проблему оно решает, почему для управления выбран локальный CDP, как устроена безопасность пульта в домашней сети и где первая preview-версия пока ограничена.
+Поэтому я сделал TaroCode (Prompt Tarot Lazy Code) — открытое Windows-приложение с колодой готовых промптов, отдельной диктовкой и локальным пультом для Cursor с телефона. В статье разберу, какую проблему оно решает, почему для управления выбран локальный CDP, как устроена безопасность пульта в домашней сети и где первая preview-версия пока ограничена.
 
 Ссылка на релиз: https://github.com/DikoeNebo/keycode/releases/tag/v0.5.0
 
