@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test test/**/*.test.js",
+    "test": "node --test test/*.test.js",
     "check": "node scripts/check-release-assets.js",
     "prebuild": "npm run check && npm test",
     "build": "electron-builder --win portable",
